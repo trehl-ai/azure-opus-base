@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 export default function Deals() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: users } = useUsers();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState("all");
