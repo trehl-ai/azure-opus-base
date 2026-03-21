@@ -22,7 +22,7 @@ export function useDashboardProjects() {
   return useQuery({
     queryKey: queryKeys.dashboard.projects,
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("id, title, status");
+      const { data, error } = await supabase.from("projects").select("id, title, status").is("deleted_at", null);
       if (error) throw error;
       return data;
     },
