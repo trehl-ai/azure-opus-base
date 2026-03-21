@@ -64,6 +64,8 @@ export default function CompanyDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [linkContactOpen, setLinkContactOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteCompanies = canWrite("companies");
 
   // Company
   const { data: company, isLoading } = useQuery({
