@@ -94,7 +94,7 @@ export default function Projects() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  const handleDragStart = useCallback((e: React.DragEvent, id: string) => { e.dataTransfer.setData("projectId", id); }, []);
+  const handleDragStart = useCallback((e: React.DragEvent, id: string) => { if (!canWriteProjects) { e.preventDefault(); return; } e.dataTransfer.setData("projectId", id); }, [canWriteProjects]);
   const handleDrop = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     const projectId = e.dataTransfer.getData("projectId");
