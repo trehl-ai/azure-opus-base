@@ -59,7 +59,7 @@ const App = () => (
             <Route path="/tasks" element={<ProtectedPage><Tasks /></ProtectedPage>} />
             <Route path="/import" element={<ProtectedPage><Import /></ProtectedPage>} />
             <Route path="/intake" element={<ProtectedPage><Intake /></ProtectedPage>} />
-            <Route path="/settings" element={<ProtectedPage><SettingsPage /></ProtectedPage>} />
+            <Route path="/settings/*" element={<ProtectedPage><SettingsPage /></ProtectedPage>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
