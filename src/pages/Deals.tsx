@@ -158,9 +158,11 @@ export default function Deals() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-section-title text-foreground">Deals</h1>
-        <Button onClick={() => setSheetOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Neuer Deal
-        </Button>
+        {canWriteDeals && (
+          <Button onClick={() => setSheetOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Neuer Deal
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
