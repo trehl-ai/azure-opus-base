@@ -131,8 +131,36 @@ export default function EmailAccountsSettings() {
     }
   };
 
-  const handleConnectOutlook = () => {
-    toast.info("Outlook-Anbindung wird in Kürze verfügbar sein.");
+  const handleConnectOutlook = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("start-outlook-oauth");
+
+      if (error) {
+        toast.error("Fehler beim Starten der Outlook-Verbindung.");
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.details || data.error);
+        return;
+      }
+
+      if (data?.auth_url) {
+        const popup = window.open(data.auth_url, "outlook-oauth", "width=600,height=700,popup=yes");
+
+        const handler = (event: MessageEvent) => {
+          if (event.data?.type === "outlook-oauth-success") {
+            window.removeEventListener("message", handler);
+            queryClient.invalidateQueries({ queryKey: ["email-accounts"] });
+            toast.success("Outlook-Konto erfolgreich verbunden!");
+            popup?.close();
+          }
+        };
+        window.addEventListener("message", handler);
+      }
+    } catch {
+      toast.error("Fehler beim Starten der Outlook-Verbindung.");
+    }
   };
 
   const disconnectAccount = accounts.find((a) => a.id === disconnectId);
