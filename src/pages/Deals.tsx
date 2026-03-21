@@ -160,7 +160,10 @@ export default function Deals() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-section-title text-foreground">Deals</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-section-title text-foreground">Deals</h1>
+          <PresenceAvatars users={onlineUsers} />
+        </div>
         {canWriteDeals && (
           <Button onClick={() => setSheetOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Neuer Deal
