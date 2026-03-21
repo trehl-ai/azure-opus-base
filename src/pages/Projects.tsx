@@ -54,6 +54,7 @@ export default function Projects() {
       let q = supabase
         .from("projects")
         .select("*, company:companies(name), owner:users!projects_owner_user_id_fkey(first_name, last_name)")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;

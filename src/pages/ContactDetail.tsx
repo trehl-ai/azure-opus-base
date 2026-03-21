@@ -71,9 +71,10 @@ export default function ContactDetail() {
     enabled: !!id,
   });
 
+  // Soft-delete
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("contacts").delete().eq("id", id!);
+      const { error } = await supabase.from("contacts").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {

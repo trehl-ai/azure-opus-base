@@ -126,10 +126,10 @@ export default function CompanyDetail() {
     enabled: !!id,
   });
 
-  // Delete
+  // Soft-delete
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("companies").delete().eq("id", id!);
+      const { error } = await supabase.from("companies").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
