@@ -27,6 +27,8 @@ export default function ContactDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [linkCompanyOpen, setLinkCompanyOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteContacts = canWrite("contacts");
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
