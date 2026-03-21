@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      campaigns: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          provider: string
+          sender_account_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          provider?: string
+          sender_account_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          provider?: string
+          sender_account_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_sender_account_id_fkey"
+            columns: ["sender_account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           city: string | null
@@ -413,6 +461,140 @@ export type Database = {
             columns: ["primary_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_accounts: {
+        Row: {
+          access_token_encrypted: string | null
+          created_at: string
+          display_name: string | null
+          email_address: string
+          id: string
+          is_default: boolean
+          metadata_json: Json | null
+          provider: string
+          refresh_token_encrypted: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          display_name?: string | null
+          email_address: string
+          id?: string
+          is_default?: boolean
+          metadata_json?: Json | null
+          provider: string
+          refresh_token_encrypted?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          display_name?: string | null
+          email_address?: string
+          id?: string
+          is_default?: boolean
+          metadata_json?: Json | null
+          provider?: string
+          refresh_token_encrypted?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_messages: {
+        Row: {
+          account_id: string | null
+          bcc_email: string[] | null
+          body_html: string | null
+          body_text: string | null
+          cc_email: string[] | null
+          created_at: string
+          direction: string
+          error_message: string | null
+          external_message_id: string | null
+          external_thread_id: string | null
+          from_email: string
+          id: string
+          provider: string
+          sent_at: string | null
+          status: string
+          subject: string | null
+          to_email: string[]
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          bcc_email?: string[] | null
+          body_html?: string | null
+          body_text?: string | null
+          cc_email?: string[] | null
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          external_thread_id?: string | null
+          from_email: string
+          id?: string
+          provider: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          to_email?: string[]
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          bcc_email?: string[] | null
+          body_html?: string | null
+          body_text?: string | null
+          cc_email?: string[] | null
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          external_thread_id?: string | null
+          from_email?: string
+          id?: string
+          provider?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          to_email?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_messages_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
