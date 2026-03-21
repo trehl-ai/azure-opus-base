@@ -71,7 +71,8 @@ export default function Deals() {
       let q = supabase
         .from("deals")
         .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
-        .eq("pipeline_id", activePipelineId);
+        .eq("pipeline_id", activePipelineId)
+        .is("deleted_at", null);
 
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
       if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
