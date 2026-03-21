@@ -262,7 +262,7 @@ export default function Import() {
         const msg = err instanceof Error ? err.message : "Unbekannter Fehler";
         await supabase.from("import_rows").insert({
           import_job_id: jobId!, row_number: i + 1,
-          mapped_payload_json: mapped as unknown as Record<string, unknown>,
+          mapped_payload_json: mapped as unknown as Json,
           status: "failed", error_message: msg,
           created_entity_type: importType === "companies" ? "company" : "contact",
         });
