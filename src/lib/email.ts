@@ -48,7 +48,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     case "gmail":
       return sendViaGmail(params);
     case "outlook":
-      throw new Error("Outlook-Versand ist noch nicht implementiert.");
+      return sendViaOutlook(params);
     default:
       throw new Error(`Unbekannter Provider: ${provider}`);
   }
