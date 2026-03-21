@@ -47,6 +47,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<ProtectedPage><Dashboard /></ProtectedPage>} />
             <Route path="/contacts" element={<ProtectedPage><Contacts /></ProtectedPage>} />
+            <Route path="/contacts/:id" element={<ProtectedPage><ContactDetail /></ProtectedPage>} />
             <Route path="/companies" element={<ProtectedPage><Companies /></ProtectedPage>} />
             <Route path="/companies/:id" element={<ProtectedPage><CompanyDetail /></ProtectedPage>} />
             <Route path="/deals" element={<ProtectedPage><Deals /></ProtectedPage>} />
