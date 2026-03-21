@@ -10,7 +10,8 @@ export function useDashboardDeals() {
       const { data, error } = await supabase
         .from("deals")
         .select("id, title, status, value_amount, won_at, pipeline_stage_id, company_id, pipeline_id, companies:companies!deals_company_id_fkey(name), stage:pipeline_stages!deals_pipeline_stage_id_fkey(name, position)")
-        .in("status", ["open", "won"]);
+        .in("status", ["open", "won"])
+        .is("deleted_at", null);
       if (error) throw error;
       return data;
     },
