@@ -28,6 +28,7 @@ export default function Deals() {
   const { canWrite, role } = usePermission();
   const canWriteDeals = canWrite("deals");
   const showOwnerToggle = role === "sales";
+  const onlineUsers = usePresence("/deals");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
   const [showAll, setShowAll] = useState(!showOwnerToggle);
