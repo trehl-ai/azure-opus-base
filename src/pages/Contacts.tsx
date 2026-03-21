@@ -22,6 +22,8 @@ const statusFilterOptions = [
 
 export default function Contacts() {
   const navigate = useNavigate();
+  const { canWrite } = usePermission();
+  const canWriteContacts = canWrite("contacts");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
