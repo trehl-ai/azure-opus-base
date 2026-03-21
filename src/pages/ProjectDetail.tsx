@@ -214,9 +214,11 @@ export default function ProjectDetail() {
 
         {/* Tasks Kanban */}
         <TabsContent value="tasks" className="space-y-4 mt-4">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setTaskDialogOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Task</Button>
-          </div>
+          {canWriteTasks && (
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setTaskDialogOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Task</Button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <div className="flex gap-4 min-w-max pb-4">
               {taskStatuses.map((status) => {

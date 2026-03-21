@@ -98,7 +98,7 @@ export default function Tasks() {
     });
   }, [tasks, filterProject, filterStatus, filterUser, filterPriority, filterDue]);
 
-  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { e.dataTransfer.setData("taskId", taskId); }, []);
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { if (!canWriteTasks) { e.preventDefault(); return; } e.dataTransfer.setData("taskId", taskId); }, [canWriteTasks]);
   const handleDrop = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
