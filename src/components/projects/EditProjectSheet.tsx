@@ -61,8 +61,9 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
       });
       setStartDate(project.start_date ? new Date(project.start_date) : undefined);
       setEndDate(project.end_date ? new Date(project.end_date) : undefined);
+      captureTimestamp();
     }
-  }, [open, project]);
+  }, [open, project, captureTimestamp]);
 
   const u = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
