@@ -164,6 +164,11 @@ export default function Projects() {
             <SelectItem value="high">High</SelectItem>
           </SelectContent>
         </Select>
+        {showOwnerToggle && (
+          <Button variant={showAll ? "secondary" : "outline"} size="sm" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
+            {showAll ? "Alle Projekte" : "Meine Projekte"}
+          </Button>
+        )}
       </div>
 
       {view === "board" && (
