@@ -76,10 +76,12 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Insert email_messages record with status 'queued'
+    // account_id is null for platform/system emails (Resend is not a personal account)
     const { data: messageRow, error: insertError } = await supabaseAdmin
       .from("email_messages")
       .insert({
         user_id: userId,
+        account_id: null,
         provider: "resend",
         from_email: fromAddress,
         to_email: body.to,
@@ -95,9 +97,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error("Failed to insert email_messages record:", insertError);
+      console.error("Failed to insert email_messages record:", insertError.code);
       return new Response(
-        JSON.stringify({ error: "Failed to log email", details: insertError.message }),
+        JSON.stringify({ error: "E-Mail konnte nicht protokolliert werden." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -128,19 +130,18 @@ Deno.serve(async (req) => {
     const resendData = await resendResponse.json();
 
     if (!resendResponse.ok) {
-      console.error("Resend API error:", resendData);
-      // Update message status to failed
+      console.error("Resend API error:", resendData.statusCode || resendResponse.status);
       await supabaseAdmin
         .from("email_messages")
         .update({
           status: "failed",
-          error_message: JSON.stringify(resendData),
+          error_message: String(resendData.message || resendData.name || "Resend-Fehler").slice(0, 500),
         })
         .eq("id", messageId);
 
       return new Response(
-        JSON.stringify({ error: "Failed to send email", details: resendData }),
-        { status: resendResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "E-Mail-Versand fehlgeschlagen." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -159,12 +160,9 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in send-email-via-resend:", error);
+    console.error("Error in send-email-via-resend:", error instanceof Error ? error.message : "unknown");
     return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      }),
+      JSON.stringify({ error: "Interner Serverfehler." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -22,9 +22,11 @@ const providerMeta: Record<string, { label: string; color: string; icon: typeof 
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Aktiv", variant: "default" },
-  inactive: { label: "Inaktiv", variant: "secondary" },
-  error: { label: "Fehler", variant: "destructive" },
   pending: { label: "Ausstehend", variant: "outline" },
+  error: { label: "Fehler", variant: "destructive" },
+  token_expired: { label: "Token abgelaufen", variant: "destructive" },
+  disconnected: { label: "Getrennt", variant: "secondary" },
+  inactive: { label: "Inaktiv", variant: "secondary" },
 };
 
 export default function EmailAccountsSettings() {
