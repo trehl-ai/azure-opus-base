@@ -111,29 +111,29 @@ export default function DealDetail() {
     enabled: !!id,
   });
 
-  // Delete
+  // Soft-delete
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("deals").delete().eq("id", id!);
+      const { error } = await supabase.from("deals").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => { toast({ title: "Deal gelöscht" }); navigate("/deals"); },
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  // Won
+  // Won via atomic RPC
   const wonMutation = useMutation({
     mutationFn: async () => {
-      const wonStage = stages?.find((s) => s.is_won_stage);
-      const { error } = await supabase.from("deals").update({
-        status: "won", won_at: new Date().toISOString(),
-        ...(wonStage ? { pipeline_stage_id: wonStage.id } : {}),
-      }).eq("id", id!);
+      const { data: projectId, error } = await supabase.rpc("set_deal_won_and_create_project", {
+        p_deal_id: id!,
+        p_winning_user_id: user?.id ?? "",
+      });
       if (error) throw error;
-      // Wait for trigger, then fetch project
-      await new Promise((r) => setTimeout(r, 500));
-      const { data: project } = await supabase.from("projects").select("id, title").eq("originating_deal_id", id!).maybeSingle();
-      return project;
+      if (projectId) {
+        const { data: project } = await supabase.from("projects").select("id, title").eq("id", projectId).maybeSingle();
+        return project;
+      }
+      return null;
     },
     onSuccess: (project) => {
       qc.invalidateQueries({ queryKey: ["deal", id] });
