@@ -22,8 +22,13 @@ export default function Deals() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: users } = useUsers();
+  const { user } = useAuth();
+  const { canWrite, role } = usePermission();
+  const canWriteDeals = canWrite("deals");
+  const showOwnerToggle = role === "sales";
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
+  const [showAll, setShowAll] = useState(!showOwnerToggle);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
 
