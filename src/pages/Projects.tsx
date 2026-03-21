@@ -126,47 +126,47 @@ export default function Projects() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-[28px] font-semibold text-foreground">Projects</h1>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border overflow-hidden">
-            <button onClick={() => setView("board")} className={cn("px-3 py-1.5 text-sm", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
+            <button onClick={() => setView("board")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
               <LayoutGrid className="h-4 w-4" />
             </button>
-            <button onClick={() => setView("list")} className={cn("px-3 py-1.5 text-sm", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
+            <button onClick={() => setView("list")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
               <List className="h-4 w-4" />
             </button>
           </div>
-          {canWriteProjects && <Button onClick={() => setSheetOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Neues Projekt</Button>}
+          {canWriteProjects && <Button onClick={() => setSheetOpen(true)} className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Neues Projekt</Button>}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-5">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Status</SelectItem>
-            {statuses.map((s) => <SelectItem key={s} value={s}>{statusLabel[s]}</SelectItem>)}
+            <SelectItem value="all" className="min-h-[44px]">Alle Status</SelectItem>
+            {statuses.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{statusLabel[s]}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Owner</SelectItem>
-            {users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}
+            <SelectItem value="all" className="min-h-[44px]">Alle Owner</SelectItem>
+            {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Alle Prio" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] min-h-[44px]"><SelectValue placeholder="Alle Prio" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Prioritäten</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="all" className="min-h-[44px]">Alle Prioritäten</SelectItem>
+            <SelectItem value="low" className="min-h-[44px]">Low</SelectItem>
+            <SelectItem value="medium" className="min-h-[44px]">Medium</SelectItem>
+            <SelectItem value="high" className="min-h-[44px]">High</SelectItem>
           </SelectContent>
         </Select>
         {showOwnerToggle && (
-          <Button variant={showAll ? "secondary" : "outline"} size="sm" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
+          <Button variant={showAll ? "secondary" : "outline"} size="sm" className="min-h-[44px]" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
             {showAll ? "Alle Projekte" : "Meine Projekte"}
           </Button>
         )}

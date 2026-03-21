@@ -65,12 +65,12 @@ export default function Companies() {
     });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-section-title text-foreground">Companies</h1>
         {canWriteCompanies && (
-          <Button onClick={() => setSheetOpen(true)} className="gap-2">
+          <Button onClick={() => setSheetOpen(true)} className="gap-2 w-full sm:w-auto min-h-[44px]">
             <Plus className="h-4 w-4" />
             Neue Company
           </Button>
@@ -78,53 +78,30 @@ export default function Companies() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px] max-w-sm">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+        <div className="relative flex-1 min-w-0 sm:min-w-[220px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Suche nach Firmenname..."
-            className="pl-10 rounded-full"
+            className="pl-10 rounded-full min-h-[44px]"
           />
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             {statusFilterOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
+              <SelectItem key={o.value} value={o.value} className="min-h-[44px]">{o.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Select
-          value={ownerFilter}
-          onValueChange={(v) => {
-            setOwnerFilter(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Alle Owner" />
-          </SelectTrigger>
+        <Select value={ownerFilter} onValueChange={(v) => { setOwnerFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Owner</SelectItem>
+            <SelectItem value="all" className="min-h-[44px]">Alle Owner</SelectItem>
             {users?.map((u) => (
-              <SelectItem key={u.id} value={u.id}>
-                {u.first_name} {u.last_name}
-              </SelectItem>
+              <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

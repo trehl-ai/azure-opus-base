@@ -122,56 +122,56 @@ export default function Tasks() {
   const isOverdue = (due: string | null) => due && isBefore(new Date(due), startOfDay(new Date()));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-[28px] font-semibold text-foreground">Tasks</h1>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border overflow-hidden">
-            <button onClick={() => setView("board")} className={cn("px-3 py-1.5 text-sm", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><LayoutGrid className="h-4 w-4" /></button>
-            <button onClick={() => setView("list")} className={cn("px-3 py-1.5 text-sm", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><List className="h-4 w-4" /></button>
+            <button onClick={() => setView("board")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><LayoutGrid className="h-4 w-4" /></button>
+            <button onClick={() => setView("list")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><List className="h-4 w-4" /></button>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
         <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-[180px] bg-card"><SelectValue placeholder="Projekt" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Projekt" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Projekte</SelectItem>
-            {projects?.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+            <SelectItem value="all" className="min-h-[44px]">Alle Projekte</SelectItem>
+            {projects?.map((p) => <SelectItem key={p.id} value={p.id} className="min-h-[44px]">{p.title}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[150px] bg-card"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[150px] min-h-[44px] bg-card"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Status</SelectItem>
-            {taskStatuses.map((s) => <SelectItem key={s} value={s}>{taskStatusLabel[s]}</SelectItem>)}
+            <SelectItem value="all" className="min-h-[44px]">Alle Status</SelectItem>
+            {taskStatuses.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{taskStatusLabel[s]}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterUser} onValueChange={setFilterUser}>
-          <SelectTrigger className="w-[180px] bg-card"><SelectValue placeholder="Verantwortlich" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Verantwortlich" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle</SelectItem>
-            {users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}
+            <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
+            {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="w-[140px] bg-card"><SelectValue placeholder="Priorität" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] min-h-[44px] bg-card"><SelectValue placeholder="Priorität" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
+            <SelectItem value="low" className="min-h-[44px]">Low</SelectItem>
+            <SelectItem value="medium" className="min-h-[44px]">Medium</SelectItem>
+            <SelectItem value="high" className="min-h-[44px]">High</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterDue} onValueChange={setFilterDue}>
-          <SelectTrigger className="w-[160px] bg-card"><SelectValue placeholder="Fälligkeit" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[160px] min-h-[44px] bg-card col-span-2 sm:col-span-1"><SelectValue placeholder="Fälligkeit" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle</SelectItem>
-            <SelectItem value="overdue">Überfällig</SelectItem>
-            <SelectItem value="this_week">Diese Woche</SelectItem>
-            <SelectItem value="next_week">Nächste Woche</SelectItem>
+            <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
+            <SelectItem value="overdue" className="min-h-[44px]">Überfällig</SelectItem>
+            <SelectItem value="this_week" className="min-h-[44px]">Diese Woche</SelectItem>
+            <SelectItem value="next_week" className="min-h-[44px]">Nächste Woche</SelectItem>
           </SelectContent>
         </Select>
       </div>
