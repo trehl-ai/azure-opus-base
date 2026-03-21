@@ -1,22 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { encode as base64Encode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
+import { encryptToken } from "../_shared/token-crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-// Simple XOR-based encryption (will be replaced with AES when crypto lib is added)
-function encryptToken(token: string, key: string): string {
-  const tokenBytes = new TextEncoder().encode(token);
-  const keyBytes = new TextEncoder().encode(key);
-  const encrypted = new Uint8Array(tokenBytes.length);
-  for (let i = 0; i < tokenBytes.length; i++) {
-    encrypted[i] = tokenBytes[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return base64Encode(encrypted);
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,9 +25,10 @@ Deno.serve(async (req) => {
     ];
 
     if (missingSecrets.length > 0) {
+      console.error("Missing secrets for google-oauth-callback:", missingSecrets.join(", "));
       return htmlResponse(
         "Konfiguration unvollständig",
-        `Die folgenden Secrets müssen gesetzt werden: ${missingSecrets.join(", ")}. Bitte wende dich an deinen Administrator.`,
+        "Die Google-Integration ist noch nicht vollständig konfiguriert. Bitte wende dich an deinen Administrator.",
         503
       );
     }
@@ -47,14 +37,18 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
-    const error = url.searchParams.get("error");
+    const oauthError = url.searchParams.get("error");
 
-    if (error) {
-      return htmlResponse("Verbindung abgelehnt", `Google hat die Verbindung abgelehnt: ${error}`);
+    if (oauthError) {
+      console.error("Google OAuth denied:", oauthError);
+      return htmlResponse(
+        "Verbindung abgelehnt",
+        "Google hat die Verbindung abgelehnt. Bitte versuche es erneut."
+      );
     }
 
     if (!code || !stateParam) {
-      return htmlResponse("Ungültige Anfrage", "Fehlende Parameter (code oder state).", 400);
+      return htmlResponse("Ungültige Anfrage", "Fehlende OAuth-Parameter.", 400);
     }
 
     // Decode state
@@ -62,101 +56,132 @@ Deno.serve(async (req) => {
     try {
       state = JSON.parse(atob(stateParam));
     } catch {
-      return htmlResponse("Ungültiger State-Parameter", "Der OAuth-State konnte nicht gelesen werden.", 400);
+      return htmlResponse("Ungültiger Aufruf", "Der OAuth-State konnte nicht gelesen werden.", 400);
     }
 
     const userId = state.user_id;
     if (!userId) {
-      return htmlResponse("Fehlender Benutzer", "Kein user_id im State gefunden.", 400);
+      return htmlResponse("Ungültiger Aufruf", "Kein Benutzer im OAuth-State gefunden.", 400);
     }
 
     // --- Exchange code for tokens ---
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const redirectUri = `${supabaseUrl}/functions/v1/google-oauth-callback`;
 
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: GOOGLE_CLIENT_ID!,
-        client_secret: GOOGLE_CLIENT_SECRET!,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code",
-      }),
-    });
+    let tokenData: Record<string, unknown>;
+    try {
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: GOOGLE_CLIENT_ID!,
+          client_secret: GOOGLE_CLIENT_SECRET!,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+      });
 
-    const tokenData = await tokenResponse.json();
+      tokenData = await tokenResponse.json();
 
-    if (!tokenResponse.ok || !tokenData.access_token) {
-      console.error("Google token exchange error:", tokenData);
+      if (!tokenResponse.ok || !tokenData.access_token) {
+        // Log only error type, never tokens
+        console.error("Google token exchange failed:", tokenData.error || "unknown");
+        return htmlResponse(
+          "Verbindung fehlgeschlagen",
+          "Der Autorisierungscode konnte nicht eingelöst werden. Bitte versuche es erneut."
+        );
+      }
+    } catch (err) {
+      console.error("Network error during token exchange");
       return htmlResponse(
-        "Token-Austausch fehlgeschlagen",
-        `Google konnte keinen Access Token ausstellen: ${tokenData.error_description || tokenData.error || "Unbekannter Fehler"}`
+        "Verbindungsfehler",
+        "Google konnte nicht erreicht werden. Bitte versuche es später erneut.",
+        502
       );
     }
 
     // --- Get user info from Google ---
-    const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
-    const userInfo = await userInfoResponse.json();
-
-    if (!userInfo.email) {
-      return htmlResponse("E-Mail nicht ermittelt", "Google hat keine E-Mail-Adresse zurückgegeben.");
+    let userInfo: Record<string, unknown>;
+    try {
+      const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      userInfo = await userInfoResponse.json();
+    } catch {
+      console.error("Failed to fetch Google user info");
+      return htmlResponse(
+        "Profilabruf fehlgeschlagen",
+        "Dein Google-Profil konnte nicht abgerufen werden.",
+        502
+      );
     }
 
-    // --- Encrypt tokens ---
-    const accessTokenEncrypted = encryptToken(tokenData.access_token, ENCRYPTION_KEY!);
+    if (!userInfo.email || typeof userInfo.email !== "string") {
+      return htmlResponse("E-Mail fehlt", "Google hat keine E-Mail-Adresse zurückgegeben.");
+    }
+
+    // --- Encrypt tokens (AES-256-GCM) ---
+    const accessTokenEncrypted = await encryptToken(
+      tokenData.access_token as string,
+      ENCRYPTION_KEY!
+    );
     const refreshTokenEncrypted = tokenData.refresh_token
-      ? encryptToken(tokenData.refresh_token, ENCRYPTION_KEY!)
+      ? await encryptToken(tokenData.refresh_token as string, ENCRYPTION_KEY!)
       : null;
 
     const tokenExpiresAt = tokenData.expires_in
-      ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+      ? new Date(Date.now() + (tokenData.expires_in as number) * 1000).toISOString()
       : null;
 
     // --- Upsert email_accounts ---
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Check if this Google email is already linked for this user
     const { data: existing } = await supabaseAdmin
       .from("email_accounts")
       .select("id")
       .eq("user_id", userId)
       .eq("provider", "gmail")
-      .eq("email_address", userInfo.email)
+      .eq("email_address", userInfo.email as string)
       .maybeSingle();
 
+    const accountPayload = {
+      access_token_encrypted: accessTokenEncrypted,
+      ...(refreshTokenEncrypted && { refresh_token_encrypted: refreshTokenEncrypted }),
+      token_expires_at: tokenExpiresAt,
+      status: "active",
+      display_name: (userInfo.name as string) || (userInfo.email as string),
+      metadata_json: {
+        picture: userInfo.picture || null,
+        locale: userInfo.locale || null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+
     if (existing) {
-      // Update existing account
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from("email_accounts")
-        .update({
-          access_token_encrypted: accessTokenEncrypted,
-          refresh_token_encrypted: refreshTokenEncrypted || undefined,
-          token_expires_at: tokenExpiresAt,
-          status: "active",
-          display_name: userInfo.name || userInfo.email,
-          metadata_json: { picture: userInfo.picture, locale: userInfo.locale },
-          updated_at: new Date().toISOString(),
-        })
+        .update(accountPayload)
         .eq("id", existing.id);
+
+      if (updateError) {
+        console.error("Failed to update email_accounts:", updateError.code);
+        return htmlResponse("Speicherfehler", "Das Konto konnte nicht aktualisiert werden.", 500);
+      }
     } else {
-      // Insert new account
-      await supabaseAdmin.from("email_accounts").insert({
+      const { error: insertError } = await supabaseAdmin.from("email_accounts").insert({
         user_id: userId,
         provider: "gmail",
-        email_address: userInfo.email,
-        display_name: userInfo.name || userInfo.email,
-        access_token_encrypted: accessTokenEncrypted,
-        refresh_token_encrypted: refreshTokenEncrypted,
-        token_expires_at: tokenExpiresAt,
-        status: "active",
+        email_address: userInfo.email as string,
         is_default: false,
-        metadata_json: { picture: userInfo.picture, locale: userInfo.locale },
+        ...accountPayload,
       });
+
+      if (insertError) {
+        console.error("Failed to insert email_accounts:", insertError.code);
+        return htmlResponse("Speicherfehler", "Das Konto konnte nicht gespeichert werden.", 500);
+      }
     }
 
     // --- Success page that closes the popup ---
@@ -167,10 +192,10 @@ Deno.serve(async (req) => {
       true
     );
   } catch (error) {
-    console.error("Error in google-oauth-callback:", error);
+    console.error("Unexpected error in google-oauth-callback:", error instanceof Error ? error.message : "unknown");
     return htmlResponse(
       "Fehler",
-      `Ein unerwarteter Fehler ist aufgetreten: ${error instanceof Error ? error.message : "Unbekannt"}`,
+      "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.",
       500
     );
   }
