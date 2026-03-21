@@ -199,6 +199,11 @@ export default function Deals() {
         {(dateFrom || dateTo) && (
           <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>Zeitraum zurücksetzen</Button>
         )}
+        {showOwnerToggle && (
+          <Button variant={showAll ? "secondary" : "outline"} size="sm" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
+            {showAll ? "Alle Deals" : "Meine Deals"}
+          </Button>
+        )}
       </div>
 
       {/* Kanban Board */}
