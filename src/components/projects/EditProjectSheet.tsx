@@ -42,6 +42,7 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { captureTimestamp, checkConflict, dismissConflict, hasConflict } = useConflictCheck("projects", project.id);
 
   const [form, setForm] = useState({
     title: "", status: "new", priority: "medium", owner_user_id: "", description: "",
