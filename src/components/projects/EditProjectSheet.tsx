@@ -180,7 +180,7 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={3} />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
+            <Button className="flex-1" onClick={async () => { const c = await checkConflict(); if (!c) mutation.mutate(); }} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           </div>
         </div>
