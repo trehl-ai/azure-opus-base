@@ -17,6 +17,7 @@ import ContactDetail from "./pages/ContactDetail.tsx";
 import Deals from "./pages/Deals.tsx";
 import DealDetail from "./pages/DealDetail.tsx";
 import Projects from "./pages/Projects.tsx";
+import ProjectDetail from "./pages/ProjectDetail.tsx";
 import Tasks from "./pages/Tasks.tsx";
 import Import from "./pages/Import.tsx";
 import Intake from "./pages/Intake.tsx";
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/deals" element={<ProtectedPage><Deals /></ProtectedPage>} />
             <Route path="/deals/:id" element={<ProtectedPage><DealDetail /></ProtectedPage>} />
             <Route path="/projects" element={<ProtectedPage><Projects /></ProtectedPage>} />
+            <Route path="/projects/:id" element={<ProtectedPage><ProjectDetail /></ProtectedPage>} />
             <Route path="/tasks" element={<ProtectedPage><Tasks /></ProtectedPage>} />
             <Route path="/import" element={<ProtectedPage><Import /></ProtectedPage>} />
             <Route path="/intake" element={<ProtectedPage><Intake /></ProtectedPage>} />
