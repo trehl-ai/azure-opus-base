@@ -65,8 +65,9 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
         pipeline_stage_id: deal.pipeline_stage_id,
       });
       setExpectedCloseDate(deal.expected_close_date ? new Date(deal.expected_close_date) : undefined);
+      captureTimestamp();
     }
-  }, [open, deal]);
+  }, [open, deal, captureTimestamp]);
 
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", deal.pipeline_id],
