@@ -198,7 +198,7 @@ export default function DealDetail() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
+          {canWriteDeals && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>}
           {deal.status === "open" && (
             <>
               <Button size="sm" className="gap-1.5 bg-success hover:bg-success/90 text-white" onClick={() => wonMutation.mutate()} disabled={wonMutation.isPending}>
