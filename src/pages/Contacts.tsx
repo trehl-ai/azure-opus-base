@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
 import { useUsers } from "@/hooks/useUsers";
+import { usePermission } from "@/hooks/usePermission";
 import { ContactStatusBadge } from "@/components/contacts/ContactStatusBadge";
 import { CreateContactSheet } from "@/components/contacts/CreateContactSheet";
 import { Button } from "@/components/ui/button";
