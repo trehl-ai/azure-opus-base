@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import SettingsLayout from "@/components/settings/SettingsLayout";
 import ProfileSettings from "@/pages/settings/ProfileSettings";
 import SecuritySettings from "@/pages/settings/SecuritySettings";
+import UsersSettings from "@/pages/settings/UsersSettings";
 import PlaceholderSettings from "@/pages/settings/PlaceholderSettings";
 
 export default function SettingsPage() {
