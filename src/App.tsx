@@ -15,6 +15,7 @@ import Companies from "./pages/Companies.tsx";
 import CompanyDetail from "./pages/CompanyDetail.tsx";
 import ContactDetail from "./pages/ContactDetail.tsx";
 import Deals from "./pages/Deals.tsx";
+import DealDetail from "./pages/DealDetail.tsx";
 import Projects from "./pages/Projects.tsx";
 import Tasks from "./pages/Tasks.tsx";
 import Import from "./pages/Import.tsx";
