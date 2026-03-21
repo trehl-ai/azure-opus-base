@@ -120,4 +120,21 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+
+  /* Touch optimization: prevent iOS zoom on input focus */
+  @media (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
+/* Touch-friendly minimum sizes */
+@layer components {
+  @media (max-width: 767px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
 }
