@@ -30,6 +30,9 @@ export default function Tasks() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: users } = useUsers();
+  const { user } = useAuth();
+  const { canWrite, role } = usePermission();
+  const canWriteTasks = canWrite("tasks");
 
   const [view, setView] = useState<"board" | "list">("board");
   const [filterProject, setFilterProject] = useState("all");
