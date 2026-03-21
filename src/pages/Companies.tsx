@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompanies } from "@/hooks/useCompanies";
+import { usePermission } from "@/hooks/usePermission";
 import { useUsers } from "@/hooks/useUsers";
 import { CompanyStatusBadge } from "@/components/companies/CompanyStatusBadge";
 import { CreateCompanySheet } from "@/components/companies/CreateCompanySheet";
