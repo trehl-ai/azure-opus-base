@@ -163,54 +163,56 @@ export default function Deals() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div className="flex items-center gap-4">
           <h1 className="text-section-title text-foreground">Deals</h1>
           <PresenceAvatars users={onlineUsers} />
         </div>
         {canWriteDeals && (
-          <Button onClick={() => setSheetOpen(true)} className="gap-2">
+          <Button onClick={() => setSheetOpen(true)} className="gap-2 w-full sm:w-auto min-h-[44px]">
             <Plus className="h-4 w-4" /> Neuer Deal
           </Button>
         )}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-5">
         <Select value={activePipelineId} onValueChange={setSelectedPipelineId}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Pipeline" /></SelectTrigger>
-          <SelectContent>{pipelines?.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]"><SelectValue placeholder="Pipeline" /></SelectTrigger>
+          <SelectContent>{pipelines?.map((p) => <SelectItem key={p.id} value={p.id} className="min-h-[44px]">{p.name}</SelectItem>)}</SelectContent>
         </Select>
         <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle Owner</SelectItem>
-            {users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}
+            <SelectItem value="all" className="min-h-[44px]">Alle Owner</SelectItem>
+            {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateFrom ? format(dateFrom, "dd.MM.yy") : "Von"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
-        </Popover>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateTo ? format(dateTo, "dd.MM.yy") : "Bis"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
-        </Popover>
+        <div className="flex gap-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("flex-1 sm:w-[150px] min-h-[44px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "dd.MM.yy") : "Von"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("flex-1 sm:w-[150px] min-h-[44px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "dd.MM.yy") : "Bis"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
+          </Popover>
+        </div>
         {(dateFrom || dateTo) && (
-          <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>Zeitraum zurücksetzen</Button>
+          <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>Zeitraum zurücksetzen</Button>
         )}
         {showOwnerToggle && (
-          <Button variant={showAll ? "secondary" : "outline"} size="sm" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
+          <Button variant={showAll ? "secondary" : "outline"} size="sm" className="min-h-[44px]" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
             {showAll ? "Alle Deals" : "Meine Deals"}
           </Button>
         )}
