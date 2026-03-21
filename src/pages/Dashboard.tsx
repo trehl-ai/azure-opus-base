@@ -1,12 +1,20 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Handshake, TrendingUp, Trophy, FolderKanban } from "lucide-react";
 import { format, isBefore, startOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { KPICardSkeleton, TableSkeleton } from "@/components/shared/SkeletonLoaders";
+import { ErrorState } from "@/components/shared/ErrorState";
+import {
+  useDashboardDeals,
+  useDashboardProjects,
+  useDashboardOverdueTasks,
+  useDashboardMyTasks,
+  useDashboardOpenActivities,
+  useDashboardDefaultStages,
+} from "@/hooks/queries";
 
 const eur = (v: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
 
@@ -16,80 +24,12 @@ export default function Dashboard() {
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
 
-  const { data: deals } = useQuery({
-    queryKey: ["dash-deals"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deals")
-        .select("id, title, status, value_amount, won_at, pipeline_stage_id, company_id, pipeline_id, companies:companies!deals_company_id_fkey(name), stage:pipeline_stages!deals_pipeline_stage_id_fkey(name, position)")
-        .in("status", ["open", "won"]);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: projects } = useQuery({
-    queryKey: ["dash-projects"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("id, title, status");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: overdueTasks } = useQuery({
-    queryKey: ["dash-overdue-tasks"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, due_date, project:projects!tasks_project_id_fkey(title), assigned:users!tasks_assigned_user_id_fkey(first_name, last_name)")
-        .neq("status", "done")
-        .lt("due_date", format(today, "yyyy-MM-dd"))
-        .order("due_date")
-        .limit(5);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: myTasks } = useQuery({
-    queryKey: ["dash-my-tasks", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, due_date, status, priority, project:projects!tasks_project_id_fkey(title)")
-        .eq("assigned_user_id", user!.id)
-        .neq("status", "done")
-        .order("due_date", { ascending: true, nullsFirst: false })
-        .limit(10);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: openActivities } = useQuery({
-    queryKey: ["dash-open-activities"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deal_activities")
-        .select("deal_id")
-        .is("completed_at", null);
-      if (error) throw error;
-      return new Set(data.map((a) => a.deal_id));
-    },
-  });
-
-  const { data: defaultStages } = useQuery({
-    queryKey: ["dash-default-stages"],
-    queryFn: async () => {
-      const { data: pipeline } = await supabase.from("pipelines").select("id").eq("is_default", true).single();
-      if (!pipeline) return [];
-      const { data, error } = await supabase.from("pipeline_stages").select("id, name, position").eq("pipeline_id", pipeline.id).order("position");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: deals, isLoading: dealsLoading, error: dealsError } = useDashboardDeals();
+  const { data: projects, isLoading: projectsLoading } = useDashboardProjects();
+  const { data: overdueTasks } = useDashboardOverdueTasks();
+  const { data: myTasks } = useDashboardMyTasks(user?.id);
+  const { data: openActivities } = useDashboardOpenActivities();
+  const { data: defaultStages } = useDashboardDefaultStages();
 
   const openDeals = useMemo(() => deals?.filter((d) => d.status === "open") ?? [], [deals]);
   const pipelineValue = useMemo(() => openDeals.reduce((s, d) => s + (Number(d.value_amount) || 0), 0), [openDeals]);
@@ -122,16 +62,29 @@ export default function Dashboard() {
   const statusLabel: Record<string, string> = { todo: "To Do", in_progress: "In Progress", review: "Review", done: "Done" };
   const priorityBadge: Record<string, string> = { low: "bg-muted text-muted-foreground", medium: "bg-warning/10 text-warning", high: "bg-destructive/10 text-destructive" };
 
+  if (dealsError) return <ErrorState error={dealsError as Error} />;
+
   return (
     <div className="space-y-6">
       <h1 className="text-[28px] font-semibold text-foreground">Dashboard</h1>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={Handshake} label="Offene Deals" value={openDeals.length} colorClass="text-primary" bgClass="bg-primary/10" />
-        <KpiCard icon={TrendingUp} label="Pipeline-Wert" value={eur(pipelineValue)} colorClass="text-primary" bgClass="bg-primary/10" />
-        <KpiCard icon={Trophy} label="Gewonnen (Monat)" value={wonThisMonth} colorClass="text-success" bgClass="bg-success/10" />
-        <KpiCard icon={FolderKanban} label="Aktive Projekte" value={activeProjects} colorClass="text-info" bgClass="bg-info/10" />
+        {dealsLoading || projectsLoading ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KpiCard icon={Handshake} label="Offene Deals" value={openDeals.length} colorClass="text-primary" bgClass="bg-primary/10" />
+            <KpiCard icon={TrendingUp} label="Pipeline-Wert" value={eur(pipelineValue)} colorClass="text-primary" bgClass="bg-primary/10" />
+            <KpiCard icon={Trophy} label="Gewonnen (Monat)" value={wonThisMonth} colorClass="text-success" bgClass="bg-success/10" />
+            <KpiCard icon={FolderKanban} label="Aktive Projekte" value={activeProjects} colorClass="text-info" bgClass="bg-info/10" />
+          </>
+        )}
       </div>
 
       {/* Row 2 */}
