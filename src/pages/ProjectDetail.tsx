@@ -47,6 +47,9 @@ export default function ProjectDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteProjects = canWrite("projects");
+  const canWriteTasks = canWrite("tasks");
 
   // Project
   const { data: project, isLoading } = useQuery({
