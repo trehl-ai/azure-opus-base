@@ -80,6 +80,7 @@ const App = () => (
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
               <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
+              <Route path="/compose" element={<P><Compose /></P>} />
               <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
               <Route path="/settings/*" element={<P><SettingsPage /></P>} />
 
