@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
+import { useConflictCheck } from "@/hooks/useConflictCheck";
+import { ConflictWarning } from "@/components/shared/ConflictWarning";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { captureTimestamp, checkConflict, dismissConflict, hasConflict } = useConflictCheck("deals", deal.id);
 
   const [form, setForm] = useState({
     title: "", value_amount: "", currency: "EUR", probability_percent: "",
@@ -62,8 +65,9 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
         pipeline_stage_id: deal.pipeline_stage_id,
       });
       setExpectedCloseDate(deal.expected_close_date ? new Date(deal.expected_close_date) : undefined);
+      captureTimestamp();
     }
-  }, [open, deal]);
+  }, [open, deal, captureTimestamp]);
 
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", deal.pipeline_id],
@@ -107,6 +111,12 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader><SheetTitle>Deal bearbeiten</SheetTitle></SheetHeader>
         <div className="mt-6 space-y-5">
+          {hasConflict && (
+            <ConflictWarning
+              onForceOverwrite={() => { dismissConflict(); mutation.mutate(); }}
+              onReload={() => { dismissConflict(); onOpenChange(false); qc.invalidateQueries({ queryKey: ["deal", deal.id] }); }}
+            />
+          )}
           <div className="space-y-1.5">
             <Label>Deal-Name</Label>
             <Input value={form.title} onChange={(e) => u("title", e.target.value)} />
@@ -175,7 +185,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={3} />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
+            <Button className="flex-1" onClick={async () => { const c = await checkConflict(); if (!c) mutation.mutate(); }} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           </div>
         </div>

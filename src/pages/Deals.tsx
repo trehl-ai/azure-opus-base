@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Plus } from "lucide-react";
+import { usePresence } from "@/hooks/usePresence";
+import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,7 @@ export default function Deals() {
   const { canWrite, role } = usePermission();
   const canWriteDeals = canWrite("deals");
   const showOwnerToggle = role === "sales";
+  const onlineUsers = usePresence("/deals");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
   const [showAll, setShowAll] = useState(!showOwnerToggle);
@@ -158,7 +161,10 @@ export default function Deals() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-section-title text-foreground">Deals</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-section-title text-foreground">Deals</h1>
+          <PresenceAvatars users={onlineUsers} />
+        </div>
         {canWriteDeals && (
           <Button onClick={() => setSheetOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Neuer Deal

@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
+import { useConflictCheck } from "@/hooks/useConflictCheck";
+import { ConflictWarning } from "@/components/shared/ConflictWarning";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,7 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { captureTimestamp, checkConflict, dismissConflict, hasConflict } = useConflictCheck("projects", project.id);
 
   const [form, setForm] = useState({
     title: "", status: "new", priority: "medium", owner_user_id: "", description: "",
@@ -58,8 +61,9 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
       });
       setStartDate(project.start_date ? new Date(project.start_date) : undefined);
       setEndDate(project.end_date ? new Date(project.end_date) : undefined);
+      captureTimestamp();
     }
-  }, [open, project]);
+  }, [open, project, captureTimestamp]);
 
   const u = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
@@ -106,6 +110,12 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader><SheetTitle>Projekt bearbeiten</SheetTitle></SheetHeader>
         <div className="mt-6 space-y-5">
+          {hasConflict && (
+            <ConflictWarning
+              onForceOverwrite={() => { dismissConflict(); mutation.mutate(); }}
+              onReload={() => { dismissConflict(); onOpenChange(false); qc.invalidateQueries({ queryKey: ["project", project.id] }); }}
+            />
+          )}
           <div className="space-y-1.5">
             <Label>Projektname</Label>
             <Input value={form.title} onChange={(e) => u("title", e.target.value)} />
@@ -170,7 +180,7 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={3} />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
+            <Button className="flex-1" onClick={async () => { const c = await checkConflict(); if (!c) mutation.mutate(); }} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           </div>
         </div>
