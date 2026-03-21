@@ -76,10 +76,12 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Insert email_messages record with status 'queued'
+    // account_id is null for platform/system emails (Resend is not a personal account)
     const { data: messageRow, error: insertError } = await supabaseAdmin
       .from("email_messages")
       .insert({
         user_id: userId,
+        account_id: null,
         provider: "resend",
         from_email: fromAddress,
         to_email: body.to,
