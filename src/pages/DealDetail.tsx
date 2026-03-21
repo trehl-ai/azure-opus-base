@@ -216,6 +216,20 @@ export default function DealDetail() {
         </div>
       </div>
 
+      {/* Won banner */}
+      {deal.status === "won" && linkedProject && (
+        <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 px-5 py-3">
+          <Trophy className="h-5 w-5 text-success shrink-0" />
+          <p className="text-body text-foreground flex-1">
+            Dieser Deal wurde gewonnen. Projekt:{" "}
+            <Link to={`/projects/${linkedProject.id}`} className="font-medium text-primary hover:underline">{linkedProject.title}</Link>
+          </p>
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/projects/${linkedProject.id}`}>Zum Projekt</Link>
+          </Button>
+        </div>
+      )}
+
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
