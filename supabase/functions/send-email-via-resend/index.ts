@@ -97,9 +97,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error("Failed to insert email_messages record:", insertError);
+      console.error("Failed to insert email_messages record:", insertError.code);
       return new Response(
-        JSON.stringify({ error: "Failed to log email", details: insertError.message }),
+        JSON.stringify({ error: "E-Mail konnte nicht protokolliert werden." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
