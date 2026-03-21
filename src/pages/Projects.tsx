@@ -136,7 +136,7 @@ export default function Projects() {
               <List className="h-4 w-4" />
             </button>
           </div>
-          <Button onClick={() => setSheetOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Neues Projekt</Button>
+          {canWriteProjects && <Button onClick={() => setSheetOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Neues Projekt</Button>}
         </div>
       </div>
 
