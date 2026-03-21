@@ -10,6 +10,7 @@ import {
   CheckSquare,
   Upload,
   Mail,
+  Send,
   Settings,
   LogOut,
 } from "lucide-react";
