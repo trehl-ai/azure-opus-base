@@ -110,6 +110,12 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader><SheetTitle>Projekt bearbeiten</SheetTitle></SheetHeader>
         <div className="mt-6 space-y-5">
+          {hasConflict && (
+            <ConflictWarning
+              onForceOverwrite={() => { dismissConflict(); mutation.mutate(); }}
+              onReload={() => { dismissConflict(); onOpenChange(false); qc.invalidateQueries({ queryKey: ["project", project.id] }); }}
+            />
+          )}
           <div className="space-y-1.5">
             <Label>Projektname</Label>
             <Input value={form.title} onChange={(e) => u("title", e.target.value)} />
