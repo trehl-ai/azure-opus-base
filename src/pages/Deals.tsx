@@ -115,8 +115,9 @@ export default function Deals() {
   });
 
   const handleDragStart = useCallback((e: React.DragEvent, dealId: string) => {
+    if (!canWriteDeals) { e.preventDefault(); return; }
     e.dataTransfer.setData("dealId", dealId);
-  }, []);
+  }, [canWriteDeals]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, stageId: string) => {

@@ -217,7 +217,7 @@ export default function DealDetail() {
               <AlertDialogFooter><AlertDialogCancel>Abbrechen</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
+          )}
       </div>
 
       {/* Won banner */}
