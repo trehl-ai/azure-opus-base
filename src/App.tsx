@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Contacts from "./pages/Contacts.tsx";
 import Companies from "./pages/Companies.tsx";
 import CompanyDetail from "./pages/CompanyDetail.tsx";
+import ContactDetail from "./pages/ContactDetail.tsx";
 import Deals from "./pages/Deals.tsx";
 import Projects from "./pages/Projects.tsx";
 import Tasks from "./pages/Tasks.tsx";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<ProtectedPage><Dashboard /></ProtectedPage>} />
             <Route path="/contacts" element={<ProtectedPage><Contacts /></ProtectedPage>} />
+            <Route path="/contacts/:id" element={<ProtectedPage><ContactDetail /></ProtectedPage>} />
             <Route path="/companies" element={<ProtectedPage><Companies /></ProtectedPage>} />
             <Route path="/companies/:id" element={<ProtectedPage><CompanyDetail /></ProtectedPage>} />
             <Route path="/deals" element={<ProtectedPage><Deals /></ProtectedPage>} />
