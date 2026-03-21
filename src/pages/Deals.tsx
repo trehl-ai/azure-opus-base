@@ -90,20 +90,22 @@ export default function Deals() {
   // Move deal mutation (for non-lost stages)
   const moveDealMutation = useMutation({
     mutationFn: async ({ dealId, stageId, isWon }: { dealId: string; stageId: string; isWon: boolean }) => {
-      const updates: Record<string, unknown> = { pipeline_stage_id: stageId };
       if (isWon) {
-        updates.status = "won";
-        updates.won_at = new Date().toISOString();
+        // Use atomic RPC for won deals
+        const { data, error } = await supabase.rpc("set_deal_won_and_create_project", {
+          p_deal_id: dealId,
+          p_winning_user_id: user?.id ?? "",
+        });
+        if (error) throw error;
+        if (data) {
+          const { data: project } = await supabase.from("projects").select("id, title").eq("id", data).maybeSingle();
+          return project;
+        }
+        return null;
       }
-      const { error } = await supabase.from("deals").update(updates).eq("id", dealId);
+      // Normal stage move
+      const { error } = await supabase.from("deals").update({ pipeline_stage_id: stageId }).eq("id", dealId);
       if (error) throw error;
-      // If won, fetch the created project
-      if (isWon) {
-        // Small delay to let trigger run
-        await new Promise((r) => setTimeout(r, 500));
-        const { data: project } = await supabase.from("projects").select("id, title").eq("originating_deal_id", dealId).maybeSingle();
-        return project;
-      }
       return null;
     },
     onSuccess: (project) => {
