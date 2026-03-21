@@ -55,6 +55,8 @@ export default function DealDetail() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteDeals = canWrite("deals");
 
   // Deal
   const { data: deal, isLoading } = useQuery({
