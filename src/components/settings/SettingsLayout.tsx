@@ -28,6 +28,12 @@ const settingsNav = [
       { label: "Deal-Felder", path: "/settings/deal-fields" },
     ],
   },
+  {
+    label: "INTEGRATIONEN",
+    items: [
+      { label: "E-Mail-Konten", path: "/settings/email-accounts" },
+    ],
+  },
 ];
 
 function getCurrentLabel(pathname: string): string {
