@@ -127,11 +127,24 @@ export default function DealDetail() {
         ...(wonStage ? { pipeline_stage_id: wonStage.id } : {}),
       }).eq("id", id!);
       if (error) throw error;
+      // Wait for trigger, then fetch project
+      await new Promise((r) => setTimeout(r, 500));
+      const { data: project } = await supabase.from("projects").select("id, title").eq("originating_deal_id", id!).maybeSingle();
+      return project;
     },
-    onSuccess: () => {
-      toast({ title: "Deal als Won markiert 🎉" });
+    onSuccess: (project) => {
       qc.invalidateQueries({ queryKey: ["deal", id] });
+      qc.invalidateQueries({ queryKey: ["deal-project", id] });
       qc.invalidateQueries({ queryKey: ["deals-board"] });
+      if (project) {
+        toast({
+          title: "Deal gewonnen! Projekt wurde automatisch erstellt. 🎉",
+          description: project.title,
+          action: <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project.id}`)}>Zum Projekt</Button>,
+        });
+      } else {
+        toast({ title: "Deal als Won markiert 🎉" });
+      }
     },
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
@@ -202,6 +215,20 @@ export default function DealDetail() {
           </AlertDialog>
         </div>
       </div>
+
+      {/* Won banner */}
+      {deal.status === "won" && linkedProject && (
+        <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 px-5 py-3">
+          <Trophy className="h-5 w-5 text-success shrink-0" />
+          <p className="text-body text-foreground flex-1">
+            Dieser Deal wurde gewonnen. Projekt:{" "}
+            <Link to={`/projects/${linkedProject.id}`} className="font-medium text-primary hover:underline">{linkedProject.title}</Link>
+          </p>
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/projects/${linkedProject.id}`}>Zum Projekt</Link>
+          </Button>
+        </div>
+      )}
 
       <Tabs defaultValue="overview">
         <TabsList>

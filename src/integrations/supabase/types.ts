@@ -924,7 +924,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_project_from_deal: { Args: { p_deal_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

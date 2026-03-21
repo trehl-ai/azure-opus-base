@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 export default function Deals() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: users } = useUsers();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState("all");
@@ -82,8 +84,25 @@ export default function Deals() {
       }
       const { error } = await supabase.from("deals").update(updates).eq("id", dealId);
       if (error) throw error;
+      // If won, fetch the created project
+      if (isWon) {
+        // Small delay to let trigger run
+        await new Promise((r) => setTimeout(r, 500));
+        const { data: project } = await supabase.from("projects").select("id, title").eq("originating_deal_id", dealId).maybeSingle();
+        return project;
+      }
+      return null;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["deals-board"] }),
+    onSuccess: (project) => {
+      qc.invalidateQueries({ queryKey: ["deals-board"] });
+      if (project) {
+        toast({
+          title: "Deal gewonnen! Projekt wurde automatisch erstellt. 🎉",
+          description: project.title,
+          action: <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project.id}`)}>Zum Projekt</Button>,
+        });
+      }
+    },
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
