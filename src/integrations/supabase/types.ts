@@ -373,6 +373,212 @@ export type Database = {
           },
         ]
       }
+      entity_tags: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_jobs: {
+        Row: {
+          created_at: string
+          failed_rows: number | null
+          file_name: string
+          finished_at: string | null
+          id: string
+          import_type: string
+          started_at: string | null
+          started_by_user_id: string | null
+          status: string
+          success_rows: number | null
+          total_rows: number | null
+        }
+        Insert: {
+          created_at?: string
+          failed_rows?: number | null
+          file_name: string
+          finished_at?: string | null
+          id?: string
+          import_type: string
+          started_at?: string | null
+          started_by_user_id?: string | null
+          status?: string
+          success_rows?: number | null
+          total_rows?: number | null
+        }
+        Update: {
+          created_at?: string
+          failed_rows?: number | null
+          file_name?: string
+          finished_at?: string | null
+          id?: string
+          import_type?: string
+          started_at?: string | null
+          started_by_user_id?: string | null
+          status?: string
+          success_rows?: number | null
+          total_rows?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_started_by_user_id_fkey"
+            columns: ["started_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_rows: {
+        Row: {
+          created_at: string
+          created_entity_id: string | null
+          created_entity_type: string | null
+          error_message: string | null
+          id: string
+          import_job_id: string
+          mapped_payload_json: Json | null
+          raw_payload_json: Json | null
+          row_number: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_entity_id?: string | null
+          created_entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          import_job_id: string
+          mapped_payload_json?: Json | null
+          raw_payload_json?: Json | null
+          row_number: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_entity_id?: string | null
+          created_entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          import_job_id?: string
+          mapped_payload_json?: Json | null
+          raw_payload_json?: Json | null
+          row_number?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_rows_import_job_id_fkey"
+            columns: ["import_job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_messages: {
+        Row: {
+          created_at: string
+          created_company_id: string | null
+          created_contact_id: string | null
+          created_deal_id: string | null
+          id: string
+          parsed_payload_json: Json | null
+          raw_body: string | null
+          received_at: string | null
+          reviewed_at: string | null
+          reviewed_by_user_id: string | null
+          sender_email: string | null
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_company_id?: string | null
+          created_contact_id?: string | null
+          created_deal_id?: string | null
+          id?: string
+          parsed_payload_json?: Json | null
+          raw_body?: string | null
+          received_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          sender_email?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_company_id?: string | null
+          created_contact_id?: string | null
+          created_deal_id?: string | null
+          id?: string
+          parsed_payload_json?: Json | null
+          raw_body?: string | null
+          received_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          sender_email?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_messages_created_company_id_fkey"
+            columns: ["created_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_messages_created_contact_id_fkey"
+            columns: ["created_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_messages_created_deal_id_fkey"
+            columns: ["created_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_messages_reviewed_by_user_id_fkey"
+            columns: ["reviewed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipeline_stages: {
         Row: {
           created_at: string
@@ -533,6 +739,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       task_comments: {
         Row: {
