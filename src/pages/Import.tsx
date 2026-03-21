@@ -219,8 +219,8 @@ export default function Import() {
         if (v.isDuplicate) {
           await supabase.from("import_rows").insert({
             import_job_id: jobId!, row_number: i + 1,
-            raw_payload_json: csvData[validatedRows.indexOf(v)] as unknown as Record<string, unknown>,
-            mapped_payload_json: mapped as unknown as Record<string, unknown>,
+            raw_payload_json: csvData[validatedRows.indexOf(v)] as unknown as Json,
+            mapped_payload_json: mapped as unknown as Json,
             status: "duplicate", error_message: "Duplikat erkannt",
             created_entity_type: importType === "companies" ? "company" : "contact",
           });
