@@ -251,7 +251,7 @@ export default function Import() {
           }
           await supabase.from("import_rows").insert({
             import_job_id: jobId!, row_number: i + 1,
-            mapped_payload_json: mapped as unknown as Record<string, unknown>,
+            mapped_payload_json: mapped as unknown as Json,
             status: "success",
             created_entity_type: importType === "companies" ? "company" : "contact",
             created_entity_id: entityId,
