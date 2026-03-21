@@ -70,7 +70,8 @@ export default function Deals() {
         .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
         .eq("pipeline_id", activePipelineId);
 
-      if (ownerFilter && ownerFilter !== "all") q = q.eq("owner_user_id", ownerFilter);
+      const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
+      if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
       if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
       if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
 
