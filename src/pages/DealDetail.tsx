@@ -51,6 +51,7 @@ export default function DealDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const [editOpen, setEditOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
