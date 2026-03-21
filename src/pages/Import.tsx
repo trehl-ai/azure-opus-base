@@ -276,7 +276,7 @@ export default function Import() {
     for (const v of skipped) {
       await supabase.from("import_rows").insert({
         import_job_id: jobId!, row_number: 0,
-        mapped_payload_json: v.row as unknown as Record<string, unknown>,
+        mapped_payload_json: v.row as unknown as Json,
         status: "failed", error_message: v.errors.join(", ") || "Übersprungen",
       });
       failed++;
