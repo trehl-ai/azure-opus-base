@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,8 +6,10 @@ import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateProjectSheet } from "@/components/projects/CreateProjectSheet";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -34,6 +36,7 @@ export default function Projects() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { data: users } = useUsers();
   const { user } = useAuth();
   const { canWrite, role } = usePermission();
@@ -47,6 +50,7 @@ export default function Projects() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortCol, setSortCol] = useState<string>("title");
   const [sortAsc, setSortAsc] = useState(true);
+  const [mobileStatus, setMobileStatus] = useState<string>("all");
 
   const { data: projects } = useQuery({
     queryKey: ["projects", statusFilter, ownerFilter, priorityFilter],
@@ -71,11 +75,7 @@ export default function Projects() {
     queryKey: ["project-task-counts", projectIds.join(",")],
     queryFn: async () => {
       if (projectIds.length === 0) return {};
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("project_id, status")
-        .in("project_id", projectIds)
-        .neq("status", "done");
+      const { data, error } = await supabase.from("tasks").select("project_id, status").in("project_id", projectIds).neq("status", "done");
       if (error) throw error;
       const counts: Record<string, number> = {};
       data.forEach((t) => { counts[t.project_id] = (counts[t.project_id] ?? 0) + 1; });
@@ -124,47 +124,64 @@ export default function Projects() {
     return sortAsc ? cmp : -cmp;
   });
 
+  // Mobile filtered projects
+  const mobileProjects = mobileStatus === "all" ? (projects ?? []) : (projects ?? []).filter((p) => p.status === mobileStatus);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-[28px] font-semibold text-foreground">Projects</h1>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button onClick={() => setView("board")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button onClick={() => setView("list")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-          {canWriteProjects && <Button onClick={() => setSheetOpen(true)} className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Neues Projekt</Button>}
+          {!isMobile && (
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button onClick={() => setView("board")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button onClick={() => setView("list")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted/50")}>
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          {canWriteProjects && <Button onClick={() => setSheetOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto"><Plus className="h-4 w-4" /> Neues Projekt</Button>}
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-5">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle Status</SelectItem>
-            {statuses.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{statusLabel[s]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle Owner</SelectItem>
-            {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-full sm:w-[140px] min-h-[44px]"><SelectValue placeholder="Alle Prio" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle Prioritäten</SelectItem>
-            <SelectItem value="low" className="min-h-[44px]">Low</SelectItem>
-            <SelectItem value="medium" className="min-h-[44px]">Medium</SelectItem>
-            <SelectItem value="high" className="min-h-[44px]">High</SelectItem>
-          </SelectContent>
-        </Select>
+        {isMobile ? (
+          <Select value={mobileStatus} onValueChange={setMobileStatus}>
+            <SelectTrigger className="w-full min-h-[44px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-[44px]">Alle Status</SelectItem>
+              {statuses.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{statusLabel[s]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        ) : (
+          <>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="min-h-[44px]">Alle Status</SelectItem>
+                {statuses.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{statusLabel[s]}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="min-h-[44px]">Alle Owner</SelectItem>
+                {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-full sm:w-[140px] min-h-[44px]"><SelectValue placeholder="Alle Prio" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="min-h-[44px]">Alle Prioritäten</SelectItem>
+                <SelectItem value="low" className="min-h-[44px]">Low</SelectItem>
+                <SelectItem value="medium" className="min-h-[44px]">Medium</SelectItem>
+                <SelectItem value="high" className="min-h-[44px]">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        )}
         {showOwnerToggle && (
           <Button variant={showAll ? "secondary" : "outline"} size="sm" className="min-h-[44px]" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
             {showAll ? "Alle Projekte" : "Meine Projekte"}
@@ -172,7 +189,32 @@ export default function Projects() {
         )}
       </div>
 
-      {view === "board" && (
+      {/* Mobile: Card list */}
+      {isMobile ? (
+        <div className="space-y-2">
+          {mobileProjects.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Keine Projekte gefunden.</p>
+          ) : mobileProjects.map((p) => {
+            const company = p.company as { name: string } | null;
+            const owner = p.owner as { first_name: string; last_name: string } | null;
+            return (
+              <MobileCard
+                key={p.id}
+                onClick={() => navigate(`/projects/${p.id}`)}
+                title={p.title}
+                subtitle={company?.name || undefined}
+                badge={<span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", statusBadge[p.status])}>{statusLabel[p.status]}</span>}
+                meta={
+                  <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                    {owner && <span>{owner.first_name} {owner.last_name[0]}.</span>}
+                    {(taskCounts?.[p.id] ?? 0) > 0 && <span className="text-primary font-medium">{taskCounts?.[p.id]} Tasks</span>}
+                  </div>
+                }
+              />
+            );
+          })}
+        </div>
+      ) : view === "board" ? (
         <div className="flex-1 overflow-x-auto">
           <div className="flex gap-4 min-w-max pb-4">
             {statuses.map((status) => {
@@ -209,20 +251,15 @@ export default function Projects() {
             })}
           </div>
         </div>
-      )}
-
-      {view === "list" && (
+      ) : (
         <div className="rounded-2xl border border-border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
                 {[
-                  { key: "title", label: "Projektname" },
-                  { key: "company", label: "Unternehmen" },
-                  { key: "status", label: "Status" },
-                  { key: "priority", label: "Priorität" },
-                  { key: "owner", label: "Owner" },
-                  { key: "start_date", label: "Start" },
+                  { key: "title", label: "Projektname" }, { key: "company", label: "Unternehmen" },
+                  { key: "status", label: "Status" }, { key: "priority", label: "Priorität" },
+                  { key: "owner", label: "Owner" }, { key: "start_date", label: "Start" },
                   { key: "end_date", label: "Ende" },
                 ].map((col) => (
                   <TableHead key={col.key} className="cursor-pointer select-none" onClick={() => toggleSort(col.key)}>
@@ -249,9 +286,7 @@ export default function Projects() {
                   </TableRow>
                 );
               })}
-              {sortedProjects.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Keine Projekte gefunden.</TableCell></TableRow>
-              )}
+              {sortedProjects.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Keine Projekte gefunden.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>

@@ -6,18 +6,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermission";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
+import { MobileCard } from "@/components/shared/MobileCard";
+import { MobileStageSelector, StageChangeSheet } from "@/components/shared/MobileStageSelector";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus } from "lucide-react";
+import { CalendarIcon, Plus, ArrowRightLeft } from "lucide-react";
 import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+
+const eur = (v: number) =>
+  new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
 
 export default function Deals() {
   const { toast } = useToast();
@@ -29,13 +35,20 @@ export default function Deals() {
   const canWriteDeals = canWrite("deals");
   const showOwnerToggle = role === "sales";
   const onlineUsers = usePresence("/deals");
+  const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
   const [showAll, setShowAll] = useState(!showOwnerToggle);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
 
-  // Lost reason dialog state
+  // Mobile stage selector state
+  const [mobileStageId, setMobileStageId] = useState<string>("");
+  const [stageChangeSheet, setStageChangeSheet] = useState<{ open: boolean; dealId: string; dealTitle: string; currentStageId: string }>({
+    open: false, dealId: "", dealTitle: "", currentStageId: "",
+  });
+
+  // Lost reason dialog
   const [lostDialog, setLostDialog] = useState<{ open: boolean; dealId: string; dealTitle: string; stageId: string }>({
     open: false, dealId: "", dealTitle: "", stageId: "",
   });
@@ -64,6 +77,9 @@ export default function Deals() {
     enabled: !!activePipelineId,
   });
 
+  // Set initial mobile stage
+  const effectiveMobileStageId = mobileStageId || stages?.[0]?.id || "";
+
   // Deals
   const { data: deals } = useQuery({
     queryKey: ["deals-board", activePipelineId, ownerFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -86,11 +102,10 @@ export default function Deals() {
     enabled: !!activePipelineId,
   });
 
-  // Move deal mutation (for non-lost stages)
+  // Move deal mutation
   const moveDealMutation = useMutation({
     mutationFn: async ({ dealId, stageId, isWon }: { dealId: string; stageId: string; isWon: boolean }) => {
       if (isWon) {
-        // Use atomic RPC for won deals
         const { data, error } = await supabase.rpc("set_deal_won_and_create_project", {
           p_deal_id: dealId,
           p_winning_user_id: user?.id ?? "",
@@ -102,7 +117,6 @@ export default function Deals() {
         }
         return null;
       }
-      // Normal stage move
       const { error } = await supabase.from("deals").update({ pipeline_stage_id: stageId }).eq("id", dealId);
       if (error) throw error;
       return null;
@@ -120,32 +134,35 @@ export default function Deals() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
+  const handleMobileStageChange = (dealId: string, dealTitle: string, newStageId: string) => {
+    const stage = stages?.find((s) => s.id === newStageId);
+    if (!stage) return;
+    if (stage.is_lost_stage) {
+      setLostDialog({ open: true, dealId, dealTitle, stageId: newStageId });
+      return;
+    }
+    moveDealMutation.mutate({ dealId, stageId: newStageId, isWon: stage.is_won_stage ?? false });
+  };
+
   const handleDragStart = useCallback((e: React.DragEvent, dealId: string) => {
     if (!canWriteDeals) { e.preventDefault(); return; }
     e.dataTransfer.setData("dealId", dealId);
   }, [canWriteDeals]);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent, stageId: string) => {
-      e.preventDefault();
-      const dealId = e.dataTransfer.getData("dealId");
-      if (!dealId || !stages) return;
-
-      const stage = stages.find((s) => s.id === stageId);
-      if (!stage) return;
-
-      const deal = deals?.find((d) => d.id === dealId);
-      if (!deal || deal.pipeline_stage_id === stageId) return;
-
-      if (stage.is_lost_stage) {
-        setLostDialog({ open: true, dealId, dealTitle: deal.title, stageId });
-        return;
-      }
-
-      moveDealMutation.mutate({ dealId, stageId, isWon: stage.is_won_stage ?? false });
-    },
-    [stages, deals, moveDealMutation]
-  );
+  const handleDrop = useCallback((e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    const dealId = e.dataTransfer.getData("dealId");
+    if (!dealId || !stages) return;
+    const stage = stages.find((s) => s.id === stageId);
+    if (!stage) return;
+    const deal = deals?.find((d) => d.id === dealId);
+    if (!deal || deal.pipeline_stage_id === stageId) return;
+    if (stage.is_lost_stage) {
+      setLostDialog({ open: true, dealId, dealTitle: deal.title, stageId });
+      return;
+    }
+    moveDealMutation.mutate({ dealId, stageId, isWon: stage.is_won_stage ?? false });
+  }, [stages, deals, moveDealMutation]);
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
@@ -157,8 +174,10 @@ export default function Deals() {
     dealsByStage.set(deal.pipeline_stage_id, list);
   });
 
-  const formatSum = (v: number) =>
-    new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
+  const formatSum = (v: number) => eur(v);
+
+  // Mobile: deals in selected stage
+  const mobileDeals = deals?.filter((d) => d.pipeline_stage_id === effectiveMobileStageId) ?? [];
 
   return (
     <div className="flex flex-col h-full">
@@ -188,26 +207,28 @@ export default function Deals() {
             {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="flex gap-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("flex-1 sm:w-[150px] min-h-[44px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFrom ? format(dateFrom, "dd.MM.yy") : "Von"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("flex-1 sm:w-[150px] min-h-[44px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateTo ? format(dateTo, "dd.MM.yy") : "Bis"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
-          </Popover>
-        </div>
+        {!isMobile && (
+          <div className="flex gap-3">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("flex-1 sm:w-[150px] min-h-[44px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFrom ? format(dateFrom, "dd.MM.yy") : "Von"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("flex-1 sm:w-[150px] min-h-[44px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateTo ? format(dateTo, "dd.MM.yy") : "Bis"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
+            </Popover>
+          </div>
+        )}
         {(dateFrom || dateTo) && (
           <Button variant="ghost" size="sm" className="min-h-[44px]" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>Zeitraum zurücksetzen</Button>
         )}
@@ -218,75 +239,110 @@ export default function Deals() {
         )}
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto">
-        <div className="flex gap-4 min-w-max pb-4">
-          {stages?.map((stage) => {
-            const stageDeals = dealsByStage.get(stage.id) ?? [];
-            const totalValue = stageDeals.reduce((sum, d) => sum + (d.value_amount ?? 0), 0);
-
-            const bgClass = stage.is_won_stage
-              ? "bg-success/5 border-success/20"
-              : stage.is_lost_stage
-                ? "bg-destructive/5 border-destructive/20"
-                : "bg-[#F0F1F5] border-transparent";
-
-            return (
-              <div
-                key={stage.id}
-                className={cn("flex w-[280px] shrink-0 flex-col rounded-xl border p-3", bgClass)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, stage.id)}
-              >
-                {/* Column header */}
-                <div className="mb-3 px-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-label font-semibold text-foreground">{stage.name}</h3>
-                    <span className="text-[11px] font-medium text-muted-foreground">{stage.probability_percent}%</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {stageDeals.length} Deal{stageDeals.length !== 1 ? "s" : ""} · {formatSum(totalValue)}
-                  </p>
-                </div>
-
-                {/* Cards */}
-                <div className="flex-1 space-y-2 min-h-[60px]">
-                  {stageDeals.map((deal) => {
-                    const company = deal.company as { name: string } | null;
-                    const owner = deal.owner as { first_name: string; last_name: string } | null;
-                    return (
-                      <DealCard
-                        key={deal.id}
-                        deal={{
-                          id: deal.id,
-                          title: deal.title,
-                          company_name: company?.name ?? null,
-                          value_amount: deal.value_amount,
-                          currency: deal.currency,
-                          priority: deal.priority,
-                          owner_first_name: owner?.first_name ?? null,
-                          owner_last_name: owner?.last_name ?? null,
-                        }}
-                        onDragStart={handleDragStart}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+      {/* Mobile: Stage selector + card list */}
+      {isMobile ? (
+        <div className="flex-1 space-y-3">
+          {stages && (
+            <MobileStageSelector
+              stages={stages}
+              selectedStageId={effectiveMobileStageId}
+              onStageChange={setMobileStageId}
+            />
+          )}
+          <p className="text-[12px] text-muted-foreground">
+            {mobileDeals.length} Deal{mobileDeals.length !== 1 ? "s" : ""} · {formatSum(mobileDeals.reduce((s, d) => s + (d.value_amount ?? 0), 0))}
+          </p>
+          <div className="space-y-2">
+            {mobileDeals.map((deal) => {
+              const company = deal.company as { name: string } | null;
+              const owner = deal.owner as { first_name: string; last_name: string } | null;
+              return (
+                <MobileCard
+                  key={deal.id}
+                  onClick={() => navigate(`/deals/${deal.id}`)}
+                  title={deal.title}
+                  subtitle={company?.name || undefined}
+                  badge={deal.priority ? <span className={cn("h-2 w-2 rounded-full", deal.priority === "high" ? "bg-destructive" : deal.priority === "medium" ? "bg-warning" : "bg-muted-foreground")} /> : undefined}
+                  rightContent={
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {deal.value_amount ? <span className="text-[13px] font-semibold text-foreground">{eur(deal.value_amount)}</span> : null}
+                      {canWriteDeals && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setStageChangeSheet({ open: true, dealId: deal.id, dealTitle: deal.title, currentStageId: deal.pipeline_stage_id }); }}
+                          className="flex items-center gap-1 text-[11px] text-primary font-medium"
+                        >
+                          <ArrowRightLeft className="h-3 w-3" /> Stage
+                        </button>
+                      )}
+                    </div>
+                  }
+                />
+              );
+            })}
+            {mobileDeals.length === 0 && <p className="text-center text-muted-foreground py-8">Keine Deals in dieser Stage.</p>}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Desktop: Kanban Board */
+        <div className="flex-1 overflow-x-auto">
+          <div className="flex gap-4 min-w-max pb-4">
+            {stages?.map((stage) => {
+              const stageDeals = dealsByStage.get(stage.id) ?? [];
+              const totalValue = stageDeals.reduce((sum, d) => sum + (d.value_amount ?? 0), 0);
+              const bgClass = stage.is_won_stage ? "bg-success/5 border-success/20" : stage.is_lost_stage ? "bg-destructive/5 border-destructive/20" : "bg-[#F0F1F5] border-transparent";
+
+              return (
+                <div key={stage.id} className={cn("flex w-[280px] shrink-0 flex-col rounded-xl border p-3", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.id)}>
+                  <div className="mb-3 px-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-label font-semibold text-foreground">{stage.name}</h3>
+                      <span className="text-[11px] font-medium text-muted-foreground">{stage.probability_percent}%</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {stageDeals.length} Deal{stageDeals.length !== 1 ? "s" : ""} · {formatSum(totalValue)}
+                    </p>
+                  </div>
+                  <div className="flex-1 space-y-2 min-h-[60px]">
+                    {stageDeals.map((deal) => {
+                      const company = deal.company as { name: string } | null;
+                      const owner = deal.owner as { first_name: string; last_name: string } | null;
+                      return (
+                        <DealCard
+                          key={deal.id}
+                          deal={{
+                            id: deal.id, title: deal.title, company_name: company?.name ?? null,
+                            value_amount: deal.value_amount, currency: deal.currency,
+                            priority: deal.priority, owner_first_name: owner?.first_name ?? null,
+                            owner_last_name: owner?.last_name ?? null,
+                          }}
+                          onDragStart={handleDragStart}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <CreateDealSheet open={sheetOpen} onOpenChange={setSheetOpen} />
       <LostReasonDialog
-        dealId={lostDialog.dealId}
-        dealTitle={lostDialog.dealTitle}
-        stageId={lostDialog.stageId}
-        open={lostDialog.open}
-        onOpenChange={(open) => setLostDialog((p) => ({ ...p, open }))}
+        dealId={lostDialog.dealId} dealTitle={lostDialog.dealTitle} stageId={lostDialog.stageId}
+        open={lostDialog.open} onOpenChange={(open) => setLostDialog((p) => ({ ...p, open }))}
         onComplete={() => setLostDialog({ open: false, dealId: "", dealTitle: "", stageId: "" })}
       />
+      {stages && (
+        <StageChangeSheet
+          open={stageChangeSheet.open}
+          onOpenChange={(open) => setStageChangeSheet((p) => ({ ...p, open }))}
+          stages={stages}
+          currentStageId={stageChangeSheet.currentStageId}
+          dealTitle={stageChangeSheet.dealTitle}
+          onSelect={(stageId) => handleMobileStageChange(stageChangeSheet.dealId, stageChangeSheet.dealTitle, stageId)}
+        />
+      )}
     </div>
   );
 }

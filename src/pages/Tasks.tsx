@@ -5,10 +5,13 @@ import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay, endOfWeek, startOfWeek, addWeeks } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -29,6 +32,7 @@ const priorityBadge: Record<string, string> = {
 export default function Tasks() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const isMobile = useIsMobile();
   const { data: users } = useUsers();
   const { user } = useAuth();
   const { canWrite, role } = usePermission();
@@ -41,6 +45,10 @@ export default function Tasks() {
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterDue, setFilterDue] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [mobileStatusFilter, setMobileStatusFilter] = useState<string>("all");
+  const [statusChangeSheet, setStatusChangeSheet] = useState<{ open: boolean; taskId: string; currentStatus: string }>({
+    open: false, taskId: "", currentStatus: "",
+  });
 
   const { data: tasks } = useQuery({
     queryKey: ["all-tasks"],
@@ -121,63 +129,135 @@ export default function Tasks() {
 
   const isOverdue = (due: string | null) => due && isBefore(new Date(due), startOfDay(new Date()));
 
+  // Mobile filtered
+  const mobileTasks = mobileStatusFilter === "all" ? filtered : filtered.filter((t) => t.status === mobileStatusFilter);
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-[28px] font-semibold text-foreground">Tasks</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button onClick={() => setView("board")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><LayoutGrid className="h-4 w-4" /></button>
-            <button onClick={() => setView("list")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><List className="h-4 w-4" /></button>
+        {!isMobile && (
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button onClick={() => setView("board")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><LayoutGrid className="h-4 w-4" /></button>
+              <button onClick={() => setView("list")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><List className="h-4 w-4" /></button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
-        <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Projekt" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle Projekte</SelectItem>
-            {projects?.map((p) => <SelectItem key={p.id} value={p.id} className="min-h-[44px]">{p.title}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-[150px] min-h-[44px] bg-card"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle Status</SelectItem>
-            {taskStatuses.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{taskStatusLabel[s]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterUser} onValueChange={setFilterUser}>
-          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Verantwortlich" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
-            {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="w-full sm:w-[140px] min-h-[44px] bg-card"><SelectValue placeholder="Priorität" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
-            <SelectItem value="low" className="min-h-[44px]">Low</SelectItem>
-            <SelectItem value="medium" className="min-h-[44px]">Medium</SelectItem>
-            <SelectItem value="high" className="min-h-[44px]">High</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterDue} onValueChange={setFilterDue}>
-          <SelectTrigger className="w-full sm:w-[160px] min-h-[44px] bg-card col-span-2 sm:col-span-1"><SelectValue placeholder="Fälligkeit" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
-            <SelectItem value="overdue" className="min-h-[44px]">Überfällig</SelectItem>
-            <SelectItem value="this_week" className="min-h-[44px]">Diese Woche</SelectItem>
-            <SelectItem value="next_week" className="min-h-[44px]">Nächste Woche</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {isMobile ? (
+        <div className="space-y-3">
+          {/* Status pill toggles */}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <button
+              onClick={() => setMobileStatusFilter("all")}
+              className={cn("shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors min-h-[36px]",
+                mobileStatusFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}
+            >Alle</button>
+            {taskStatuses.map((s) => (
+              <button
+                key={s}
+                onClick={() => setMobileStatusFilter(s)}
+                className={cn("shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors min-h-[36px]",
+                  mobileStatusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}
+              >{taskStatusLabel[s]}</button>
+            ))}
+          </div>
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-full min-h-[44px] bg-card"><SelectValue placeholder="Projekt" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-[44px]">Alle Projekte</SelectItem>
+              {projects?.map((p) => <SelectItem key={p.id} value={p.id} className="min-h-[44px]">{p.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Projekt" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-[44px]">Alle Projekte</SelectItem>
+              {projects?.map((p) => <SelectItem key={p.id} value={p.id} className="min-h-[44px]">{p.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full sm:w-[150px] min-h-[44px] bg-card"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-[44px]">Alle Status</SelectItem>
+              {taskStatuses.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{taskStatusLabel[s]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterUser} onValueChange={setFilterUser}>
+            <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Verantwortlich" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
+              {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterPriority} onValueChange={setFilterPriority}>
+            <SelectTrigger className="w-full sm:w-[140px] min-h-[44px] bg-card"><SelectValue placeholder="Priorität" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
+              <SelectItem value="low" className="min-h-[44px]">Low</SelectItem>
+              <SelectItem value="medium" className="min-h-[44px]">Medium</SelectItem>
+              <SelectItem value="high" className="min-h-[44px]">High</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterDue} onValueChange={setFilterDue}>
+            <SelectTrigger className="w-full sm:w-[160px] min-h-[44px] bg-card col-span-2 sm:col-span-1"><SelectValue placeholder="Fälligkeit" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-[44px]">Alle</SelectItem>
+              <SelectItem value="overdue" className="min-h-[44px]">Überfällig</SelectItem>
+              <SelectItem value="this_week" className="min-h-[44px]">Diese Woche</SelectItem>
+              <SelectItem value="next_week" className="min-h-[44px]">Nächste Woche</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      {/* Board View */}
-      {view === "board" && (
+      {/* Mobile: Card list */}
+      {isMobile ? (
+        <div className="space-y-2">
+          {mobileTasks.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Keine Tasks gefunden.</p>
+          ) : mobileTasks.map((task) => {
+            const assigned = task.assigned as { first_name: string; last_name: string } | null;
+            const project = task.project as { id: string; title: string } | null;
+            return (
+              <MobileCard
+                key={task.id}
+                onClick={() => setSelectedTaskId(task.id)}
+                title={task.title}
+                subtitle={project?.title || undefined}
+                className={task.status === "done" ? "opacity-60" : undefined}
+                badge={
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (canWriteTasks) setStatusChangeSheet({ open: true, taskId: task.id, currentStatus: task.status }); }}
+                    className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", statusBadge[task.status])}
+                  >
+                    {taskStatusLabel[task.status]}
+                  </button>
+                }
+                rightContent={
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {task.priority && <span className={cn("h-2 w-2 rounded-full", priorityDot[task.priority] ?? priorityDot.medium)} />}
+                    {task.due_date && (
+                      <span className={cn("text-[11px]", isOverdue(task.due_date) && task.status !== "done" ? "text-destructive font-medium" : "text-muted-foreground")}>
+                        {format(new Date(task.due_date), "dd.MM")}
+                      </span>
+                    )}
+                  </div>
+                }
+              />
+            );
+          })}
+        </div>
+      ) : view === "board" ? (
+        /* Desktop Board */
         <div className="overflow-x-auto">
           <div className="flex gap-4 min-w-max pb-4">
             {taskStatuses.map((status) => {
@@ -195,13 +275,8 @@ export default function Tasks() {
                       const project = task.project as { id: string; title: string } | null;
                       const initials = assigned ? `${assigned.first_name[0]}${assigned.last_name[0]}`.toUpperCase() : null;
                       return (
-                        <div
-                          key={task.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id)}
-                          onClick={() => setSelectedTaskId(task.id)}
-                          className={cn("rounded-xl border border-border bg-card p-3 cursor-grab transition-shadow hover:shadow-md", task.status === "done" && "opacity-60")}
-                        >
+                        <div key={task.id} draggable onDragStart={(e) => handleDragStart(e, task.id)} onClick={() => setSelectedTaskId(task.id)}
+                          className={cn("rounded-xl border border-border bg-card p-3 cursor-grab transition-shadow hover:shadow-md", task.status === "done" && "opacity-60")}>
                           <div className="flex items-start justify-between gap-2">
                             <p className={cn("text-sm font-medium text-foreground truncate flex-1", task.status === "done" && "line-through")}>{task.title}</p>
                             {task.priority && <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", priorityDot[task.priority] ?? priorityDot.medium)} />}
@@ -220,21 +295,14 @@ export default function Tasks() {
             })}
           </div>
         </div>
-      )}
-
-      {/* List View */}
-      {view === "list" && (
+      ) : (
+        /* Desktop List */
         <div className="rounded-2xl border border-border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Titel</TableHead>
-                <TableHead>Projekt</TableHead>
-                <TableHead>Verantwortlich</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Priorität</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Erstellt am</TableHead>
+                <TableHead>Titel</TableHead><TableHead>Projekt</TableHead><TableHead>Verantwortlich</TableHead>
+                <TableHead>Status</TableHead><TableHead>Priorität</TableHead><TableHead>Due Date</TableHead><TableHead>Erstellt am</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -259,6 +327,29 @@ export default function Tasks() {
           </Table>
         </div>
       )}
+
+      {/* Task Status Change Bottom Sheet (Mobile) */}
+      <Sheet open={statusChangeSheet.open} onOpenChange={(open) => setStatusChangeSheet((p) => ({ ...p, open }))}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetHeader><SheetTitle className="text-left">Status ändern</SheetTitle></SheetHeader>
+          <div className="space-y-2 mt-4 pb-4">
+            {taskStatuses.map((s) => (
+              <Button
+                key={s}
+                variant={s === statusChangeSheet.currentStatus ? "default" : "outline"}
+                className="w-full justify-start min-h-[48px]"
+                onClick={() => {
+                  if (s !== statusChangeSheet.currentStatus) moveTaskMutation.mutate({ taskId: statusChangeSheet.taskId, status: s });
+                  setStatusChangeSheet({ open: false, taskId: "", currentStatus: "" });
+                }}
+              >
+                <span className={cn("mr-2 h-2 w-2 rounded-full", statusBadge[s]?.split(" ")[0])} />
+                {taskStatusLabel[s]}
+              </Button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <TaskDetailSheet taskId={selectedTaskId} open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }} />
     </div>
