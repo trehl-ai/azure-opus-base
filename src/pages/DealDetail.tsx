@@ -199,7 +199,7 @@ export default function DealDetail() {
         </div>
         <div className="flex items-center gap-2">
           {canWriteDeals && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>}
-          {deal.status === "open" && (
+          {deal.status === "open" && canWriteDeals && (
             <>
               <Button size="sm" className="gap-1.5 bg-success hover:bg-success/90 text-white" onClick={() => wonMutation.mutate()} disabled={wonMutation.isPending}>
                 <Trophy className="h-3.5 w-3.5" /> Won
@@ -209,6 +209,7 @@ export default function DealDetail() {
               </Button>
             </>
           )}
+          {canWriteDeals && (
           <AlertDialog>
             <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
             <AlertDialogContent>
