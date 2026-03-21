@@ -123,7 +123,7 @@ export default function ProjectDetail() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { e.dataTransfer.setData("taskId", taskId); }, []);
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { if (!canWriteTasks) { e.preventDefault(); return; } e.dataTransfer.setData("taskId", taskId); }, [canWriteTasks]);
   const handleDrop = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
