@@ -194,6 +194,259 @@ export type Database = {
           },
         ]
       }
+      deal_activities: {
+        Row: {
+          activity_type: string
+          completed_at: string | null
+          created_at: string
+          created_by_user_id: string | null
+          deal_id: string
+          description: string | null
+          due_date: string | null
+          id: string
+          owner_user_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          activity_type: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          deal_id: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_user_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          activity_type?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          deal_id?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_user_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_activities_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          currency: string | null
+          description: string | null
+          expected_close_date: string | null
+          id: string
+          lost_at: string | null
+          lost_reason: string | null
+          owner_user_id: string | null
+          pipeline_id: string
+          pipeline_stage_id: string
+          primary_contact_id: string | null
+          priority: string | null
+          probability_percent: number | null
+          source: string | null
+          status: string
+          title: string
+          updated_at: string
+          value_amount: number | null
+          won_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          currency?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          lost_at?: string | null
+          lost_reason?: string | null
+          owner_user_id?: string | null
+          pipeline_id: string
+          pipeline_stage_id: string
+          primary_contact_id?: string | null
+          priority?: string | null
+          probability_percent?: number | null
+          source?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          value_amount?: number | null
+          won_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          currency?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          lost_at?: string | null
+          lost_reason?: string | null
+          owner_user_id?: string | null
+          pipeline_id?: string
+          pipeline_stage_id?: string
+          primary_contact_id?: string | null
+          priority?: string | null
+          probability_percent?: number | null
+          source?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          value_amount?: number | null
+          won_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_stages: {
+        Row: {
+          created_at: string
+          id: string
+          is_lost_stage: boolean | null
+          is_won_stage: boolean | null
+          name: string
+          pipeline_id: string
+          position: number
+          probability_percent: number | null
+          stage_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_lost_stage?: boolean | null
+          is_won_stage?: boolean | null
+          name: string
+          pipeline_id: string
+          position: number
+          probability_percent?: number | null
+          stage_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_lost_stage?: boolean | null
+          is_won_stage?: boolean | null
+          name?: string
+          pipeline_id?: string
+          position?: number
+          probability_percent?: number | null
+          stage_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
