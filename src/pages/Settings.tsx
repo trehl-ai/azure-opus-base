@@ -5,6 +5,7 @@ import SecuritySettings from "@/pages/settings/SecuritySettings";
 import UsersSettings from "@/pages/settings/UsersSettings";
 import RolesSettings from "@/pages/settings/RolesSettings";
 import GeneralSettings from "@/pages/settings/GeneralSettings";
+import PipelinesSettings from "@/pages/settings/PipelinesSettings";
 import PlaceholderSettings from "@/pages/settings/PlaceholderSettings";
 
 export default function SettingsPage() {
@@ -17,7 +18,7 @@ export default function SettingsPage() {
         <Route path="general" element={<GeneralSettings />} />
         <Route path="users" element={<UsersSettings />} />
         <Route path="roles" element={<RolesSettings />} />
-        <Route path="pipelines" element={<PlaceholderSettings title="Pipelines" />} />
+        <Route path="pipelines" element={<PipelinesSettings />} />
         <Route path="tags" element={<PlaceholderSettings title="Tags" />} />
         <Route path="deal-fields" element={<PlaceholderSettings title="Deal-Felder" />} />
       </Route>
