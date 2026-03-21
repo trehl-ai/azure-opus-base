@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Mail, Plus, Star, Trash2, ExternalLink, Server, ShieldOff } from "lucide-react";
+import { Mail, Plus, Star, Trash2, ExternalLink, Server, ShieldOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
