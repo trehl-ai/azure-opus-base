@@ -42,6 +42,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { captureTimestamp, checkConflict, dismissConflict, hasConflict } = useConflictCheck("deals", deal.id);
 
   const [form, setForm] = useState({
     title: "", value_amount: "", currency: "EUR", probability_percent: "",
