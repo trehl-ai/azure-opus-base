@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ShieldAlert, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ShieldAlert, AlertTriangle, RotateCcw, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -15,6 +16,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
 
 const currencies = ["EUR", "USD", "CHF", "GBP"];
 const dateFormats = ["DD.MM.YYYY", "MM/DD/YYYY", "YYYY-MM-DD"];
@@ -73,6 +79,47 @@ export default function GeneralSettings() {
         .select("id, first_name, last_name")
         .eq("is_active", true)
         .order("first_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Deleted items (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+
+  const { data: deletedCompanies = [] } = useQuery({
+    queryKey: ["deleted-companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("companies").select("id, name, deleted_at").not("deleted_at", "is", null).gte("deleted_at", thirtyDaysAgoISO).order("deleted_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: deletedContacts = [] } = useQuery({
+    queryKey: ["deleted-contacts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("contacts").select("id, first_name, last_name, deleted_at").not("deleted_at", "is", null).gte("deleted_at", thirtyDaysAgoISO).order("deleted_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: deletedDeals = [] } = useQuery({
+    queryKey: ["deleted-deals"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("deals").select("id, title, deleted_at").not("deleted_at", "is", null).gte("deleted_at", thirtyDaysAgoISO).order("deleted_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: deletedProjects = [] } = useQuery({
+    queryKey: ["deleted-projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("projects").select("id, title, deleted_at").not("deleted_at", "is", null).gte("deleted_at", thirtyDaysAgoISO).order("deleted_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -158,6 +205,31 @@ export default function GeneralSettings() {
     }
   };
 
+  const restoreMutation = useMutation({
+    mutationFn: async ({ table, id }: { table: string; id: string }) => {
+      const { error } = await supabase.from(table as any).update({ deleted_at: null }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      toast.success("Eintrag wiederhergestellt");
+      queryClient.invalidateQueries({ queryKey: [`deleted-${vars.table}`] });
+      queryClient.invalidateQueries({ queryKey: [vars.table] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async ({ table, id }: { table: string; id: string }) => {
+      const { error } = await supabase.from(table as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      toast.success("Endgültig gelöscht");
+      queryClient.invalidateQueries({ queryKey: [`deleted-${vars.table}`] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   if (user?.role !== "admin") {
     return (
       <Card className="rounded-2xl max-w-2xl">
@@ -169,6 +241,54 @@ export default function GeneralSettings() {
       </Card>
     );
   }
+
+  const totalDeleted = deletedCompanies.length + deletedContacts.length + deletedDeals.length + deletedProjects.length;
+
+  const renderDeletedTable = (items: { id: string; name?: string; title?: string; first_name?: string; last_name?: string; deleted_at: string | null }[], table: string) => {
+    if (items.length === 0) return <p className="text-sm text-muted-foreground py-4 text-center">Keine gelöschten Einträge.</p>;
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Gelöscht am</TableHead>
+            <TableHead className="text-right">Aktionen</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell className="font-medium">
+                {item.name ?? item.title ?? `${item.first_name} ${item.last_name}`}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {item.deleted_at ? format(new Date(item.deleted_at), "dd.MM.yyyy HH:mm") : "–"}
+              </TableCell>
+              <TableCell className="text-right space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => restoreMutation.mutate({ table, id: item.id })}
+                  disabled={restoreMutation.isPending}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Wiederherstellen
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => permanentDeleteMutation.mutate({ table, id: item.id })}
+                  disabled={permanentDeleteMutation.isPending}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Endgültig löschen
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -258,7 +378,38 @@ export default function GeneralSettings() {
         </CardContent>
       </Card>
 
-      {/* Card 3 – Danger Zone */}
+      {/* Card 3 – Gelöschte Einträge */}
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <RotateCcw className="h-5 w-5" /> Gelöschte Einträge
+            {totalDeleted > 0 && (
+              <Badge variant="secondary" className="ml-2">{totalDeleted}</Badge>
+            )}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">Einträge der letzten 30 Tage. Wiederherstellen oder endgültig löschen.</p>
+        </CardHeader>
+        <CardContent>
+          {totalDeleted === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Keine gelöschten Einträge in den letzten 30 Tagen.</p>
+          ) : (
+            <Tabs defaultValue="companies">
+              <TabsList className="mb-4">
+                <TabsTrigger value="companies">Companies ({deletedCompanies.length})</TabsTrigger>
+                <TabsTrigger value="contacts">Contacts ({deletedContacts.length})</TabsTrigger>
+                <TabsTrigger value="deals">Deals ({deletedDeals.length})</TabsTrigger>
+                <TabsTrigger value="projects">Projects ({deletedProjects.length})</TabsTrigger>
+              </TabsList>
+              <TabsContent value="companies">{renderDeletedTable(deletedCompanies, "companies")}</TabsContent>
+              <TabsContent value="contacts">{renderDeletedTable(deletedContacts, "contacts")}</TabsContent>
+              <TabsContent value="deals">{renderDeletedTable(deletedDeals, "deals")}</TabsContent>
+              <TabsContent value="projects">{renderDeletedTable(deletedProjects, "projects")}</TabsContent>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Card 4 – Danger Zone */}
       <Card className="rounded-2xl border-destructive">
         <CardHeader>
           <CardTitle className="text-lg text-destructive flex items-center gap-2">

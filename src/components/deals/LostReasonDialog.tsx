@@ -23,12 +23,11 @@ export function LostReasonDialog({ dealId, dealTitle, stageId, open, onOpenChang
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("deals").update({
-        pipeline_stage_id: stageId,
-        status: "lost",
-        lost_at: new Date().toISOString(),
-        lost_reason: reason.trim() || null,
-      }).eq("id", dealId);
+      const { error } = await supabase.rpc("set_deal_lost", {
+        p_deal_id: dealId,
+        p_reason: reason.trim() || null,
+        p_lost_stage_id: stageId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {

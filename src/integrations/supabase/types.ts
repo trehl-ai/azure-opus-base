@@ -20,6 +20,7 @@ export type Database = {
           country: string | null
           created_at: string
           created_by_user_id: string | null
+          deleted_at: string | null
           id: string
           industry: string | null
           name: string
@@ -37,6 +38,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           id?: string
           industry?: string | null
           name: string
@@ -54,6 +56,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           id?: string
           industry?: string | null
           name?: string
@@ -113,7 +116,21 @@ export type Database = {
             foreignKeyName: "company_contacts_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "active_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -129,6 +146,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by_user_id: string | null
+          deleted_at: string | null
           email: string | null
           first_name: string
           id: string
@@ -146,6 +164,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           email?: string | null
           first_name: string
           id?: string
@@ -163,6 +182,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           email?: string | null
           first_name?: string
           id?: string
@@ -246,6 +266,13 @@ export type Database = {
             foreignKeyName: "deal_activities_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
+            referencedRelation: "active_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
@@ -264,6 +291,7 @@ export type Database = {
           created_at: string
           created_by_user_id: string | null
           currency: string | null
+          deleted_at: string | null
           description: string | null
           expected_close_date: string | null
           id: string
@@ -287,6 +315,7 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           currency?: string | null
+          deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
           id?: string
@@ -310,6 +339,7 @@ export type Database = {
           created_at?: string
           created_by_user_id?: string | null
           currency?: string | null
+          deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
           id?: string
@@ -329,6 +359,13 @@ export type Database = {
           won_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "active_companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deals_company_id_fkey"
             columns: ["company_id"]
@@ -362,6 +399,13 @@ export type Database = {
             columns: ["pipeline_stage_id"]
             isOneToOne: false
             referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -553,6 +597,13 @@ export type Database = {
             foreignKeyName: "intake_messages_created_company_id_fkey"
             columns: ["created_company_id"]
             isOneToOne: false
+            referencedRelation: "active_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_messages_created_company_id_fkey"
+            columns: ["created_company_id"]
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
@@ -560,7 +611,21 @@ export type Database = {
             foreignKeyName: "intake_messages_created_contact_id_fkey"
             columns: ["created_contact_id"]
             isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_messages_created_contact_id_fkey"
+            columns: ["created_contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_messages_created_deal_id_fkey"
+            columns: ["created_deal_id"]
+            isOneToOne: false
+            referencedRelation: "active_deals"
             referencedColumns: ["id"]
           },
           {
@@ -658,6 +723,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           created_by_user_id: string | null
+          deleted_at: string | null
           description: string | null
           end_date: string | null
           id: string
@@ -674,6 +740,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -690,6 +757,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -703,6 +771,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "active_companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_company_id_fkey"
             columns: ["company_id"]
@@ -721,6 +796,13 @@ export type Database = {
             foreignKeyName: "projects_originating_deal_id_fkey"
             columns: ["originating_deal_id"]
             isOneToOne: true
+            referencedRelation: "active_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_originating_deal_id_fkey"
+            columns: ["originating_deal_id"]
+            isOneToOne: true
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
@@ -729,6 +811,13 @@ export type Database = {
             columns: ["owner_user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -881,6 +970,13 @@ export type Database = {
             foreignKeyName: "tasks_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "active_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -953,10 +1049,405 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      active_companies: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string | null
+          created_by_user_id: string | null
+          deleted_at: string | null
+          id: string | null
+          industry: string | null
+          name: string | null
+          notes: string | null
+          owner_user_id: string | null
+          postal_code: string | null
+          source: string | null
+          status: string | null
+          street: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string | null
+          industry?: string | null
+          name?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          postal_code?: string | null
+          source?: string | null
+          status?: string | null
+          street?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string | null
+          industry?: string | null
+          name?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          postal_code?: string | null
+          source?: string | null
+          status?: string | null
+          street?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      active_contacts: {
+        Row: {
+          created_at: string | null
+          created_by_user_id: string | null
+          deleted_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string | null
+          job_title: string | null
+          last_name: string | null
+          linkedin_url: string | null
+          mobile: string | null
+          notes: string | null
+          owner_user_id: string | null
+          phone: string | null
+          source: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string | null
+          job_title?: string | null
+          last_name?: string | null
+          linkedin_url?: string | null
+          mobile?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string | null
+          job_title?: string | null
+          last_name?: string | null
+          linkedin_url?: string | null
+          mobile?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      active_deals: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          created_by_user_id: string | null
+          currency: string | null
+          deleted_at: string | null
+          description: string | null
+          expected_close_date: string | null
+          id: string | null
+          lost_at: string | null
+          lost_reason: string | null
+          owner_user_id: string | null
+          pipeline_id: string | null
+          pipeline_stage_id: string | null
+          primary_contact_id: string | null
+          priority: string | null
+          probability_percent: number | null
+          source: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+          value_amount: number | null
+          won_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          currency?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string | null
+          lost_at?: string | null
+          lost_reason?: string | null
+          owner_user_id?: string | null
+          pipeline_id?: string | null
+          pipeline_stage_id?: string | null
+          primary_contact_id?: string | null
+          priority?: string | null
+          probability_percent?: number | null
+          source?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+          value_amount?: number | null
+          won_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          currency?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string | null
+          lost_at?: string | null
+          lost_reason?: string | null
+          owner_user_id?: string | null
+          pipeline_id?: string | null
+          pipeline_stage_id?: string | null
+          primary_contact_id?: string | null
+          priority?: string | null
+          probability_percent?: number | null
+          source?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+          value_amount?: number | null
+          won_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "active_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      active_projects: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          created_by_user_id: string | null
+          deleted_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string | null
+          originating_deal_id: string | null
+          owner_user_id: string | null
+          primary_contact_id: string | null
+          priority: string | null
+          start_date: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string | null
+          originating_deal_id?: string | null
+          owner_user_id?: string | null
+          primary_contact_id?: string | null
+          priority?: string | null
+          start_date?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string | null
+          originating_deal_id?: string | null
+          owner_user_id?: string | null
+          primary_contact_id?: string | null
+          priority?: string | null
+          start_date?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "active_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_originating_deal_id_fkey"
+            columns: ["originating_deal_id"]
+            isOneToOne: true
+            referencedRelation: "active_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_originating_deal_id_fkey"
+            columns: ["originating_deal_id"]
+            isOneToOne: true
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_primary_contact_id_fkey"
+            columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       create_project_from_deal: { Args: { p_deal_id: string }; Returns: string }
+      get_user_role: { Args: { _user_id: string }; Returns: string }
+      set_deal_lost: {
+        Args: { p_deal_id: string; p_lost_stage_id?: string; p_reason: string }
+        Returns: undefined
+      }
+      set_deal_won_and_create_project: {
+        Args: { p_deal_id: string; p_winning_user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -82,10 +82,10 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
-  // Delete project
+  // Soft-delete
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("projects").delete().eq("id", id!);
+      const { error } = await supabase.from("projects").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => { toast({ title: "Projekt gelöscht" }); navigate("/projects"); },

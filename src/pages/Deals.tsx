@@ -1,10 +1,10 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
@@ -71,7 +71,8 @@ export default function Deals() {
       let q = supabase
         .from("deals")
         .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
-        .eq("pipeline_id", activePipelineId);
+        .eq("pipeline_id", activePipelineId)
+        .is("deleted_at", null);
 
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
       if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
@@ -88,20 +89,22 @@ export default function Deals() {
   // Move deal mutation (for non-lost stages)
   const moveDealMutation = useMutation({
     mutationFn: async ({ dealId, stageId, isWon }: { dealId: string; stageId: string; isWon: boolean }) => {
-      const updates: Record<string, unknown> = { pipeline_stage_id: stageId };
       if (isWon) {
-        updates.status = "won";
-        updates.won_at = new Date().toISOString();
+        // Use atomic RPC for won deals
+        const { data, error } = await supabase.rpc("set_deal_won_and_create_project", {
+          p_deal_id: dealId,
+          p_winning_user_id: user?.id ?? "",
+        });
+        if (error) throw error;
+        if (data) {
+          const { data: project } = await supabase.from("projects").select("id, title").eq("id", data).maybeSingle();
+          return project;
+        }
+        return null;
       }
-      const { error } = await supabase.from("deals").update(updates).eq("id", dealId);
+      // Normal stage move
+      const { error } = await supabase.from("deals").update({ pipeline_stage_id: stageId }).eq("id", dealId);
       if (error) throw error;
-      // If won, fetch the created project
-      if (isWon) {
-        // Small delay to let trigger run
-        await new Promise((r) => setTimeout(r, 500));
-        const { data: project } = await supabase.from("projects").select("id, title").eq("originating_deal_id", dealId).maybeSingle();
-        return project;
-      }
       return null;
     },
     onSuccess: (project) => {
