@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
@@ -20,8 +22,13 @@ export default function Deals() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: users } = useUsers();
+  const { user } = useAuth();
+  const { canWrite, role } = usePermission();
+  const canWriteDeals = canWrite("deals");
+  const showOwnerToggle = role === "sales";
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
+  const [showAll, setShowAll] = useState(!showOwnerToggle);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
 
@@ -63,7 +70,8 @@ export default function Deals() {
         .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
         .eq("pipeline_id", activePipelineId);
 
-      if (ownerFilter && ownerFilter !== "all") q = q.eq("owner_user_id", ownerFilter);
+      const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
+      if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
       if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
       if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
 
@@ -107,8 +115,9 @@ export default function Deals() {
   });
 
   const handleDragStart = useCallback((e: React.DragEvent, dealId: string) => {
+    if (!canWriteDeals) { e.preventDefault(); return; }
     e.dataTransfer.setData("dealId", dealId);
-  }, []);
+  }, [canWriteDeals]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, stageId: string) => {
@@ -150,9 +159,11 @@ export default function Deals() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-section-title text-foreground">Deals</h1>
-        <Button onClick={() => setSheetOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Neuer Deal
-        </Button>
+        {canWriteDeals && (
+          <Button onClick={() => setSheetOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Neuer Deal
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -188,6 +199,11 @@ export default function Deals() {
         </Popover>
         {(dateFrom || dateTo) && (
           <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>Zeitraum zurücksetzen</Button>
+        )}
+        {showOwnerToggle && (
+          <Button variant={showAll ? "secondary" : "outline"} size="sm" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
+            {showAll ? "Alle Deals" : "Meine Deals"}
+          </Button>
         )}
       </div>
 

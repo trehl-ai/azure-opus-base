@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useContacts } from "@/hooks/useContacts";
 import { useUsers } from "@/hooks/useUsers";
+import { usePermission } from "@/hooks/usePermission";
 import { ContactStatusBadge } from "@/components/contacts/ContactStatusBadge";
 import { CreateContactSheet } from "@/components/contacts/CreateContactSheet";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,8 @@ const statusFilterOptions = [
 
 export default function Contacts() {
   const navigate = useNavigate();
+  const { canWrite } = usePermission();
+  const canWriteContacts = canWrite("contacts");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
@@ -55,9 +58,11 @@ export default function Contacts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-section-title text-foreground">Contacts</h1>
-        <Button onClick={() => setSheetOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Neuer Contact
-        </Button>
+        {canWriteContacts && (
+          <Button onClick={() => setSheetOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Neuer Contact
+          </Button>
+        )}
       </div>
 
       {/* Filters */}

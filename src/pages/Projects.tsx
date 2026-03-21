@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { CreateProjectSheet } from "@/components/projects/CreateProjectSheet";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
@@ -33,10 +35,15 @@ export default function Projects() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: users } = useUsers();
+  const { user } = useAuth();
+  const { canWrite, role } = usePermission();
+  const canWriteProjects = canWrite("projects");
+  const showOwnerToggle = role === "project_manager";
   const [sheetOpen, setSheetOpen] = useState(false);
   const [view, setView] = useState<"board" | "list">("board");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
+  const [showAll, setShowAll] = useState(!showOwnerToggle);
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortCol, setSortCol] = useState<string>("title");
   const [sortAsc, setSortAsc] = useState(true);
@@ -49,7 +56,8 @@ export default function Projects() {
         .select("*, company:companies(name), owner:users!projects_owner_user_id_fkey(first_name, last_name)")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      if (ownerFilter !== "all") q = q.eq("owner_user_id", ownerFilter);
+      const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
+      if (effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
       if (priorityFilter !== "all") q = q.eq("priority", priorityFilter);
       const { data, error } = await q;
       if (error) throw error;
@@ -86,7 +94,7 @@ export default function Projects() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  const handleDragStart = useCallback((e: React.DragEvent, id: string) => { e.dataTransfer.setData("projectId", id); }, []);
+  const handleDragStart = useCallback((e: React.DragEvent, id: string) => { if (!canWriteProjects) { e.preventDefault(); return; } e.dataTransfer.setData("projectId", id); }, [canWriteProjects]);
   const handleDrop = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     const projectId = e.dataTransfer.getData("projectId");
@@ -128,7 +136,7 @@ export default function Projects() {
               <List className="h-4 w-4" />
             </button>
           </div>
-          <Button onClick={() => setSheetOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Neues Projekt</Button>
+          {canWriteProjects && <Button onClick={() => setSheetOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Neues Projekt</Button>}
         </div>
       </div>
 
@@ -156,6 +164,11 @@ export default function Projects() {
             <SelectItem value="high">High</SelectItem>
           </SelectContent>
         </Select>
+        {showOwnerToggle && (
+          <Button variant={showAll ? "secondary" : "outline"} size="sm" onClick={() => { setShowAll(!showAll); if (!showAll) setOwnerFilter("all"); else setOwnerFilter(user?.id ?? "all"); }}>
+            {showAll ? "Alle Projekte" : "Meine Projekte"}
+          </Button>
+        )}
       </div>
 
       {view === "board" && (

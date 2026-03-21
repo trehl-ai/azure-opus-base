@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,6 +30,9 @@ export default function Tasks() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: users } = useUsers();
+  const { user } = useAuth();
+  const { canWrite, role } = usePermission();
+  const canWriteTasks = canWrite("tasks");
 
   const [view, setView] = useState<"board" | "list">("board");
   const [filterProject, setFilterProject] = useState("all");
@@ -93,7 +98,7 @@ export default function Tasks() {
     });
   }, [tasks, filterProject, filterStatus, filterUser, filterPriority, filterDue]);
 
-  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { e.dataTransfer.setData("taskId", taskId); }, []);
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { if (!canWriteTasks) { e.preventDefault(); return; } e.dataTransfer.setData("taskId", taskId); }, [canWriteTasks]);
   const handleDrop = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");

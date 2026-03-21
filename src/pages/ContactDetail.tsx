@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { usePermission } from "@/hooks/usePermission";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +27,8 @@ export default function ContactDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [linkCompanyOpen, setLinkCompanyOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteContacts = canWrite("contacts");
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
@@ -109,24 +112,26 @@ export default function ContactDetail() {
           <h1 className="text-section-title text-foreground">{contact.first_name} {contact.last_name}</h1>
           <ContactStatusBadge status={contact.status} />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /> Bearbeiten</Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Löschen</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Kontakt löschen?</AlertDialogTitle>
-                <AlertDialogDescription>"{contact.first_name} {contact.last_name}" wird unwiderruflich gelöscht.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        {canWriteContacts && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /> Bearbeiten</Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Löschen</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Kontakt löschen?</AlertDialogTitle>
+                  <AlertDialogDescription>"{contact.first_name} {contact.last_name}" wird unwiderruflich gelöscht.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="overview" className="w-full">

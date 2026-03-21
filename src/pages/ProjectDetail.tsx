@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { usePermission } from "@/hooks/usePermission";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +47,9 @@ export default function ProjectDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteProjects = canWrite("projects");
+  const canWriteTasks = canWrite("tasks");
 
   // Project
   const { data: project, isLoading } = useQuery({
@@ -119,7 +123,7 @@ export default function ProjectDetail() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { e.dataTransfer.setData("taskId", taskId); }, []);
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { if (!canWriteTasks) { e.preventDefault(); return; } e.dataTransfer.setData("taskId", taskId); }, [canWriteTasks]);
   const handleDrop = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
@@ -157,16 +161,18 @@ export default function ProjectDetail() {
             {statusLabel[project.status]}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader><AlertDialogTitle>Projekt löschen?</AlertDialogTitle><AlertDialogDescription>Alle zugehörigen Tasks werden ebenfalls gelöscht.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Abbrechen</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction></AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        {canWriteProjects && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader><AlertDialogTitle>Projekt löschen?</AlertDialogTitle><AlertDialogDescription>Alle zugehörigen Tasks werden ebenfalls gelöscht.</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter><AlertDialogCancel>Abbrechen</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction></AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="overview">
@@ -208,9 +214,11 @@ export default function ProjectDetail() {
 
         {/* Tasks Kanban */}
         <TabsContent value="tasks" className="space-y-4 mt-4">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setTaskDialogOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Task</Button>
-          </div>
+          {canWriteTasks && (
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setTaskDialogOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Task</Button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <div className="flex gap-4 min-w-max pb-4">
               {taskStatuses.map((status) => {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { usePermission } from "@/hooks/usePermission";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +64,8 @@ export default function CompanyDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [linkContactOpen, setLinkContactOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteCompanies = canWrite("companies");
 
   // Company
   const { data: company, isLoading } = useQuery({
@@ -183,32 +186,34 @@ export default function CompanyDetail() {
           <h1 className="text-section-title text-foreground">{company.name}</h1>
           <CompanyStatusBadge status={company.status} />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Pencil className="h-4 w-4" /> Bearbeiten
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
-                <Trash2 className="h-4 w-4" /> Löschen
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Company löschen?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  "{company.name}" wird unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Löschen
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        {canWriteCompanies && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" /> Bearbeiten
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
+                  <Trash2 className="h-4 w-4" /> Löschen
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Company löschen?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    "{company.name}" wird unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Löschen
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

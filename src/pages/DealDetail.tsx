@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { usePermission } from "@/hooks/usePermission";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,8 @@ export default function DealDetail() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const { canWrite } = usePermission();
+  const canWriteDeals = canWrite("deals");
 
   // Deal
   const { data: deal, isLoading } = useQuery({
@@ -195,8 +198,8 @@ export default function DealDetail() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
-          {deal.status === "open" && (
+          {canWriteDeals && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>}
+          {deal.status === "open" && canWriteDeals && (
             <>
               <Button size="sm" className="gap-1.5 bg-success hover:bg-success/90 text-white" onClick={() => wonMutation.mutate()} disabled={wonMutation.isPending}>
                 <Trophy className="h-3.5 w-3.5" /> Won
@@ -206,6 +209,7 @@ export default function DealDetail() {
               </Button>
             </>
           )}
+          {canWriteDeals && (
           <AlertDialog>
             <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
             <AlertDialogContent>
@@ -213,6 +217,7 @@ export default function DealDetail() {
               <AlertDialogFooter><AlertDialogCancel>Abbrechen</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          )}
         </div>
       </div>
 

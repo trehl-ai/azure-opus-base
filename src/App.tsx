@@ -26,8 +26,13 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
-const ProtectedPage = ({ children }: { children: React.ReactNode }) => (
-  <ProtectedRoute>
+const P = ({ children, requiredRoles, requiredModule, requiredAction }: {
+  children: React.ReactNode;
+  requiredRoles?: string[];
+  requiredModule?: string;
+  requiredAction?: "read" | "write";
+}) => (
+  <ProtectedRoute requiredRoles={requiredRoles} requiredModule={requiredModule} requiredAction={requiredAction}>
     <AppLayout>{children}</AppLayout>
   </ProtectedRoute>
 );
@@ -47,19 +52,19 @@ const App = () => (
 
             {/* Protected routes with AppLayout */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<ProtectedPage><Dashboard /></ProtectedPage>} />
-            <Route path="/contacts" element={<ProtectedPage><Contacts /></ProtectedPage>} />
-            <Route path="/contacts/:id" element={<ProtectedPage><ContactDetail /></ProtectedPage>} />
-            <Route path="/companies" element={<ProtectedPage><Companies /></ProtectedPage>} />
-            <Route path="/companies/:id" element={<ProtectedPage><CompanyDetail /></ProtectedPage>} />
-            <Route path="/deals" element={<ProtectedPage><Deals /></ProtectedPage>} />
-            <Route path="/deals/:id" element={<ProtectedPage><DealDetail /></ProtectedPage>} />
-            <Route path="/projects" element={<ProtectedPage><Projects /></ProtectedPage>} />
-            <Route path="/projects/:id" element={<ProtectedPage><ProjectDetail /></ProtectedPage>} />
-            <Route path="/tasks" element={<ProtectedPage><Tasks /></ProtectedPage>} />
-            <Route path="/import" element={<ProtectedPage><Import /></ProtectedPage>} />
-            <Route path="/intake" element={<ProtectedPage><Intake /></ProtectedPage>} />
-            <Route path="/settings/*" element={<ProtectedPage><SettingsPage /></ProtectedPage>} />
+            <Route path="/dashboard" element={<P><Dashboard /></P>} />
+            <Route path="/contacts" element={<P><Contacts /></P>} />
+            <Route path="/contacts/:id" element={<P><ContactDetail /></P>} />
+            <Route path="/companies" element={<P><Companies /></P>} />
+            <Route path="/companies/:id" element={<P><CompanyDetail /></P>} />
+            <Route path="/deals" element={<P><Deals /></P>} />
+            <Route path="/deals/:id" element={<P><DealDetail /></P>} />
+            <Route path="/projects" element={<P><Projects /></P>} />
+            <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
+            <Route path="/tasks" element={<P><Tasks /></P>} />
+            <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
+            <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
+            <Route path="/settings/*" element={<P><SettingsPage /></P>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
