@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login.tsx";
@@ -24,7 +26,20 @@ import Intake from "./pages/Intake.tsx";
 import SettingsPage from "./pages/Settings.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,        // 2 minutes fresh
+      gcTime: 1000 * 60 * 10,           // 10 minutes gc
+      retry: 2,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 const P = ({ children, requiredRoles, requiredModule, requiredAction }: {
   children: React.ReactNode;
@@ -42,35 +57,38 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+      <ErrorBoundary>
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Protected routes with AppLayout */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<P><Dashboard /></P>} />
-            <Route path="/contacts" element={<P><Contacts /></P>} />
-            <Route path="/contacts/:id" element={<P><ContactDetail /></P>} />
-            <Route path="/companies" element={<P><Companies /></P>} />
-            <Route path="/companies/:id" element={<P><CompanyDetail /></P>} />
-            <Route path="/deals" element={<P><Deals /></P>} />
-            <Route path="/deals/:id" element={<P><DealDetail /></P>} />
-            <Route path="/projects" element={<P><Projects /></P>} />
-            <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
-            <Route path="/tasks" element={<P><Tasks /></P>} />
-            <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
-            <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
-            <Route path="/settings/*" element={<P><SettingsPage /></P>} />
+              {/* Protected routes with AppLayout */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<P><Dashboard /></P>} />
+              <Route path="/contacts" element={<P><Contacts /></P>} />
+              <Route path="/contacts/:id" element={<P><ContactDetail /></P>} />
+              <Route path="/companies" element={<P><Companies /></P>} />
+              <Route path="/companies/:id" element={<P><CompanyDetail /></P>} />
+              <Route path="/deals" element={<P><Deals /></P>} />
+              <Route path="/deals/:id" element={<P><DealDetail /></P>} />
+              <Route path="/projects" element={<P><Projects /></P>} />
+              <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
+              <Route path="/tasks" element={<P><Tasks /></P>} />
+              <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
+              <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
+              <Route path="/settings/*" element={<P><SettingsPage /></P>} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
     </TooltipProvider>
+    <ReactQueryDevtools initialIsOpen={false} position="bottom" buttonPosition="bottom-right" />
   </QueryClientProvider>
 );
 

@@ -95,7 +95,21 @@ export default function ContactDetail() {
     },
   });
 
-  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
+  if (isLoading) return (
+    <div className="space-y-6">
+      <div className="h-8 w-64 animate-pulse rounded bg-[hsl(228,33%,91%)]" />
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-3 w-20 animate-pulse rounded bg-[hsl(228,33%,91%)]" />
+              <div className="h-4 w-32 animate-pulse rounded bg-[hsl(228,33%,91%)]" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
   if (!contact) return <p className="text-muted-foreground">Kontakt nicht gefunden.</p>;
 
   const owner = contact.owner as { id: string; first_name: string; last_name: string } | null;

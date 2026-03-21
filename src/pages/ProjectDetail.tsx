@@ -141,7 +141,21 @@ export default function ProjectDetail() {
     tasksByStatus.set(t.status, list);
   });
 
-  if (isLoading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Laden…</p></div>;
+  if (isLoading) return (
+    <div className="space-y-6">
+      <div className="h-8 w-64 animate-pulse rounded bg-[hsl(228,33%,91%)]" />
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-3 w-20 animate-pulse rounded bg-[hsl(228,33%,91%)]" />
+              <div className="h-4 w-32 animate-pulse rounded bg-[hsl(228,33%,91%)]" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
   if (!project) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Projekt nicht gefunden.</p></div>;
 
   const company = project.company as { id: string; name: string } | null;
