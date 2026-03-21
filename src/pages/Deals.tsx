@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
