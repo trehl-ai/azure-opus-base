@@ -17,15 +17,14 @@ Deno.serve(async (req) => {
     const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET");
 
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      console.error("Missing Google OAuth secrets:", [
+        ...(!GOOGLE_CLIENT_ID ? ["GOOGLE_CLIENT_ID"] : []),
+        ...(!GOOGLE_CLIENT_SECRET ? ["GOOGLE_CLIENT_SECRET"] : []),
+      ].join(", "));
       return new Response(
         JSON.stringify({
           error: "Google OAuth ist noch nicht konfiguriert.",
-          details:
-            "Die Secrets GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET müssen zuerst gesetzt werden. Bitte wende dich an deinen Administrator.",
-          missing: [
-            ...(!GOOGLE_CLIENT_ID ? ["GOOGLE_CLIENT_ID"] : []),
-            ...(!GOOGLE_CLIENT_SECRET ? ["GOOGLE_CLIENT_SECRET"] : []),
-          ],
+          details: "Die Google-Integration ist noch nicht vollständig eingerichtet. Bitte wende dich an deinen Administrator.",
         }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
