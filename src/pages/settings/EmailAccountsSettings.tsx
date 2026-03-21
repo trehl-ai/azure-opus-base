@@ -323,8 +323,52 @@ export default function EmailAccountsSettings() {
         )}
       </div>
 
+      {/* Setup guide for non-production */}
+      <Card className="border-amber-300/50 bg-amber-50/50">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <CardTitle className="text-[14px] text-amber-900">Einrichtung – OAuth-Provider</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-3 text-[13px] text-amber-900/80 leading-relaxed">
+          <p>
+            Damit Google- und Outlook-Konten verbunden werden können, müssen folgende Secrets
+            im Backend konfiguriert sein:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-lg border border-amber-200 bg-white/60 p-3 space-y-1">
+              <p className="font-semibold text-amber-900 flex items-center gap-1.5">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="h-3.5 w-3.5" />
+                Google / Gmail
+              </p>
+              <ul className="list-disc list-inside text-[12px] space-y-0.5">
+                <li><code className="bg-amber-100 px-1 rounded text-[11px]">GOOGLE_CLIENT_ID</code></li>
+                <li><code className="bg-amber-100 px-1 rounded text-[11px]">GOOGLE_CLIENT_SECRET</code></li>
+                <li><code className="bg-amber-100 px-1 rounded text-[11px]">EMAIL_TOKEN_ENCRYPTION_KEY</code></li>
+              </ul>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-white/60 p-3 space-y-1">
+              <p className="font-semibold text-amber-900 flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5 text-[#0078D4]" />
+                Outlook / Microsoft 365
+              </p>
+              <ul className="list-disc list-inside text-[12px] space-y-0.5">
+                <li><code className="bg-amber-100 px-1 rounded text-[11px]">MICROSOFT_CLIENT_ID</code></li>
+                <li><code className="bg-amber-100 px-1 rounded text-[11px]">MICROSOFT_CLIENT_SECRET</code></li>
+                <li><code className="bg-amber-100 px-1 rounded text-[11px]">EMAIL_TOKEN_ENCRYPTION_KEY</code></li>
+              </ul>
+            </div>
+          </div>
+          <p className="text-[12px]">
+            Solange diese nicht gesetzt sind, zeigen die Verbindungs-Buttons eine entsprechende Meldung.
+            Der Plattform-Versand (Resend) funktioniert unabhängig davon.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Info box */}
-      <div className="rounded-xl bg-[#EEF0FE] border border-primary/10 p-4">
+      <div className="rounded-xl bg-[hsl(var(--primary)/0.06)] border border-primary/10 p-4">
         <p className="text-[13px] text-foreground leading-relaxed">
           <strong>Hinweis:</strong> Persönliche E-Mail-Konten ermöglichen dir den Versand direkt aus deinem
           Postfach. Der Plattform-Versand (Resend) wird unabhängig davon für Systemmails und
