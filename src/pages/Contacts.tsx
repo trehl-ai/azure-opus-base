@@ -58,9 +58,11 @@ export default function Contacts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-section-title text-foreground">Contacts</h1>
-        <Button onClick={() => setSheetOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Neuer Contact
-        </Button>
+        {canWriteContacts && (
+          <Button onClick={() => setSheetOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Neuer Contact
+          </Button>
+        )}
       </div>
 
       {/* Filters */}

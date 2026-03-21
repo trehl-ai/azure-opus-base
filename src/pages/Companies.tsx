@@ -69,10 +69,12 @@ export default function Companies() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-section-title text-foreground">Companies</h1>
-        <Button onClick={() => setSheetOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Neue Company
-        </Button>
+        {canWriteCompanies && (
+          <Button onClick={() => setSheetOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Neue Company
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
