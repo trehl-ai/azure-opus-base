@@ -94,8 +94,39 @@ export default function EmailAccountsSettings() {
     onError: () => toast.error("Fehler beim Trennen des Kontos"),
   });
 
-  const handleConnectGoogle = () => {
-    toast.info("Google-Anbindung wird in Kürze verfügbar sein.");
+  const handleConnectGoogle = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("start-google-oauth");
+
+      if (error) {
+        toast.error("Fehler beim Starten der Google-Verbindung.");
+        return;
+      }
+
+      if (data?.error) {
+        // Secret guard triggered
+        toast.error(data.details || data.error);
+        return;
+      }
+
+      if (data?.auth_url) {
+        // Open OAuth popup
+        const popup = window.open(data.auth_url, "google-oauth", "width=600,height=700,popup=yes");
+
+        // Listen for success message from callback
+        const handler = (event: MessageEvent) => {
+          if (event.data?.type === "google-oauth-success") {
+            window.removeEventListener("message", handler);
+            queryClient.invalidateQueries({ queryKey: ["email-accounts"] });
+            toast.success("Google-Konto erfolgreich verbunden!");
+            popup?.close();
+          }
+        };
+        window.addEventListener("message", handler);
+      }
+    } catch {
+      toast.error("Fehler beim Starten der Google-Verbindung.");
+    }
   };
 
   const handleConnectOutlook = () => {
