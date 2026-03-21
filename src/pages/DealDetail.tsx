@@ -218,6 +218,7 @@ export default function DealDetail() {
             </AlertDialogContent>
           </AlertDialog>
           )}
+        </div>
       </div>
 
       {/* Won banner */}
