@@ -36,6 +36,8 @@ const statusFilterOptions = [
 
 export default function Companies() {
   const navigate = useNavigate();
+  const { canWrite } = usePermission();
+  const canWriteCompanies = canWrite("companies");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
