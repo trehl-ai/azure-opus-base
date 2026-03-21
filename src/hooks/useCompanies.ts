@@ -18,7 +18,8 @@ export function useCompanies({ search, status, ownerUserId, page, pageSize }: Co
         .select(
           "*, owner:users!companies_owner_user_id_fkey(id, first_name, last_name)",
           { count: "exact" }
-        );
+        )
+        .is("deleted_at", null);
 
       if (search.trim()) {
         query = query.ilike("name", `%${search.trim()}%`);

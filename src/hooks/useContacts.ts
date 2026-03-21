@@ -18,7 +18,8 @@ export function useContacts({ search, status, ownerUserId, page, pageSize }: Con
         .select(
           "*, owner:users!contacts_owner_user_id_fkey(id, first_name, last_name), company_contacts(is_primary, company:companies(id, name))",
           { count: "exact" }
-        );
+        )
+        .is("deleted_at", null);
 
       if (search.trim()) {
         query = query.or(
