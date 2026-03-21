@@ -4,6 +4,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { EditDealSheet } from "@/components/deals/EditDealSheet";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
