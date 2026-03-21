@@ -130,19 +130,18 @@ Deno.serve(async (req) => {
     const resendData = await resendResponse.json();
 
     if (!resendResponse.ok) {
-      console.error("Resend API error:", resendData);
-      // Update message status to failed
+      console.error("Resend API error:", resendData.statusCode || resendResponse.status);
       await supabaseAdmin
         .from("email_messages")
         .update({
           status: "failed",
-          error_message: JSON.stringify(resendData),
+          error_message: String(resendData.message || resendData.name || "Resend-Fehler").slice(0, 500),
         })
         .eq("id", messageId);
 
       return new Response(
-        JSON.stringify({ error: "Failed to send email", details: resendData }),
-        { status: resendResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "E-Mail-Versand fehlgeschlagen." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
