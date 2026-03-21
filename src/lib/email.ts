@@ -48,7 +48,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     case "gmail":
       return sendViaGmail(params);
     case "outlook":
-      throw new Error("Outlook-Versand ist noch nicht implementiert.");
+      return sendViaOutlook(params);
     default:
       throw new Error(`Unbekannter Provider: ${provider}`);
   }
@@ -121,5 +121,40 @@ async function sendViaGmail(params: SendEmailParams): Promise<SendEmailResult> {
     message_id: data?.message_id,
     external_id: data?.gmail_message_id,
     thread_id: data?.gmail_thread_id,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Outlook channel (personal user accounts)
+// ---------------------------------------------------------------------------
+
+async function sendViaOutlook(params: SendEmailParams): Promise<SendEmailResult> {
+  if (!params.account_id) {
+    return { success: false, error: "account_id ist für Outlook-Versand erforderlich." };
+  }
+
+  const { data, error } = await supabase.functions.invoke("send-email-via-outlook", {
+    body: {
+      account_id: params.account_id,
+      to: params.to,
+      cc: params.cc,
+      bcc: params.bcc,
+      subject: params.subject,
+      body_html: params.body_html,
+      body_text: params.body_text,
+    },
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  if (data?.error) {
+    return { success: false, error: data.details || data.error };
+  }
+
+  return {
+    success: true,
+    message_id: data?.message_id,
   };
 }
