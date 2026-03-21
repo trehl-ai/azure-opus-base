@@ -56,7 +56,8 @@ export default function Projects() {
         .select("*, company:companies(name), owner:users!projects_owner_user_id_fkey(first_name, last_name)")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      if (ownerFilter !== "all") q = q.eq("owner_user_id", ownerFilter);
+      const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
+      if (effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
       if (priorityFilter !== "all") q = q.eq("priority", priorityFilter);
       const { data, error } = await q;
       if (error) throw error;
