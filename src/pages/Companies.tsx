@@ -145,11 +145,13 @@ export default function Companies() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                  Laden…
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 6 }).map((_, c) => (
+                    <TableCell key={c}><div className="h-4 w-24 animate-pulse rounded bg-[hsl(228,33%,91%)]" /></TableCell>
+                  ))}
+                </TableRow>
+              ))
             ) : companies.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
