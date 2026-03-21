@@ -10,6 +10,7 @@ import {
   CheckSquare,
   Upload,
   Mail,
+  Send,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -42,6 +43,7 @@ const navSections = [
     items: [
       { label: "Import", icon: Upload, path: "/import", module: "csv_import" },
       { label: "Intake", icon: Mail, path: "/intake", module: "email_intake" },
+      { label: "E-Mail", icon: Send, path: "/compose", module: "dashboard" },
     ],
   },
 ];
