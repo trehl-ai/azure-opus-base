@@ -31,6 +31,20 @@ export default function Tasks() {
   const { user } = useAuth();
   const { canWrite, role } = usePermission();
   const canWriteTasks = canWrite("tasks");
+  const { data: taskStatusesRaw = [] } = useTaskStatuses();
+
+  // Derived lookups from dynamic statuses
+  const taskStatuses = taskStatusesRaw.map((s) => s.slug);
+  const taskStatusLabel: Record<string, string> = {};
+  taskStatusesRaw.forEach((s) => { taskStatusLabel[s.slug] = s.name; });
+  const statusBadge: Record<string, string> = {};
+  taskStatusesRaw.forEach((s, i) => {
+    const colors = ["bg-secondary text-secondary-foreground", "bg-primary/10 text-primary", "bg-warning/10 text-warning", "bg-success/10 text-success"];
+    statusBadge[s.slug] = colors[i % colors.length];
+  });
+  const taskColumnBg: Record<string, string> = {};
+  const lastSlug = taskStatusesRaw[taskStatusesRaw.length - 1]?.slug;
+  if (lastSlug) taskColumnBg[lastSlug] = "bg-success/5 border-success/20";
 
   const [view, setView] = useState<"board" | "list">("board");
   const [filterProject, setFilterProject] = useState("all");
