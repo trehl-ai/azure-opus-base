@@ -154,13 +154,24 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !authUser) {
       return jsonError("Nicht autorisiert.", 401);
     }
 
-    const userId = claimsData.claims.sub as string;
+    const authUserId = authUser.id;
+
+    // Map auth user ID to public user ID
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const { data: publicUserId, error: mapError } = await supabaseAdmin
+      .rpc("get_public_user_id", { _auth_user_id: authUserId });
+
+    if (mapError || !publicUserId) {
+      console.error("User ID mapping failed:", mapError?.code || "no public user");
+      return jsonError("Benutzer konnte nicht zugeordnet werden.", 403);
+    }
+
+    const userId = publicUserId as string;
 
     // --- Validate request ---
     let body: SendGmailRequest;
@@ -179,7 +190,6 @@ Deno.serve(async (req) => {
     }
 
     // --- Load email account ---
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: account, error: accountError } = await supabaseAdmin
       .from("email_accounts")
