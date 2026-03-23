@@ -195,7 +195,7 @@ export default function Deals() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
         <Select value={activePipelineId} onValueChange={setSelectedPipelineId}>
           <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]"><SelectValue placeholder="Pipeline" /></SelectTrigger>
           <SelectContent>{pipelines?.map((p) => <SelectItem key={p.id} value={p.id} className="min-h-[44px]">{p.name}</SelectItem>)}</SelectContent>
