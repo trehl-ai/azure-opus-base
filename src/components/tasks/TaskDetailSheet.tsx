@@ -34,6 +34,8 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { data: taskStatusesData = [] } = useTaskStatuses();
+  const statusOptions = taskStatusesData.map((s) => ({ value: s.slug, label: s.name }));
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
