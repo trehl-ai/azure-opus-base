@@ -15,6 +15,8 @@ interface SendEmailRequest {
   body_text?: string;
   reply_to?: string;
   from?: string;
+  contact_id?: string;
+  deal_id?: string;
 }
 
 Deno.serve(async (req) => {
