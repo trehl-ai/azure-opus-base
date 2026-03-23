@@ -184,7 +184,7 @@ export default function Tasks() {
           </Select>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 mb-4">
           <Select value={filterProject} onValueChange={setFilterProject}>
             <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Projekt" /></SelectTrigger>
             <SelectContent>
