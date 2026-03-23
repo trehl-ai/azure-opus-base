@@ -544,7 +544,29 @@ export default function ComposePage() {
             />
           </div>
 
-          {/* Attachments */}
+          {/* Signature toggle & preview */}
+          {signatureHtml && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-medium">Signatur anfügen</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] text-muted-foreground">{useSignature ? "Aktiv" : "Aus"}</span>
+                  <input
+                    type="checkbox"
+                    checked={useSignature}
+                    onChange={(e) => setUseSignature(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                </div>
+              </div>
+              {useSignature && (
+                <div className="rounded-lg border border-border bg-muted/20 p-4 overflow-hidden">
+                  <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label className="text-[13px] font-medium flex items-center gap-1.5">
               <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
