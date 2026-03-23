@@ -40,16 +40,28 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !authUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub as string;
+    // Map auth user ID to public user ID
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const { data: publicUserId, error: mapError } = await supabaseAdmin
+      .rpc("get_public_user_id", { _auth_user_id: authUser.id });
+
+    if (mapError || !publicUserId) {
+      console.error("User ID mapping failed:", mapError?.code || "no public user");
+      return new Response(JSON.stringify({ error: "User mapping failed" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = publicUserId as string;
 
     // Validate request body
     const body: SendEmailRequest = await req.json();
@@ -71,9 +83,6 @@ Deno.serve(async (req) => {
     }
 
     const fromAddress = body.from || "CRM <noreply@ts-connect.cloud>";
-
-    // Use service role client to insert email_messages (bypasses RLS for system insert)
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Insert email_messages record with status 'queued'
     // account_id is null for platform/system emails (Resend is not a personal account)
