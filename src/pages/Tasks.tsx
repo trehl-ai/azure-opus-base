@@ -141,8 +141,8 @@ export default function Tasks() {
   const mobileTasks = mobileStatusFilter === "all" ? filtered : filtered.filter((t) => t.status === mobileStatusFilter);
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-[28px] font-semibold text-foreground">Tasks</h1>
         {!isMobile && (
           <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export default function Tasks() {
           </Select>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 mb-4">
           <Select value={filterProject} onValueChange={setFilterProject}>
             <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-card"><SelectValue placeholder="Projekt" /></SelectTrigger>
             <SelectContent>
@@ -272,8 +272,8 @@ export default function Tasks() {
               const statusTasks = tasksByStatus.get(status) ?? [];
               const bgClass = taskColumnBg[status] ?? "bg-[#D8DAE5] border-transparent";
               return (
-                <div key={status} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-2", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
-                  <div className="mb-2 px-0.5 flex items-center justify-between">
+                <div key={status} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-1.5", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
+                  <div className="mb-1.5 px-0.5 h-[32px] flex items-center justify-between">
                     <h3 className="text-[11px] font-semibold text-foreground">{taskStatusLabel[status]}</h3>
                     <span className="text-[9px] font-medium text-muted-foreground">{statusTasks.length}</span>
                   </div>

@@ -51,7 +51,7 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
           <span className="text-[11px] font-semibold text-foreground">{formatCurrency(deal.value_amount, deal.currency)}</span>
         ) : <span />}
         {initials && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary">
             {initials}
           </span>
         )}

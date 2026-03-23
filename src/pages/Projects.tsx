@@ -146,7 +146,7 @@ export default function Projects() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
         {isMobile ? (
           <Select value={mobileStatus} onValueChange={setMobileStatus}>
             <SelectTrigger className="w-full min-h-[44px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
@@ -221,8 +221,8 @@ export default function Projects() {
               const statusProjects = projectsByStatus.get(status) ?? [];
               const bgClass = columnBg[status] ?? "bg-[#D8DAE5] border-transparent";
               return (
-                <div key={status} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-2", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
-                  <div className="mb-2 px-0.5">
+                <div key={status} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-1.5", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
+                  <div className="mb-1.5 px-0.5 h-[32px] flex flex-col justify-center">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[11px] font-semibold text-foreground">{statusLabel[status]}</h3>
                       <span className="text-[9px] font-medium text-muted-foreground">{statusProjects.length}</span>
