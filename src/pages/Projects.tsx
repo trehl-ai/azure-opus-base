@@ -146,7 +146,7 @@ export default function Projects() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
         {isMobile ? (
           <Select value={mobileStatus} onValueChange={setMobileStatus}>
             <SelectTrigger className="w-full min-h-[44px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
