@@ -140,10 +140,21 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
+    // Map auth user ID to public user ID
+    const { data: publicUserId, error: mapError } = await supabaseAdmin
+      .rpc("get_public_user_id", { _auth_user_id: userId });
+
+    if (mapError || !publicUserId) {
+      console.error("Failed to map auth user to public user:", mapError?.code || "no mapping found");
+      return htmlResponse("Benutzerfehler", "Dein Benutzerkonto konnte nicht zugeordnet werden.", 500);
+    }
+
+    const mappedUserId = publicUserId as string;
+
     const { data: existing } = await supabaseAdmin
       .from("email_accounts")
       .select("id")
-      .eq("user_id", userId)
+      .eq("user_id", mappedUserId)
       .eq("provider", "outlook")
       .eq("email_address", email)
       .maybeSingle();
@@ -175,7 +186,7 @@ Deno.serve(async (req) => {
       }
     } else {
       const { error: insertError } = await supabaseAdmin.from("email_accounts").insert({
-        user_id: userId,
+        user_id: mappedUserId,
         provider: "outlook",
         email_address: email,
         is_default: false,
