@@ -103,6 +103,8 @@ Deno.serve(async (req) => {
         body_text: body.body_text || null,
         status: "queued",
         direction: "outbound",
+        contact_id: body.contact_id || null,
+        deal_id: body.deal_id || null,
       })
       .select("id")
       .single();
