@@ -169,6 +169,15 @@ export default function ComposePage() {
   const [dealId, setDealId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
+  const [useSignature, setUseSignature] = useState(true);
+
+  // Load user signature
+  useEffect(() => {
+    loadUserSignature().then((sig) => {
+      if (sig?.html) setSignatureHtml(sig.html);
+    });
+  }, []);
 
   // Load personal accounts
   const { data: accounts = [] } = useQuery({
