@@ -1,8 +1,9 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendEmail, type EmailProvider } from "@/lib/email";
+import { loadUserSignature } from "@/lib/signature";
 import { toast } from "sonner";
 import {
   Mail, Send, Server, ChevronDown, Plus, X, AlertCircle, Loader2, User, Briefcase,
