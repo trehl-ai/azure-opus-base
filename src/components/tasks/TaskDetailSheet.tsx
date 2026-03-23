@@ -277,6 +277,12 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
               )}
             </div>
 
+            {/* Attachments */}
+            <TaskAttachments taskId={taskId!} />
+
+            {/* Links */}
+            <TaskLinks taskId={taskId!} />
+
             {/* Comments */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground">Kommentare</h3>
