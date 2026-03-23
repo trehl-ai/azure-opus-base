@@ -141,8 +141,8 @@ export default function Tasks() {
   const mobileTasks = mobileStatusFilter === "all" ? filtered : filtered.filter((t) => t.status === mobileStatusFilter);
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-[28px] font-semibold text-foreground">Tasks</h1>
         {!isMobile && (
           <div className="flex items-center gap-2">
