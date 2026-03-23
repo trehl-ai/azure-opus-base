@@ -171,12 +171,17 @@ export default function ComposePage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
+  const [signatureName, setSignatureName] = useState<string>("");
   const [useSignature, setUseSignature] = useState(true);
+  const [showSignaturePreview, setShowSignaturePreview] = useState(false);
 
   // Load user signature
   useEffect(() => {
     loadUserSignature().then((sig) => {
-      if (sig?.html) setSignatureHtml(sig.html);
+      if (sig) {
+        setSignatureHtml(sig.html);
+        setSignatureName(sig.data.full_name || "Meine Signatur");
+      }
     });
   }, []);
 
