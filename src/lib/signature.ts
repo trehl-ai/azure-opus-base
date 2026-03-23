@@ -54,83 +54,92 @@ export function renderSignatureHtml(
   config: SignatureTemplateConfig = DEFAULT_TEMPLATE_CONFIG
 ): string {
   const { primary_color, separator_color } = config;
+  const font = "font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;";
 
-  const socialIcons: string[] = [];
-
+  // --- Social icons row ---
+  const socialLinks: string[] = [];
   if (config.show_linkedin && data.linkedin_url) {
-    socialIcons.push(
-      `<a href="${escHtml(data.linkedin_url)}" target="_blank" style="display:inline-block;margin-right:8px;text-decoration:none;">
-        <img src="https://cdn-icons-png.flaticon.com/24/3536/3536505.png" alt="LinkedIn" width="20" height="20" style="border:0;display:block;" />
-      </a>`
+    socialLinks.push(
+      `<td style="padding-right:10px;"><a href="${esc(data.linkedin_url)}" target="_blank" style="text-decoration:none;"><img src="https://cdn-icons-png.flaticon.com/24/3536/3536505.png" alt="LinkedIn" width="18" height="18" style="border:0;display:block;" /></a></td>`
     );
   }
   if (config.show_twitter && data.twitter_url) {
-    socialIcons.push(
-      `<a href="${escHtml(data.twitter_url)}" target="_blank" style="display:inline-block;margin-right:8px;text-decoration:none;">
-        <img src="https://cdn-icons-png.flaticon.com/24/5968/5968830.png" alt="X/Twitter" width="20" height="20" style="border:0;display:block;" />
-      </a>`
+    socialLinks.push(
+      `<td style="padding-right:10px;"><a href="${esc(data.twitter_url)}" target="_blank" style="text-decoration:none;"><img src="https://cdn-icons-png.flaticon.com/24/5968/5968830.png" alt="X" width="18" height="18" style="border:0;display:block;" /></a></td>`
     );
   }
   if (config.show_whatsapp && data.whatsapp_url) {
     const waLink = data.whatsapp_url.startsWith("http")
       ? data.whatsapp_url
       : `https://wa.me/${data.whatsapp_url.replace(/[^0-9]/g, "")}`;
-    socialIcons.push(
-      `<a href="${escHtml(waLink)}" target="_blank" style="display:inline-block;margin-right:8px;text-decoration:none;">
-        <img src="https://cdn-icons-png.flaticon.com/24/733/733585.png" alt="WhatsApp" width="20" height="20" style="border:0;display:block;" />
-      </a>`
+    socialLinks.push(
+      `<td style="padding-right:10px;"><a href="${esc(waLink)}" target="_blank" style="text-decoration:none;"><img src="https://cdn-icons-png.flaticon.com/24/733/733585.png" alt="WhatsApp" width="18" height="18" style="border:0;display:block;" /></a></td>`
     );
   }
 
-  const contactLines: string[] = [];
+  // --- Contact detail rows ---
+  const details: string[] = [];
   if (config.show_phone && data.phone) {
-    contactLines.push(`<span style="color:#6B7280;font-size:13px;">📞 ${escHtml(data.phone)}</span>`);
+    details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#9742;&nbsp; ${esc(data.phone)}</td></tr>`);
   }
   if (data.email) {
-    contactLines.push(`<span style="color:#6B7280;font-size:13px;">✉️ <a href="mailto:${escHtml(data.email)}" style="color:${primary_color};text-decoration:none;">${escHtml(data.email)}</a></span>`);
+    details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#9993;&nbsp; <a href="mailto:${esc(data.email)}" style="color:${primary_color};text-decoration:none;">${esc(data.email)}</a></td></tr>`);
   }
   if (config.show_address && data.address) {
-    contactLines.push(`<span style="color:#6B7280;font-size:13px;">📍 ${escHtml(data.address)}</span>`);
+    details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#128205;&nbsp; ${esc(data.address)}</td></tr>`);
   }
   if (config.show_website && data.website) {
     const href = data.website.startsWith("http") ? data.website : `https://${data.website}`;
-    contactLines.push(`<span style="color:#6B7280;font-size:13px;">🌐 <a href="${escHtml(href)}" target="_blank" style="color:${primary_color};text-decoration:none;">${escHtml(data.website)}</a></span>`);
+    details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#127760;&nbsp; <a href="${esc(href)}" target="_blank" style="color:${primary_color};text-decoration:none;">${esc(data.website)}</a></td></tr>`);
   }
 
-  const imageCell = config.show_profile_image && data.profile_image_url
-    ? `<td style="vertical-align:top;padding-right:16px;">
-        <img src="${escHtml(data.profile_image_url)}" alt="${escHtml(data.full_name)}" width="80" height="80" style="border-radius:50%;border:0;display:block;object-fit:cover;" />
+  // --- Profile image cell ---
+  const hasImage = config.show_profile_image && data.profile_image_url;
+  const imgCell = hasImage
+    ? `<td width="80" valign="top" style="padding-right:18px;vertical-align:top;">
+        <img src="${esc(data.profile_image_url!)}" alt="${esc(data.full_name)}" width="72" height="72" style="width:72px;height:72px;border-radius:50%;border:0;display:block;object-fit:cover;" />
       </td>`
     : "";
 
-  return `
-<table cellpadding="0" cellspacing="0" border="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:480px;border-collapse:collapse;">
+  // --- Separator accent bar ---
+  const accentBar = `<td colspan="${hasImage ? 2 : 1}" style="padding-bottom:14px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+      <tr>
+        <td width="40" style="border-bottom:3px solid ${primary_color};line-height:0;font-size:0;">&nbsp;</td>
+        <td style="border-bottom:1px solid ${separator_color};line-height:0;font-size:0;">&nbsp;</td>
+      </tr>
+    </table>
+  </td>`;
+
+  // --- Job title ---
+  const titleHtml = data.job_title
+    ? `<p style="margin:0 0 10px 0;padding:0;${font}font-size:13px;line-height:16px;color:${primary_color};font-weight:500;letter-spacing:0.3px;">${esc(data.job_title)}</p>`
+    : "";
+
+  // --- Social row ---
+  const socialRow = socialLinks.length > 0
+    ? `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:10px;"><tr>${socialLinks.join("")}</tr></table>`
+    : "";
+
+  return `<!--[if mso]><table cellpadding="0" cellspacing="0" border="0" width="480"><tr><td><![endif]-->
+<table cellpadding="0" cellspacing="0" border="0" style="${font}max-width:480px;width:100%;border-collapse:collapse;color:#333333;" width="480">
+  <tr>${accentBar}</tr>
   <tr>
-    <td style="padding-top:16px;">
+    ${imgCell}
+    <td valign="top" style="vertical-align:top;">
+      <p style="margin:0 0 2px 0;padding:0;${font}font-size:17px;line-height:22px;font-weight:700;color:#1a1a1a;">${esc(data.full_name)}</p>
+      ${titleHtml}
       <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-        <tr>
-          <td colspan="2" style="padding-bottom:12px;">
-            <hr style="border:none;border-top:2px solid ${separator_color};margin:0;" />
-          </td>
-        </tr>
-        <tr>
-          ${imageCell}
-          <td style="vertical-align:top;">
-            <p style="margin:0 0 2px 0;font-size:17px;font-weight:700;color:#1F2937;">${escHtml(data.full_name)}</p>
-            ${data.job_title ? `<p style="margin:0 0 10px 0;font-size:13px;color:${primary_color};font-weight:500;">${escHtml(data.job_title)}</p>` : ""}
-            <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-              ${contactLines.map((line) => `<tr><td style="padding-bottom:3px;">${line}</td></tr>`).join("")}
-            </table>
-            ${socialIcons.length > 0 ? `<div style="margin-top:10px;">${socialIcons.join("")}</div>` : ""}
-          </td>
-        </tr>
+        ${details.join("")}
       </table>
+      ${socialRow}
     </td>
   </tr>
-</table>`.trim();
+</table>
+<!--[if mso]></td></tr></table><![endif]-->`.trim();
 }
 
-function escHtml(str: string): string {
+function esc(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
