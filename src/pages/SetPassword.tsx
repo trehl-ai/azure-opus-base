@@ -122,7 +122,7 @@ export default function SetPassword() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center space-y-4">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+            <CheckCircle className="h-12 w-12 text-primary mx-auto" />
             <h2 className="text-xl font-semibold">Passwort erfolgreich gesetzt!</h2>
             <p className="text-muted-foreground">Du wirst jetzt weitergeleitet…</p>
           </CardContent>
