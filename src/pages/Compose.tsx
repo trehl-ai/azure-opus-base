@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,6 +6,7 @@ import { sendEmail, type EmailProvider } from "@/lib/email";
 import { toast } from "sonner";
 import {
   Mail, Send, Server, ChevronDown, Plus, X, AlertCircle, Loader2, User, Briefcase,
+  Paperclip, FileText, FileSpreadsheet, Image, File, Upload, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,54 @@ const statusLabels: Record<string, { label: string; ok: boolean }> = {
   disconnected: { label: "Getrennt", ok: false },
   inactive: { label: "Inaktiv", ok: false },
 };
+
+// ---------------------------------------------------------------------------
+// File attachment config
+// ---------------------------------------------------------------------------
+
+const ALLOWED_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "text/plain",
+]);
+
+const ALLOWED_EXTENSIONS = new Set([
+  "pdf", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg", "txt",
+]);
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_TOTAL_SIZE = 25 * 1024 * 1024; // 25 MB total
+
+function getFileIcon(type: string) {
+  if (type.startsWith("image/")) return <Image className="h-4 w-4 text-blue-500" />;
+  if (type === "application/pdf") return <FileText className="h-4 w-4 text-red-500" />;
+  if (type.includes("spreadsheet") || type.includes("excel")) return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
+  if (type.includes("word") || type === "application/msword") return <FileText className="h-4 w-4 text-blue-600" />;
+  return <File className="h-4 w-4 text-muted-foreground" />;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isAllowedFile(file: File): string | null {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  if (!ALLOWED_EXTENSIONS.has(ext) && !ALLOWED_TYPES.has(file.type)) {
+    return `"${file.name}" hat einen nicht unterstützten Dateityp. Erlaubt: PDF, Word, Excel, Bilder (PNG/JPG), TXT.`;
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return `"${file.name}" ist zu groß (${formatFileSize(file.size)}). Maximal ${formatFileSize(MAX_FILE_SIZE)} pro Datei.`;
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Tag-Input for email addresses
@@ -105,6 +154,7 @@ export default function ComposePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [selectedAccount, setSelectedAccount] = useState<string>("resend");
@@ -116,6 +166,8 @@ export default function ComposePage() {
   const [bodyText, setBodyText] = useState("");
   const [contactId, setContactId] = useState<string | null>(null);
   const [dealId, setDealId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Load personal accounts
   const { data: accounts = [] } = useQuery({
@@ -146,7 +198,8 @@ export default function ComposePage() {
     return { provider: acct.provider as EmailProvider, account_id: acct.id, status: acct.status, email: acct.email_address };
   }, [selectedAccount, accounts]);
 
-  const canSend = resolvedAccount && SENDABLE_STATUSES.has(resolvedAccount.status) && to.length > 0 && subject.trim().length > 0 && bodyText.trim().length > 0;
+  const totalAttachmentSize = useMemo(() => attachments.reduce((sum, f) => sum + f.size, 0), [attachments]);
+  const canSend = resolvedAccount && SENDABLE_STATUSES.has(resolvedAccount.status) && to.length > 0 && subject.trim().length > 0 && bodyText.trim().length > 0 && totalAttachmentSize <= MAX_TOTAL_SIZE;
 
   // Handle deal selection – auto-link contact
   const handleDealChange = (id: string | null, deal?: any) => {
@@ -156,11 +209,100 @@ export default function ComposePage() {
     }
   };
 
+  // File handling
+  const addFiles = useCallback((files: FileList | File[]) => {
+    const newFiles: File[] = [];
+    const errors: string[] = [];
+
+    Array.from(files).forEach((file) => {
+      const error = isAllowedFile(file);
+      if (error) {
+        errors.push(error);
+      } else if (attachments.some((a) => a.name === file.name && a.size === file.size)) {
+        // skip duplicates
+      } else {
+        newFiles.push(file);
+      }
+    });
+
+    if (errors.length) {
+      errors.forEach((e) => toast.error(e));
+    }
+
+    const combined = [...attachments, ...newFiles];
+    const totalSize = combined.reduce((s, f) => s + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      toast.error(`Gesamtgröße überschreitet ${formatFileSize(MAX_TOTAL_SIZE)}. Bitte entferne einige Dateien.`);
+      return;
+    }
+
+    setAttachments(combined);
+  }, [attachments]);
+
+  const removeFile = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files.length) {
+      addFiles(e.dataTransfer.files);
+    }
+  }, [addFiles]);
+
+  // Upload files to storage and return paths
+  const uploadAttachments = async (): Promise<{ file_name: string; file_path: string; file_type: string; file_size: number }[]> => {
+    if (!attachments.length) return [];
+
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error("Nicht angemeldet");
+
+    const results = [];
+    for (const file of attachments) {
+      const filePath = `${authUser.id}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage
+        .from("email-attachments")
+        .upload(filePath, file, { contentType: file.type });
+
+      if (error) throw new Error(`Upload fehlgeschlagen für "${file.name}": ${error.message}`);
+
+      results.push({
+        file_name: file.name,
+        file_path: filePath,
+        file_type: file.type,
+        file_size: file.size,
+      });
+    }
+    return results;
+  };
+
   // Send mutation
   const sendMutation = useMutation({
     mutationFn: async () => {
       if (!resolvedAccount) throw new Error("Kein Konto ausgewählt.");
 
+      // 1. Upload attachments to storage
+      const uploadedFiles = await uploadAttachments();
+
+      // 2. Convert attachments to base64 for sending
+      const attachmentPayloads: { filename: string; content: string; type: string }[] = [];
+      for (const file of attachments) {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        attachmentPayloads.push({
+          filename: file.name,
+          content: base64,
+          type: file.type,
+        });
+      }
+
+      // 3. Send email
       const result = await sendEmail({
         provider: resolvedAccount.provider,
         account_id: resolvedAccount.account_id,
@@ -172,7 +314,28 @@ export default function ComposePage() {
         body_text: bodyText,
         contact_id: contactId || undefined,
         deal_id: dealId || undefined,
+        attachments: attachmentPayloads.length ? attachmentPayloads : undefined,
       });
+
+      // 4. Save attachment records if email was sent
+      if (result.success && result.message_id && uploadedFiles.length) {
+        const { data: publicUserIdData } = await supabase.rpc("get_public_user_id", {
+          _auth_user_id: (await supabase.auth.getUser()).data.user!.id,
+        });
+
+        if (publicUserIdData) {
+          await supabase.from("email_attachments").insert(
+            uploadedFiles.map((f) => ({
+              email_message_id: result.message_id!,
+              user_id: publicUserIdData as string,
+              file_name: f.file_name,
+              file_path: f.file_path,
+              file_type: f.file_type,
+              file_size: f.file_size,
+            }))
+          );
+        }
+      }
 
       return result;
     },
@@ -180,7 +343,6 @@ export default function ComposePage() {
       if (result.success) {
         toast.success("E-Mail erfolgreich versendet!");
         qc.invalidateQueries({ queryKey: ["email-history"] });
-        // Reset form
         setTo([]);
         setCc([]);
         setBcc([]);
@@ -189,6 +351,7 @@ export default function ComposePage() {
         setShowCcBcc(false);
         setContactId(null);
         setDealId(null);
+        setAttachments([]);
       } else {
         toast.error(result.error || "Versand fehlgeschlagen.");
       }
@@ -223,7 +386,6 @@ export default function ComposePage() {
                 <SelectValue placeholder="Konto wählen" />
               </SelectTrigger>
               <SelectContent>
-                {/* Resend system */}
                 <SelectGroup>
                   <SelectLabel className="text-[12px] text-muted-foreground">Plattform-Versand</SelectLabel>
                   <SelectItem value="resend">
@@ -235,7 +397,6 @@ export default function ComposePage() {
                   </SelectItem>
                 </SelectGroup>
 
-                {/* Gmail accounts */}
                 {gmailAccounts.length > 0 && (
                   <SelectGroup>
                     <SelectLabel className="text-[12px] text-muted-foreground">Google</SelectLabel>
@@ -256,7 +417,6 @@ export default function ComposePage() {
                   </SelectGroup>
                 )}
 
-                {/* Outlook accounts */}
                 {outlookAccounts.length > 0 && (
                   <SelectGroup>
                     <SelectLabel className="text-[12px] text-muted-foreground">Outlook</SelectLabel>
@@ -279,7 +439,6 @@ export default function ComposePage() {
               </SelectContent>
             </Select>
 
-            {/* Status warning */}
             {isBlocked && statusInfo && (
               <div className="flex items-center gap-2 text-[13px] text-destructive mt-1.5">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -367,6 +526,81 @@ export default function ComposePage() {
               placeholder="Deine Nachricht..."
               className="min-h-[200px] text-[14px] resize-y"
             />
+          </div>
+
+          {/* Attachments */}
+          <div className="space-y-2">
+            <Label className="text-[13px] font-medium flex items-center gap-1.5">
+              <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+              Anhänge
+            </Label>
+
+            {/* Drop zone */}
+            <div
+              className={`relative rounded-lg border-2 border-dashed transition-colors cursor-pointer ${
+                isDragOver
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-muted-foreground/40"
+              }`}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="flex flex-col items-center gap-1.5 py-5 text-center">
+                <Upload className="h-5 w-5 text-muted-foreground" />
+                <p className="text-[13px] text-muted-foreground">
+                  Dateien hierher ziehen oder <span className="text-primary font-medium">auswählen</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground/70">
+                  PDF, Word, Excel, Bilder (PNG/JPG), TXT – max. {formatFileSize(MAX_FILE_SIZE)} pro Datei
+                </p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+                onChange={(e) => {
+                  if (e.target.files?.length) {
+                    addFiles(e.target.files);
+                    e.target.value = "";
+                  }
+                }}
+              />
+            </div>
+
+            {/* File list */}
+            {attachments.length > 0 && (
+              <div className="space-y-1.5">
+                {attachments.map((file, i) => (
+                  <div
+                    key={`${file.name}-${i}`}
+                    className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2"
+                  >
+                    {getFileIcon(file.type)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-foreground truncate">{file.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatFileSize(file.size)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <p className="text-[11px] text-muted-foreground">
+                  {attachments.length} {attachments.length === 1 ? "Datei" : "Dateien"} · {formatFileSize(totalAttachmentSize)} gesamt
+                  {totalAttachmentSize > MAX_TOTAL_SIZE && (
+                    <span className="text-destructive ml-1">(max. {formatFileSize(MAX_TOTAL_SIZE)})</span>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

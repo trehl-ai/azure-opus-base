@@ -6,6 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type EmailProvider = "resend" | "gmail" | "outlook";
 
+export interface EmailAttachment {
+  filename: string;
+  content: string; // base64 encoded
+  type: string;
+}
+
 export interface SendEmailParams {
   to: string[];
   cc?: string[];
@@ -15,14 +21,11 @@ export interface SendEmailParams {
   body_text?: string;
   reply_to?: string;
   from?: string;
-  /** Provider to use. Defaults to "resend" (system channel). */
   provider?: EmailProvider;
-  /** Specific email_account id – required for gmail/outlook. */
   account_id?: string;
-  /** Optional CRM contact association */
   contact_id?: string;
-  /** Optional CRM deal association */
   deal_id?: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
@@ -37,12 +40,6 @@ export interface SendEmailResult {
 // Provider routing
 // ---------------------------------------------------------------------------
 
-/**
- * Send an email through the appropriate provider.
- * - "resend": system/platform channel (no account_id needed)
- * - "gmail": personal Gmail account (account_id required)
- * - "outlook": not yet implemented
- */
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
   const provider = params.provider ?? "resend";
 
@@ -59,7 +56,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
 }
 
 // ---------------------------------------------------------------------------
-// Resend channel (system / notification emails)
+// Resend channel
 // ---------------------------------------------------------------------------
 
 async function sendViaResend(params: SendEmailParams): Promise<SendEmailResult> {
@@ -75,26 +72,18 @@ async function sendViaResend(params: SendEmailParams): Promise<SendEmailResult> 
       from: params.from,
       contact_id: params.contact_id,
       deal_id: params.deal_id,
+      attachments: params.attachments,
     },
   });
 
-  if (error) {
-    return { success: false, error: error.message };
-  }
+  if (error) return { success: false, error: error.message };
+  if (data?.error) return { success: false, error: data.error };
 
-  if (data?.error) {
-    return { success: false, error: data.error };
-  }
-
-  return {
-    success: true,
-    message_id: data?.message_id,
-    external_id: data?.resend_id,
-  };
+  return { success: true, message_id: data?.message_id, external_id: data?.resend_id };
 }
 
 // ---------------------------------------------------------------------------
-// Gmail channel (personal user accounts)
+// Gmail channel
 // ---------------------------------------------------------------------------
 
 async function sendViaGmail(params: SendEmailParams): Promise<SendEmailResult> {
@@ -113,16 +102,12 @@ async function sendViaGmail(params: SendEmailParams): Promise<SendEmailResult> {
       body_text: params.body_text,
       contact_id: params.contact_id,
       deal_id: params.deal_id,
+      attachments: params.attachments,
     },
   });
 
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  if (data?.error) {
-    return { success: false, error: data.details || data.error };
-  }
+  if (error) return { success: false, error: error.message };
+  if (data?.error) return { success: false, error: data.details || data.error };
 
   return {
     success: true,
@@ -133,7 +118,7 @@ async function sendViaGmail(params: SendEmailParams): Promise<SendEmailResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Outlook channel (personal user accounts)
+// Outlook channel
 // ---------------------------------------------------------------------------
 
 async function sendViaOutlook(params: SendEmailParams): Promise<SendEmailResult> {
@@ -152,19 +137,12 @@ async function sendViaOutlook(params: SendEmailParams): Promise<SendEmailResult>
       body_text: params.body_text,
       contact_id: params.contact_id,
       deal_id: params.deal_id,
+      attachments: params.attachments,
     },
   });
 
-  if (error) {
-    return { success: false, error: error.message };
-  }
+  if (error) return { success: false, error: error.message };
+  if (data?.error) return { success: false, error: data.details || data.error };
 
-  if (data?.error) {
-    return { success: false, error: data.details || data.error };
-  }
-
-  return {
-    success: true,
-    message_id: data?.message_id,
-  };
+  return { success: true, message_id: data?.message_id };
 }
