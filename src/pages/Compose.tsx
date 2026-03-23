@@ -7,7 +7,7 @@ import { loadUserSignature } from "@/lib/signature";
 import { toast } from "sonner";
 import {
   Mail, Send, Server, ChevronDown, Plus, X, AlertCircle, Loader2, User, Briefcase,
-  Paperclip, FileText, FileSpreadsheet, Image, File, Upload, Trash2,
+  Paperclip, FileText, FileSpreadsheet, Image, File, Upload, Trash2, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -171,12 +171,17 @@ export default function ComposePage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
+  const [signatureName, setSignatureName] = useState<string>("");
   const [useSignature, setUseSignature] = useState(true);
+  const [showSignaturePreview, setShowSignaturePreview] = useState(false);
 
   // Load user signature
   useEffect(() => {
     loadUserSignature().then((sig) => {
-      if (sig?.html) setSignatureHtml(sig.html);
+      if (sig) {
+        setSignatureHtml(sig.html);
+        setSignatureName(sig.data.full_name || "Meine Signatur");
+      }
     });
   }, []);
 
@@ -545,23 +550,59 @@ export default function ComposePage() {
             />
           </div>
 
-          {/* Signature toggle & preview */}
-          {signatureHtml && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-[13px] font-medium">Signatur anfügen</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-[12px] text-muted-foreground">{useSignature ? "Aktiv" : "Aus"}</span>
-                  <Switch checked={useSignature} onCheckedChange={setUseSignature} />
+          {/* Signature section */}
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold ${
+                  signatureHtml && useSignature
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {signatureName ? signatureName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "–"}
+                </div>
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">
+                    {signatureHtml ? signatureName || "Meine Signatur" : "Keine Signatur vorhanden"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {!signatureHtml
+                      ? "Erstelle eine Signatur unter Einstellungen → Signatur"
+                      : useSignature
+                        ? "Wird an diese E-Mail angehängt"
+                        : "Deaktiviert für diese E-Mail"
+                    }
+                  </p>
                 </div>
               </div>
-              {useSignature && (
-                <div className="rounded-lg border border-border bg-muted/20 p-4 overflow-hidden">
-                  <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {signatureHtml && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-[12px] h-7 px-2 text-muted-foreground"
+                      onClick={() => setShowSignaturePreview(!showSignaturePreview)}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      {showSignaturePreview ? "Ausblenden" : "Vorschau"}
+                    </Button>
+                    <Switch
+                      checked={useSignature}
+                      onCheckedChange={setUseSignature}
+                      aria-label="Signatur ein/aus"
+                    />
+                  </>
+                )}
+              </div>
             </div>
-          )}
+            {signatureHtml && useSignature && showSignaturePreview && (
+              <div className="border-t border-border bg-white p-4 overflow-hidden">
+                <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
+              </div>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label className="text-[13px] font-medium flex items-center gap-1.5">
