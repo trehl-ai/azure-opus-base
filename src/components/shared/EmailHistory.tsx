@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, ExternalLink } from "lucide-react";
+import { Mail, Paperclip, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   sent: { label: "Gesendet", variant: "default" },
   draft: { label: "Entwurf", variant: "secondary" },
   failed: { label: "Fehlgeschlagen", variant: "destructive" },
   pending: { label: "Ausstehend", variant: "outline" },
+  queued: { label: "In Warteschlange", variant: "outline" },
 };
 
 const providerLabels: Record<string, string> = {
@@ -44,6 +46,39 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
     enabled: !!(contactId || dealId),
   });
 
+  // Load attachments for all displayed emails
+  const emailIds = emails.map((e) => e.id);
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["email-attachments", emailIds],
+    queryFn: async () => {
+      if (!emailIds.length) return [];
+      const { data, error } = await supabase
+        .from("email_attachments")
+        .select("id, email_message_id, file_name, file_path, file_type, file_size")
+        .in("email_message_id", emailIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: emailIds.length > 0,
+  });
+
+  const attachmentsByEmail = attachments.reduce<Record<string, typeof attachments>>((acc, a) => {
+    if (!acc[a.email_message_id]) acc[a.email_message_id] = [];
+    acc[a.email_message_id].push(a);
+    return acc;
+  }, {});
+
+  const handleDownload = async (filePath: string, fileName: string) => {
+    const { data, error } = await supabase.storage
+      .from("email-attachments")
+      .createSignedUrl(filePath, 60);
+
+    if (error || !data?.signedUrl) {
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -68,6 +103,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
       {emails.map((email) => {
         const st = statusLabels[email.status] ?? statusLabels.draft;
         const preview = email.body_text?.slice(0, 120) || "";
+        const emailAttachments = attachmentsByEmail[email.id] || [];
 
         return (
           <div
@@ -93,6 +129,24 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
                 </span>
               </div>
             </div>
+
+            {/* Attachments */}
+            {emailAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {emailAttachments.map((att) => (
+                  <button
+                    key={att.id}
+                    onClick={() => handleDownload(att.file_path, att.file_name)}
+                    className="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <Paperclip className="h-3 w-3" />
+                    <span className="truncate max-w-[120px]">{att.file_name}</span>
+                    <Download className="h-2.5 w-2.5 ml-0.5" />
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
               <span>Von: {email.from_email}</span>
               <span>
@@ -100,6 +154,12 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
                   ? format(new Date(email.sent_at), "dd.MM.yyyy HH:mm")
                   : format(new Date(email.created_at), "dd.MM.yyyy HH:mm")}
               </span>
+              {emailAttachments.length > 0 && (
+                <span className="flex items-center gap-0.5">
+                  <Paperclip className="h-3 w-3" />
+                  {emailAttachments.length}
+                </span>
+              )}
             </div>
           </div>
         );
