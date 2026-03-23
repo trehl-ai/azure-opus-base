@@ -130,7 +130,8 @@ export default function UsersSettings() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: () => callAdminFn({ action: "delete", user_id: removeUser.id, auth_user_email: removeUser.email }),
+    mutationFn: (userToRemove: { id: string; email: string }) =>
+      callAdminFn({ action: "delete", user_id: userToRemove.id, auth_user_email: userToRemove.email }),
     onSuccess: () => {
       toast.success("Benutzer wurde entfernt");
       setRemoveUser(null);
