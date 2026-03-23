@@ -98,7 +98,36 @@ export default function UsersSettings() {
       body,
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
-    if (res.error) throw new Error(res.error.message || "Fehler");
+
+    if (res.error) {
+      const response = (res.error as { context?: Response }).context;
+      let detailedMessage: string | undefined;
+
+      if (response) {
+        try {
+          const payload = await response.clone().json();
+          if (typeof payload?.error === "string" && payload.error.trim()) {
+            detailedMessage = payload.error;
+          }
+        } catch {
+          // ignore json parse errors
+        }
+
+        if (!detailedMessage) {
+          try {
+            const text = await response.clone().text();
+            if (text.trim()) {
+              detailedMessage = text;
+            }
+          } catch {
+            // ignore text parse errors
+          }
+        }
+      }
+
+      throw new Error(detailedMessage || res.error.message || "Fehler");
+    }
+
     if (res.data?.error) throw new Error(res.data.error);
     return res.data;
   };
