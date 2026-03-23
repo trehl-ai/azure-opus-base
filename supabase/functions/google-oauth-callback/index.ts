@@ -59,8 +59,8 @@ Deno.serve(async (req) => {
       return htmlResponse("Ungültiger Aufruf", "Der OAuth-State konnte nicht gelesen werden.", 400);
     }
 
-    const userId = state.user_id;
-    if (!userId) {
+    const authUserId = state.user_id;
+    if (!authUserId) {
       return htmlResponse("Ungültiger Aufruf", "Kein Benutzer im OAuth-State gefunden.", 400);
     }
 
