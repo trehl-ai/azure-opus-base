@@ -27,12 +27,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const statusOptions = [
-  { value: "todo", label: "To Do" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "review", label: "Review" },
-  { value: "done", label: "Done" },
-];
+// statusOptions now loaded dynamically
 
 export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const { user } = useAuth();
