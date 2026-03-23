@@ -49,11 +49,11 @@ export default function SignatureTemplateSettings() {
   const [config, setConfig] = useState<SignatureTemplateConfig>(existingConfig);
 
   // Sync state when data loads
-  useState(() => {
+  useEffect(() => {
     if (configData?.value) {
       setConfig({ ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(configData.value) });
     }
-  });
+  }, [configData]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {

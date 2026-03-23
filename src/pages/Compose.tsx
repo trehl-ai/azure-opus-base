@@ -551,12 +551,7 @@ export default function ComposePage() {
                 <Label className="text-[13px] font-medium">Signatur anfügen</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-[12px] text-muted-foreground">{useSignature ? "Aktiv" : "Aus"}</span>
-                  <input
-                    type="checkbox"
-                    checked={useSignature}
-                    onChange={(e) => setUseSignature(e.target.checked)}
-                    className="h-4 w-4 rounded border-border"
-                  />
+                  <Switch checked={useSignature} onCheckedChange={setUseSignature} />
                 </div>
               </div>
               {useSignature && (
