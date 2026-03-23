@@ -256,6 +256,7 @@ export default function DealDetail() {
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
           <TabsTrigger value="activities">Aktivitäten</TabsTrigger>
+          <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
           {deal.status === "won" && <TabsTrigger value="project">Projekt</TabsTrigger>}
