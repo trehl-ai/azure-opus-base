@@ -22,6 +22,7 @@ export default function SettingsPage() {
         <Route path="users" element={<UsersSettings />} />
         <Route path="roles" element={<RolesSettings />} />
         <Route path="pipelines" element={<PipelinesSettings />} />
+        <Route path="task-statuses" element={<TaskStatusesSettings />} />
         <Route path="tags" element={<TagsSettings />} />
         <Route path="email-accounts" element={<EmailAccountsSettings />} />
         <Route path="deal-fields" element={<PlaceholderSettings title="Deal-Felder" />} />

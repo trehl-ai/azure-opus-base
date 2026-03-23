@@ -24,6 +24,7 @@ const settingsNav = [
     label: "CRM-KONFIGURATION",
     items: [
       { label: "Pipelines", path: "/settings/pipelines" },
+      { label: "Task-Status", path: "/settings/task-statuses" },
       { label: "Tags", path: "/settings/tags" },
       { label: "Deal-Felder", path: "/settings/deal-fields" },
     ],
