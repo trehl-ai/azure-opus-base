@@ -233,34 +233,43 @@ export default function PipelinesSettings() {
     }
   };
 
+  const openDeleteDialog = async (pipeline: any) => {
+    // Check deal count before showing dialog
+    const { count } = await supabase
+      .from("deals")
+      .select("id", { count: "exact", head: true })
+      .eq("pipeline_id", pipeline.id)
+      .is("deleted_at", null);
+    setDeleteHasDeals((count ?? 0) > 0);
+    setDeleteTarget(pipeline);
+  };
+
+  const archivePipeline = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const { error } = await supabase.from("pipelines").update({ is_active: false }).eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast.success("Pipeline archiviert – bestehende Deals bleiben erhalten.");
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["pipelines-all"] });
+    } catch (e: any) {
+      toast.error(`Archivierung fehlgeschlagen: ${e.message}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const deletePipeline = async () => {
     if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      // Check for ANY deals (open, won, lost) linked to this pipeline
-      const { count, error: countErr } = await supabase
-        .from("deals")
-        .select("id", { count: "exact", head: true })
-        .eq("pipeline_id", deleteTarget.id)
-        .is("deleted_at", null);
-      if (countErr) throw countErr;
-      if ((count ?? 0) > 0) {
-        toast.error(`Diese Pipeline hat noch ${count} verknüpfte Deals. Bitte alle Deals löschen oder in eine andere Pipeline verschieben.`);
-        setDeleteTarget(null);
-        return;
-      }
-
-      // Delete stages first (FK constraint)
       const { error: stagesErr } = await supabase
-        .from("pipeline_stages")
-        .delete()
-        .eq("pipeline_id", deleteTarget.id);
+        .from("pipeline_stages").delete().eq("pipeline_id", deleteTarget.id);
       if (stagesErr) throw stagesErr;
 
-      // Delete pipeline
       const { error: pipeErr } = await supabase
-        .from("pipelines")
-        .delete()
-        .eq("id", deleteTarget.id);
+        .from("pipelines").delete().eq("id", deleteTarget.id);
       if (pipeErr) throw pipeErr;
 
       toast.success("Pipeline gelöscht");
@@ -270,7 +279,8 @@ export default function PipelinesSettings() {
       queryClient.invalidateQueries({ queryKey: ["deal-counts-by-pipeline"] });
     } catch (e: any) {
       toast.error(`Pipeline konnte nicht gelöscht werden: ${e.message}`);
-      setDeleteTarget(null);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
