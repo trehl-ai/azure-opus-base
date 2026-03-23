@@ -184,7 +184,7 @@ export default function Deals() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-section-title text-foreground">Deals</h1>
+          <h1 className="text-[28px] font-semibold text-foreground">Deals</h1>
           <PresenceAvatars users={onlineUsers} />
         </div>
         {canWriteDeals && (
