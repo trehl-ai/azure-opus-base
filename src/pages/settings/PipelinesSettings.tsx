@@ -319,17 +319,20 @@ export default function PipelinesSettings() {
         <div className="space-y-3">
           {pipelines.map(p => {
             const stageCount = stagesMap[p.id]?.length ?? 0;
+            const dealCount = (dealCounts as any).byPipeline?.[p.id] ?? 0;
             return (
-              <Card key={p.id} className="rounded-2xl">
+              <Card key={p.id} className={cn("rounded-2xl", !p.is_active && "opacity-60")}>
                 <CardContent className="flex items-center justify-between py-4 px-6">
                   <div className="flex items-center gap-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{p.name}</span>
                         {p.is_default && <Badge variant="secondary" className="text-xs">Standard</Badge>}
-                        {!p.is_active && <Badge variant="outline" className="text-xs text-muted-foreground">Inaktiv</Badge>}
+                        {!p.is_active && <Badge variant="outline" className="text-xs text-muted-foreground"><Archive className="h-3 w-3 mr-1 inline" />Archiviert</Badge>}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{stageCount} Stages</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {stageCount} Stages{dealCount > 0 && ` · ${dealCount} offene Deals`}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -348,7 +351,7 @@ export default function PipelinesSettings() {
                         <TooltipContent>Standard-Pipeline kann nicht gelöscht werden</TooltipContent>
                       </Tooltip>
                     ) : (
-                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(p)}>Löschen</Button>
+                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => openDeleteDialog(p)}>Löschen</Button>
                     )}
                   </div>
                 </CardContent>
