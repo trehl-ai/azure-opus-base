@@ -116,6 +116,55 @@ export default function Import() {
   const targetFields = importType === "companies" ? companyFields : contactFields;
   const requiredFields = targetFields.filter((f) => f.required).map((f) => f.value);
 
+  const resolveAuthenticatedImportUser = useCallback(async () => {
+    const { data, error } = await supabase.auth.getUser();
+    const authUser = data.user ?? null;
+
+    console.info("[Import] Auth-Kontext vor import_jobs Insert", {
+      contextUserId: user?.id ?? null,
+      contextUserEmail: user?.email ?? null,
+      authUserId: authUser?.id ?? null,
+      authUserEmail: authUser?.email ?? null,
+      authError: error?.message ?? null,
+    });
+
+    if (error || !authUser) {
+      console.warn("[Import] Keine gültige Auth-Session für CSV-Import", {
+        error: error?.message ?? null,
+      });
+
+      toast({
+        variant: "destructive",
+        title: "Sitzung nicht verfügbar",
+        description: "Deine Anmeldung ist nicht mehr gültig. Bitte melde dich erneut an, bevor du den Import startest.",
+      });
+
+      return {
+        authUser: null,
+        diagnosis: "missing_session" as const,
+      };
+    }
+
+    if (user?.id && user.id !== authUser.id) {
+      console.warn("[Import] useAuth() und supabase.auth.getUser() liefern unterschiedliche IDs", {
+        contextUserId: user.id,
+        authUserId: authUser.id,
+        contextUserEmail: user.email,
+        authUserEmail: authUser.email ?? null,
+      });
+
+      return {
+        authUser,
+        diagnosis: "id_mismatch" as const,
+      };
+    }
+
+    return {
+      authUser,
+      diagnosis: "ok" as const,
+    };
+  }, [toast, user?.email, user?.id]);
+
   // File handling
   const handleFile = useCallback((file: File) => {
     if (!file.name.endsWith(".csv")) {
@@ -153,18 +202,40 @@ export default function Import() {
 
   // Step 1 → 2: create job
   const createJob = async () => {
-    if (!user?.id) {
-      toast({ variant: "destructive", title: "Fehler", description: "Benutzer nicht angemeldet. Bitte erneut einloggen." });
+    const { authUser, diagnosis } = await resolveAuthenticatedImportUser();
+
+    if (!authUser) {
       return;
     }
+
     const { data, error } = await supabase.from("import_jobs").insert({
       import_type: importType,
       file_name: fileName,
-      started_by_user_id: user.id,
+      started_by_user_id: authUser.id,
       status: "uploaded",
       total_rows: csvData.length,
     }).select("id").single();
-    if (error) { toast({ variant: "destructive", title: "Fehler", description: error.message }); return; }
+
+    if (error) {
+      console.error("[Import] import_jobs Insert fehlgeschlagen", {
+        diagnosis,
+        contextUserId: user?.id ?? null,
+        contextUserEmail: user?.email ?? null,
+        authUserId: authUser.id,
+        authUserEmail: authUser.email ?? null,
+        errorMessage: error.message,
+      });
+
+      toast({
+        variant: "destructive",
+        title: "Import konnte nicht gestartet werden",
+        description: diagnosis === "id_mismatch"
+          ? "Dein Benutzerkontext war inkonsistent. Bitte lade die Seite neu und versuche es erneut."
+          : "Bitte prüfe Anmeldung und Berechtigungen und versuche es erneut.",
+      });
+      return;
+    }
+
     setJobId(data.id);
     setStep("mapping");
     await supabase.from("import_jobs").update({ status: "mapping" }).eq("id", data.id);
