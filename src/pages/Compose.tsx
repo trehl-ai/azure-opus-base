@@ -312,7 +312,13 @@ export default function ComposePage() {
         });
       }
 
-      // 3. Send email
+      // 3. Build body with signature
+      const bodyHtmlContent = `<pre style="font-family:sans-serif;white-space:pre-wrap">${bodyText.replace(/</g, "&lt;")}</pre>`;
+      const fullBodyHtml = useSignature && signatureHtml
+        ? `${bodyHtmlContent}\n${signatureHtml}`
+        : bodyHtmlContent;
+
+      // 4. Send email
       const result = await sendEmail({
         provider: resolvedAccount.provider,
         account_id: resolvedAccount.account_id,
@@ -320,7 +326,7 @@ export default function ComposePage() {
         cc: cc.length ? cc : undefined,
         bcc: bcc.length ? bcc : undefined,
         subject,
-        body_html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${bodyText.replace(/</g, "&lt;")}</pre>`,
+        body_html: fullBodyHtml,
         body_text: bodyText,
         contact_id: contactId || undefined,
         deal_id: dealId || undefined,
