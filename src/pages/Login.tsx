@@ -37,7 +37,7 @@ export default function Login() {
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
       {/* Subtle background image */}
       <div
-        className="absolute inset-0 bg-cover bg-center opacity-[0.20] blur-sm scale-105 pointer-events-none"
+        className="absolute inset-0 bg-cover bg-center opacity-[0.30] blur-sm scale-105 pointer-events-none"
         style={{ backgroundImage: "url('/images/login-bg.png')" }}
       />
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card/90 backdrop-blur-sm p-10 shadow-sm">
