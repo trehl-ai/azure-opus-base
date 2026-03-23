@@ -19,6 +19,10 @@ export interface SendEmailParams {
   provider?: EmailProvider;
   /** Specific email_account id – required for gmail/outlook. */
   account_id?: string;
+  /** Optional CRM contact association */
+  contact_id?: string;
+  /** Optional CRM deal association */
+  deal_id?: string;
 }
 
 export interface SendEmailResult {
@@ -69,6 +73,8 @@ async function sendViaResend(params: SendEmailParams): Promise<SendEmailResult> 
       body_text: params.body_text,
       reply_to: params.reply_to,
       from: params.from,
+      contact_id: params.contact_id,
+      deal_id: params.deal_id,
     },
   });
 
@@ -105,6 +111,8 @@ async function sendViaGmail(params: SendEmailParams): Promise<SendEmailResult> {
       subject: params.subject,
       body_html: params.body_html,
       body_text: params.body_text,
+      contact_id: params.contact_id,
+      deal_id: params.deal_id,
     },
   });
 
@@ -142,6 +150,8 @@ async function sendViaOutlook(params: SendEmailParams): Promise<SendEmailResult>
       subject: params.subject,
       body_html: params.body_html,
       body_text: params.body_text,
+      contact_id: params.contact_id,
+      deal_id: params.deal_id,
     },
   });
 

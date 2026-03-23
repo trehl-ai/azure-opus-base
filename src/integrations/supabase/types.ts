@@ -528,7 +528,9 @@ export type Database = {
           body_html: string | null
           body_text: string | null
           cc_email: string[] | null
+          contact_id: string | null
           created_at: string
+          deal_id: string | null
           direction: string
           error_message: string | null
           external_message_id: string | null
@@ -548,7 +550,9 @@ export type Database = {
           body_html?: string | null
           body_text?: string | null
           cc_email?: string[] | null
+          contact_id?: string | null
           created_at?: string
+          deal_id?: string | null
           direction?: string
           error_message?: string | null
           external_message_id?: string | null
@@ -568,7 +572,9 @@ export type Database = {
           body_html?: string | null
           body_text?: string | null
           cc_email?: string[] | null
+          contact_id?: string | null
           created_at?: string
+          deal_id?: string | null
           direction?: string
           error_message?: string | null
           external_message_id?: string | null
@@ -588,6 +594,34 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "active_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "active_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
             referencedColumns: ["id"]
           },
           {

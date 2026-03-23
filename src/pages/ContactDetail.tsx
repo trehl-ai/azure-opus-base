@@ -8,6 +8,7 @@ import { ContactStatusBadge } from "@/components/contacts/ContactStatusBadge";
 import { EditContactSheet } from "@/components/contacts/EditContactSheet";
 import { LinkCompanyDialog } from "@/components/contacts/LinkCompanyDialog";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
+import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -154,6 +155,7 @@ export default function ContactDetail() {
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
           <TabsTrigger value="companies">Unternehmen {contactCompanies?.length ? `(${contactCompanies.length})` : ""}</TabsTrigger>
           <TabsTrigger value="deals">Deals {deals?.length ? `(${deals.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
@@ -256,6 +258,14 @@ export default function ContactDetail() {
                 </TableBody>
               </Table>
             ) : <p className="py-6 text-center text-label text-muted-foreground">Keine Deals vorhanden.</p>}
+          </div>
+        </TabsContent>
+
+        {/* E-Mails */}
+        <TabsContent value="emails" className="mt-4">
+          <div className={cardClass}>
+            <h2 className="text-body font-semibold text-foreground mb-4">E-Mail-Historie</h2>
+            <EmailHistory contactId={id!} />
           </div>
         </TabsContent>
 

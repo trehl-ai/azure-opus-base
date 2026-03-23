@@ -122,6 +122,8 @@ interface SendGmailRequest {
   subject: string;
   body_html?: string;
   body_text?: string;
+  contact_id?: string;
+  deal_id?: string;
 }
 
 Deno.serve(async (req) => {
@@ -282,6 +284,8 @@ Deno.serve(async (req) => {
         body_text: body.body_text || null,
         status: "queued",
         direction: "outbound",
+        contact_id: body.contact_id || null,
+        deal_id: body.deal_id || null,
       })
       .select("id")
       .single();

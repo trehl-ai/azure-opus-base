@@ -9,6 +9,7 @@ import { EditDealSheet } from "@/components/deals/EditDealSheet";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
+import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -255,6 +256,7 @@ export default function DealDetail() {
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
           <TabsTrigger value="activities">Aktivitäten</TabsTrigger>
+          <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
           {deal.status === "won" && <TabsTrigger value="project">Projekt</TabsTrigger>}
@@ -327,6 +329,14 @@ export default function DealDetail() {
               {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} />)}
             </div>
           )}
+        </TabsContent>
+
+        {/* E-Mails */}
+        <TabsContent value="emails" className="mt-4">
+          <div className={cardClass}>
+            <h2 className="text-label font-semibold text-foreground mb-4">E-Mail-Historie</h2>
+            <EmailHistory dealId={id!} />
+          </div>
         </TabsContent>
 
         {/* Notes */}
