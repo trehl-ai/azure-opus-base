@@ -33,25 +33,25 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
       draggable
       onDragStart={(e) => onDragStart(e, deal.id)}
       onClick={() => navigate(`/deals/${deal.id}`)}
-      className="cursor-pointer rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-md"
+      className="cursor-pointer rounded-lg border border-border bg-card px-2.5 py-2 transition-shadow hover:shadow-sm"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
-          <p className="text-body font-medium text-foreground truncate">{deal.title}</p>
+          <p className="text-[12px] font-medium text-foreground truncate leading-tight">{deal.title}</p>
           {deal.company_name && (
-            <p className="text-label text-muted-foreground truncate mt-0.5">{deal.company_name}</p>
+            <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-tight">{deal.company_name}</p>
           )}
         </div>
         {deal.priority && (
-          <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", priorityDot[deal.priority] ?? priorityDot.medium)} />
+          <span className={cn("mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full", priorityDot[deal.priority] ?? priorityDot.medium)} />
         )}
       </div>
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-1.5 flex items-center justify-between">
         {deal.value_amount ? (
-          <span className="text-body font-semibold text-foreground">{formatCurrency(deal.value_amount, deal.currency)}</span>
+          <span className="text-[11px] font-semibold text-foreground">{formatCurrency(deal.value_amount, deal.currency)}</span>
         ) : <span />}
         {initials && (
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary">
             {initials}
           </span>
         )}
