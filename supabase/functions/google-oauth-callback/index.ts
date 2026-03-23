@@ -59,8 +59,8 @@ Deno.serve(async (req) => {
       return htmlResponse("Ungültiger Aufruf", "Der OAuth-State konnte nicht gelesen werden.", 400);
     }
 
-    const userId = state.user_id;
-    if (!userId) {
+    const authUserId = state.user_id;
+    if (!authUserId) {
       return htmlResponse("Ungültiger Aufruf", "Kein Benutzer im OAuth-State gefunden.", 400);
     }
 
@@ -137,6 +137,17 @@ Deno.serve(async (req) => {
     // --- Upsert email_accounts ---
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Map auth user ID to public user ID
+    const { data: publicUserId, error: mapError } = await supabaseAdmin
+      .rpc("get_public_user_id", { _auth_user_id: authUserId });
+
+    if (mapError || !publicUserId) {
+      console.error("Failed to map auth user to public user:", mapError?.code || "no mapping found");
+      return htmlResponse("Benutzerfehler", "Dein Benutzerkonto konnte nicht zugeordnet werden.", 500);
+    }
+
+    const userId = publicUserId as string;
 
     const { data: existing } = await supabaseAdmin
       .from("email_accounts")
