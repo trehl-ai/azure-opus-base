@@ -7,7 +7,7 @@ import { loadUserSignature } from "@/lib/signature";
 import { toast } from "sonner";
 import {
   Mail, Send, Server, ChevronDown, Plus, X, AlertCircle, Loader2, User, Briefcase,
-  Paperclip, FileText, FileSpreadsheet, Image, File, Upload, Trash2,
+  Paperclip, FileText, FileSpreadsheet, Image, File, Upload, Trash2, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
