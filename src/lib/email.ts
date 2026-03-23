@@ -73,6 +73,8 @@ async function sendViaResend(params: SendEmailParams): Promise<SendEmailResult> 
       body_text: params.body_text,
       reply_to: params.reply_to,
       from: params.from,
+      contact_id: params.contact_id,
+      deal_id: params.deal_id,
     },
   });
 
