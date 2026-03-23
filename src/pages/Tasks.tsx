@@ -259,32 +259,32 @@ export default function Tasks() {
       ) : view === "board" ? (
         /* Desktop Board */
         <div className="overflow-x-auto">
-          <div className="flex gap-4 min-w-max pb-4">
+          <div className="flex gap-2.5 min-w-max pb-4">
             {taskStatuses.map((status) => {
               const statusTasks = tasksByStatus.get(status) ?? [];
-              const bgClass = taskColumnBg[status] ?? "bg-[hsl(var(--secondary))] border-transparent";
+              const bgClass = taskColumnBg[status] ?? "bg-[#D8DAE5] border-transparent";
               return (
-                <div key={status} className={cn("flex w-[280px] shrink-0 flex-col rounded-xl border p-3", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
-                  <div className="mb-3 px-1 flex items-center justify-between">
-                    <h3 className="text-[13px] font-semibold text-foreground">{taskStatusLabel[status]}</h3>
-                    <span className="text-[11px] font-medium text-muted-foreground">{statusTasks.length}</span>
+                <div key={status} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-2", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
+                  <div className="mb-2 px-0.5 flex items-center justify-between">
+                    <h3 className="text-[11px] font-semibold text-foreground">{taskStatusLabel[status]}</h3>
+                    <span className="text-[9px] font-medium text-muted-foreground">{statusTasks.length}</span>
                   </div>
-                  <div className="flex-1 space-y-2 min-h-[80px]">
+                  <div className="flex-1 space-y-1.5 min-h-[40px]">
                     {statusTasks.map((task) => {
                       const assigned = task.assigned as { first_name: string; last_name: string } | null;
                       const project = task.project as { id: string; title: string } | null;
                       const initials = assigned ? `${assigned.first_name[0]}${assigned.last_name[0]}`.toUpperCase() : null;
                       return (
                         <div key={task.id} draggable onDragStart={(e) => handleDragStart(e, task.id)} onClick={() => setSelectedTaskId(task.id)}
-                          className={cn("rounded-xl border border-border bg-card p-3 cursor-grab transition-shadow hover:shadow-md", task.status === "done" && "opacity-60")}>
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={cn("text-sm font-medium text-foreground truncate flex-1", task.status === "done" && "line-through")}>{task.title}</p>
-                            {task.priority && <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", priorityDot[task.priority] ?? priorityDot.medium)} />}
+                          className={cn("rounded-lg border border-border bg-card px-2.5 py-2 cursor-grab transition-shadow hover:shadow-sm", task.status === "done" && "opacity-60")}>
+                          <div className="flex items-start justify-between gap-1.5">
+                            <p className={cn("text-[12px] font-medium text-foreground truncate flex-1 leading-tight", task.status === "done" && "line-through")}>{task.title}</p>
+                            {task.priority && <span className={cn("mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full", priorityDot[task.priority] ?? priorityDot.medium)} />}
                           </div>
-                          {project && <p className="mt-1 text-[11px] text-muted-foreground truncate">{project.title}</p>}
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                          {project && <p className="mt-0.5 text-[10px] text-muted-foreground truncate leading-tight">{project.title}</p>}
+                          <div className="mt-1.5 flex items-center justify-between text-[9px] text-muted-foreground">
                             {task.due_date ? <span className={cn(isOverdue(task.due_date) && task.status !== "done" && "text-destructive font-medium")}>{format(new Date(task.due_date), "dd.MM.yy")}</span> : <span />}
-                            {initials && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary">{initials}</span>}
+                            {initials && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary">{initials}</span>}
                           </div>
                         </div>
                       );

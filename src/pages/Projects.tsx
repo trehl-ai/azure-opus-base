@@ -216,19 +216,19 @@ export default function Projects() {
         </div>
       ) : view === "board" ? (
         <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-4 min-w-max pb-4">
+          <div className="flex gap-2.5 min-w-max pb-4">
             {statuses.map((status) => {
               const statusProjects = projectsByStatus.get(status) ?? [];
-              const bgClass = columnBg[status] ?? "bg-[#F0F1F5] border-transparent";
+              const bgClass = columnBg[status] ?? "bg-[#D8DAE5] border-transparent";
               return (
-                <div key={status} className={cn("flex w-[270px] shrink-0 flex-col rounded-xl border p-3", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
-                  <div className="mb-3 px-1">
+                <div key={status} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-2", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
+                  <div className="mb-2 px-0.5">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-[13px] font-semibold text-foreground">{statusLabel[status]}</h3>
-                      <span className="text-[11px] font-medium text-muted-foreground">{statusProjects.length}</span>
+                      <h3 className="text-[11px] font-semibold text-foreground">{statusLabel[status]}</h3>
+                      <span className="text-[9px] font-medium text-muted-foreground">{statusProjects.length}</span>
                     </div>
                   </div>
-                  <div className="flex-1 space-y-2 min-h-[60px]">
+                  <div className="flex-1 space-y-1.5 min-h-[40px]">
                     {statusProjects.map((p) => {
                       const company = p.company as { name: string } | null;
                       const owner = p.owner as { first_name: string; last_name: string } | null;
