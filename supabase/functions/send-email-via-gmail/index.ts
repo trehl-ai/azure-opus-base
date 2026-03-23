@@ -8,8 +8,14 @@ const corsHeaders = {
 };
 
 // ---------------------------------------------------------------------------
-// Gmail RFC 2822 message builder
+// Gmail RFC 2822 message builder (with attachment support)
 // ---------------------------------------------------------------------------
+
+interface Attachment {
+  filename: string;
+  content: string; // base64
+  type: string;
+}
 
 function buildRfc2822Message(params: {
   from: string;
@@ -19,9 +25,12 @@ function buildRfc2822Message(params: {
   subject: string;
   bodyHtml?: string;
   bodyText?: string;
+  attachments?: Attachment[];
 }): string {
-  const boundary = `boundary_${crypto.randomUUID().replace(/-/g, "")}`;
+  const mainBoundary = `boundary_${crypto.randomUUID().replace(/-/g, "")}`;
+  const altBoundary = `alt_${crypto.randomUUID().replace(/-/g, "")}`;
   const lines: string[] = [];
+  const hasAttachments = params.attachments && params.attachments.length > 0;
 
   lines.push(`From: ${params.from}`);
   lines.push(`To: ${params.to.join(", ")}`);
@@ -30,37 +39,94 @@ function buildRfc2822Message(params: {
   lines.push(`Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(params.subject)))}?=`);
   lines.push("MIME-Version: 1.0");
 
-  if (params.bodyHtml && params.bodyText) {
-    lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+  if (hasAttachments) {
+    // multipart/mixed wrapping body + attachments
+    lines.push(`Content-Type: multipart/mixed; boundary="${mainBoundary}"`);
     lines.push("");
-    lines.push(`--${boundary}`);
-    lines.push("Content-Type: text/plain; charset=UTF-8");
-    lines.push("Content-Transfer-Encoding: base64");
-    lines.push("");
-    lines.push(btoa(unescape(encodeURIComponent(params.bodyText))));
-    lines.push(`--${boundary}`);
-    lines.push("Content-Type: text/html; charset=UTF-8");
-    lines.push("Content-Transfer-Encoding: base64");
-    lines.push("");
-    lines.push(btoa(unescape(encodeURIComponent(params.bodyHtml))));
-    lines.push(`--${boundary}--`);
-  } else if (params.bodyHtml) {
-    lines.push("Content-Type: text/html; charset=UTF-8");
-    lines.push("Content-Transfer-Encoding: base64");
-    lines.push("");
-    lines.push(btoa(unescape(encodeURIComponent(params.bodyHtml))));
+
+    // Body part
+    lines.push(`--${mainBoundary}`);
+    if (params.bodyHtml && params.bodyText) {
+      lines.push(`Content-Type: multipart/alternative; boundary="${altBoundary}"`);
+      lines.push("");
+      lines.push(`--${altBoundary}`);
+      lines.push("Content-Type: text/plain; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyText))));
+      lines.push(`--${altBoundary}`);
+      lines.push("Content-Type: text/html; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyHtml))));
+      lines.push(`--${altBoundary}--`);
+    } else if (params.bodyHtml) {
+      lines.push("Content-Type: text/html; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyHtml))));
+    } else {
+      lines.push("Content-Type: text/plain; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyText || ""))));
+    }
+
+    // Attachment parts
+    for (const att of params.attachments!) {
+      lines.push(`--${mainBoundary}`);
+      lines.push(`Content-Type: ${att.type}; name="${att.filename}"`);
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push(`Content-Disposition: attachment; filename="${att.filename}"`);
+      lines.push("");
+      // Split base64 into 76-char lines
+      const b64 = att.content;
+      for (let i = 0; i < b64.length; i += 76) {
+        lines.push(b64.slice(i, i + 76));
+      }
+    }
+    lines.push(`--${mainBoundary}--`);
   } else {
-    lines.push("Content-Type: text/plain; charset=UTF-8");
-    lines.push("Content-Transfer-Encoding: base64");
-    lines.push("");
-    lines.push(btoa(unescape(encodeURIComponent(params.bodyText || ""))));
+    // No attachments – simple message
+    if (params.bodyHtml && params.bodyText) {
+      lines.push(`Content-Type: multipart/alternative; boundary="${mainBoundary}"`);
+      lines.push("");
+      lines.push(`--${mainBoundary}`);
+      lines.push("Content-Type: text/plain; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyText))));
+      lines.push(`--${mainBoundary}`);
+      lines.push("Content-Type: text/html; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyHtml))));
+      lines.push(`--${mainBoundary}--`);
+    } else if (params.bodyHtml) {
+      lines.push("Content-Type: text/html; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyHtml))));
+    } else {
+      lines.push("Content-Type: text/plain; charset=UTF-8");
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(btoa(unescape(encodeURIComponent(params.bodyText || ""))));
+    }
   }
 
   return lines.join("\r\n");
 }
 
 function toUrlSafeBase64(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)))
+  // For raw RFC2822 messages we need raw bytes, not UTF-8 encoded
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
@@ -91,17 +157,12 @@ async function refreshAccessToken(
 
   const data = await resp.json();
   if (!resp.ok || !data.access_token) {
-    // Log only error type, never token values
     console.error("Token refresh failed:", data.error || "unknown");
     return null;
   }
 
   return { access_token: data.access_token, expires_in: data.expires_in };
 }
-
-// ---------------------------------------------------------------------------
-// JSON error helper
-// ---------------------------------------------------------------------------
 
 function jsonError(message: string, status: number): Response {
   return new Response(
@@ -124,6 +185,7 @@ interface SendGmailRequest {
   body_text?: string;
   contact_id?: string;
   deal_id?: string;
+  attachments?: Attachment[];
 }
 
 Deno.serve(async (req) => {
@@ -132,7 +194,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // --- Secret guards ---
     const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID");
     const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET");
     const ENCRYPTION_KEY = Deno.env.get("EMAIL_TOKEN_ENCRYPTION_KEY");
@@ -142,7 +203,6 @@ Deno.serve(async (req) => {
       return jsonError("Gmail-Versand ist noch nicht konfiguriert.", 503);
     }
 
-    // --- Authenticate user ---
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return jsonError("Nicht autorisiert.", 401);
@@ -161,12 +221,9 @@ Deno.serve(async (req) => {
       return jsonError("Nicht autorisiert.", 401);
     }
 
-    const authUserId = authUser.id;
-
-    // Map auth user ID to public user ID
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     const { data: publicUserId, error: mapError } = await supabaseAdmin
-      .rpc("get_public_user_id", { _auth_user_id: authUserId });
+      .rpc("get_public_user_id", { _auth_user_id: authUser.id });
 
     if (mapError || !publicUserId) {
       console.error("User ID mapping failed:", mapError?.code || "no public user");
@@ -175,7 +232,6 @@ Deno.serve(async (req) => {
 
     const userId = publicUserId as string;
 
-    // --- Validate request ---
     let body: SendGmailRequest;
     try {
       body = await req.json();
@@ -183,15 +239,10 @@ Deno.serve(async (req) => {
       return jsonError("Ungültiger Request-Body.", 400);
     }
 
-    if (!body.account_id) {
-      return jsonError("account_id ist erforderlich.", 400);
-    }
-
+    if (!body.account_id) return jsonError("account_id ist erforderlich.", 400);
     if (!body.to?.length || !body.subject || (!body.body_html && !body.body_text)) {
       return jsonError("Fehlende Pflichtfelder: to, subject und body_html oder body_text.", 400);
     }
-
-    // --- Load email account ---
 
     const { data: account, error: accountError } = await supabaseAdmin
       .from("email_accounts")
@@ -201,19 +252,11 @@ Deno.serve(async (req) => {
       .eq("provider", "gmail")
       .single();
 
-    if (accountError || !account) {
-      return jsonError("Gmail-Konto nicht gefunden oder kein Zugriff.", 404);
-    }
+    if (accountError || !account) return jsonError("Gmail-Konto nicht gefunden oder kein Zugriff.", 404);
+    if (account.status !== "active") return jsonError("Dieses Konto ist nicht aktiv. Bitte verbinde es erneut.", 400);
+    if (!account.access_token_encrypted) return jsonError("Keine Zugangsdaten vorhanden. Bitte verbinde das Konto erneut.", 400);
 
-    if (account.status !== "active") {
-      return jsonError("Dieses Konto ist nicht aktiv. Bitte verbinde es erneut.", 400);
-    }
-
-    if (!account.access_token_encrypted) {
-      return jsonError("Keine Zugangsdaten für dieses Konto vorhanden. Bitte verbinde es erneut.", 400);
-    }
-
-    // --- Resolve access token (refresh if expired) ---
+    // Resolve access token
     let accessToken: string;
     const now = Date.now();
     const tokenExpiry = account.token_expires_at ? new Date(account.token_expires_at).getTime() : 0;
@@ -223,69 +266,38 @@ Deno.serve(async (req) => {
       try {
         accessToken = await decryptToken(account.access_token_encrypted, ENCRYPTION_KEY);
       } catch {
-        console.error("Failed to decrypt access token for account:", account.id);
-        return jsonError("Zugangsdaten konnten nicht entschlüsselt werden. Bitte verbinde das Konto erneut.", 500);
+        return jsonError("Zugangsdaten konnten nicht entschlüsselt werden.", 500);
       }
     } else if (account.refresh_token_encrypted) {
-      const refreshResult = await refreshAccessToken(
-        account.refresh_token_encrypted,
-        ENCRYPTION_KEY,
-        GOOGLE_CLIENT_ID,
-        GOOGLE_CLIENT_SECRET
-      );
-
+      const refreshResult = await refreshAccessToken(account.refresh_token_encrypted, ENCRYPTION_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
       if (!refreshResult) {
-        await supabaseAdmin
-          .from("email_accounts")
-          .update({ status: "error", updated_at: new Date().toISOString() })
-          .eq("id", account.id);
-
+        await supabaseAdmin.from("email_accounts").update({ status: "error", updated_at: new Date().toISOString() }).eq("id", account.id);
         return jsonError("Token konnte nicht erneuert werden. Bitte verbinde dein Google-Konto erneut.", 401);
       }
-
       accessToken = refreshResult.access_token;
-
-      // Persist refreshed token
       try {
         const newEncrypted = await encryptToken(refreshResult.access_token, ENCRYPTION_KEY);
-        await supabaseAdmin
-          .from("email_accounts")
-          .update({
-            access_token_encrypted: newEncrypted,
-            token_expires_at: new Date(now + refreshResult.expires_in * 1000).toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", account.id);
-      } catch {
-        console.error("Failed to persist refreshed token for account:", account.id);
-        // Continue with sending — token is valid in memory
-      }
+        await supabaseAdmin.from("email_accounts").update({
+          access_token_encrypted: newEncrypted,
+          token_expires_at: new Date(now + refreshResult.expires_in * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", account.id);
+      } catch { /* continue */ }
     } else {
       return jsonError("Kein Refresh-Token vorhanden. Bitte verbinde dein Google-Konto erneut.", 401);
     }
 
-    // --- Insert email_messages record (queued) ---
-    const fromAddress = account.display_name
-      ? `${account.display_name} <${account.email_address}>`
-      : account.email_address;
+    // Insert email record
+    const fromAddress = account.display_name ? `${account.display_name} <${account.email_address}>` : account.email_address;
 
     const { data: messageRow, error: insertError } = await supabaseAdmin
       .from("email_messages")
       .insert({
-        user_id: userId,
-        account_id: account.id,
-        provider: "gmail",
-        from_email: fromAddress,
-        to_email: body.to,
-        cc_email: body.cc || [],
-        bcc_email: body.bcc || [],
-        subject: body.subject,
-        body_html: body.body_html || null,
-        body_text: body.body_text || null,
-        status: "queued",
-        direction: "outbound",
-        contact_id: body.contact_id || null,
-        deal_id: body.deal_id || null,
+        user_id: userId, account_id: account.id, provider: "gmail",
+        from_email: fromAddress, to_email: body.to, cc_email: body.cc || [], bcc_email: body.bcc || [],
+        subject: body.subject, body_html: body.body_html || null, body_text: body.body_text || null,
+        status: "queued", direction: "outbound",
+        contact_id: body.contact_id || null, deal_id: body.deal_id || null,
       })
       .select("id")
       .single();
@@ -297,15 +309,11 @@ Deno.serve(async (req) => {
 
     const messageId = messageRow.id;
 
-    // --- Build RFC 2822 and send via Gmail API ---
+    // Build and send
     const rawMessage = buildRfc2822Message({
-      from: fromAddress,
-      to: body.to,
-      cc: body.cc,
-      bcc: body.bcc,
-      subject: body.subject,
-      bodyHtml: body.body_html,
-      bodyText: body.body_text,
+      from: fromAddress, to: body.to, cc: body.cc, bcc: body.bcc,
+      subject: body.subject, bodyHtml: body.body_html, bodyText: body.body_text,
+      attachments: body.attachments,
     });
 
     const encodedMessage = toUrlSafeBase64(rawMessage);
@@ -316,55 +324,30 @@ Deno.serve(async (req) => {
     try {
       const gmailResponse = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ raw: encodedMessage }),
       });
-
       gmailOk = gmailResponse.ok;
       gmailData = await gmailResponse.json();
     } catch {
-      console.error("Network error calling Gmail API for message:", messageId);
-      await supabaseAdmin
-        .from("email_messages")
-        .update({ status: "failed", error_message: "Gmail API nicht erreichbar" })
-        .eq("id", messageId);
-
+      await supabaseAdmin.from("email_messages").update({ status: "failed", error_message: "Gmail API nicht erreichbar" }).eq("id", messageId);
       return jsonError("Gmail-API konnte nicht erreicht werden.", 502);
     }
 
     if (!gmailOk) {
       const errorMsg = (gmailData.error as Record<string, unknown>)?.message || "Unbekannter Gmail-Fehler";
-      console.error("Gmail API error for message:", messageId, "- code:", (gmailData.error as Record<string, unknown>)?.code);
-
-      await supabaseAdmin
-        .from("email_messages")
-        .update({ status: "failed", error_message: String(errorMsg).slice(0, 500) })
-        .eq("id", messageId);
-
+      await supabaseAdmin.from("email_messages").update({ status: "failed", error_message: String(errorMsg).slice(0, 500) }).eq("id", messageId);
       return jsonError("Gmail-Versand fehlgeschlagen.", 502);
     }
 
-    // --- Update message as sent ---
-    await supabaseAdmin
-      .from("email_messages")
-      .update({
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        external_message_id: (gmailData.id as string) || null,
-        external_thread_id: (gmailData.threadId as string) || null,
-      })
-      .eq("id", messageId);
+    await supabaseAdmin.from("email_messages").update({
+      status: "sent", sent_at: new Date().toISOString(),
+      external_message_id: (gmailData.id as string) || null,
+      external_thread_id: (gmailData.threadId as string) || null,
+    }).eq("id", messageId);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        message_id: messageId,
-        gmail_message_id: gmailData.id,
-        gmail_thread_id: gmailData.threadId,
-      }),
+      JSON.stringify({ success: true, message_id: messageId, gmail_message_id: gmailData.id, gmail_thread_id: gmailData.threadId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

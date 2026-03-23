@@ -6,6 +6,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface Attachment {
+  filename: string;
+  content: string; // base64
+  type: string;
+}
+
 interface SendEmailRequest {
   to: string[];
   cc?: string[];
@@ -17,6 +23,7 @@ interface SendEmailRequest {
   from?: string;
   contact_id?: string;
   deal_id?: string;
+  attachments?: Attachment[];
 }
 
 Deno.serve(async (req) => {
@@ -25,12 +32,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -45,27 +50,21 @@ Deno.serve(async (req) => {
     const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !authUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Map auth user ID to public user ID
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     const { data: publicUserId, error: mapError } = await supabaseAdmin
       .rpc("get_public_user_id", { _auth_user_id: authUser.id });
 
     if (mapError || !publicUserId) {
-      console.error("User ID mapping failed:", mapError?.code || "no public user");
       return new Response(JSON.stringify({ error: "User mapping failed" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const userId = publicUserId as string;
-
-    // Validate request body
     const body: SendEmailRequest = await req.json();
 
     if (!body.to?.length || !body.subject || (!body.body_html && !body.body_text)) {
@@ -75,7 +74,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get Resend API key
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
       return new Response(
@@ -86,25 +84,14 @@ Deno.serve(async (req) => {
 
     const fromAddress = body.from || "CRM <noreply@ts-connect.cloud>";
 
-    // Insert email_messages record with status 'queued'
-    // account_id is null for platform/system emails (Resend is not a personal account)
     const { data: messageRow, error: insertError } = await supabaseAdmin
       .from("email_messages")
       .insert({
-        user_id: userId,
-        account_id: null,
-        provider: "resend",
-        from_email: fromAddress,
-        to_email: body.to,
-        cc_email: body.cc || [],
-        bcc_email: body.bcc || [],
-        subject: body.subject,
-        body_html: body.body_html || null,
-        body_text: body.body_text || null,
-        status: "queued",
-        direction: "outbound",
-        contact_id: body.contact_id || null,
-        deal_id: body.deal_id || null,
+        user_id: userId, account_id: null, provider: "resend",
+        from_email: fromAddress, to_email: body.to, cc_email: body.cc || [], bcc_email: body.bcc || [],
+        subject: body.subject, body_html: body.body_html || null, body_text: body.body_text || null,
+        status: "queued", direction: "outbound",
+        contact_id: body.contact_id || null, deal_id: body.deal_id || null,
       })
       .select("id")
       .single();
@@ -119,7 +106,7 @@ Deno.serve(async (req) => {
 
     const messageId = messageRow.id;
 
-    // Send email via Resend
+    // Build Resend payload
     const resendPayload: Record<string, unknown> = {
       from: fromAddress,
       to: body.to,
@@ -130,6 +117,15 @@ Deno.serve(async (req) => {
     if (body.body_html) resendPayload.html = body.body_html;
     if (body.body_text) resendPayload.text = body.body_text;
     if (body.reply_to) resendPayload.reply_to = body.reply_to;
+
+    // Resend attachments format
+    if (body.attachments?.length) {
+      resendPayload.attachments = body.attachments.map((att) => ({
+        filename: att.filename,
+        content: att.content, // Resend accepts base64 content
+        content_type: att.type,
+      }));
+    }
 
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -144,13 +140,10 @@ Deno.serve(async (req) => {
 
     if (!resendResponse.ok) {
       console.error("Resend API error:", resendData.statusCode || resendResponse.status);
-      await supabaseAdmin
-        .from("email_messages")
-        .update({
-          status: "failed",
-          error_message: String(resendData.message || resendData.name || "Resend-Fehler").slice(0, 500),
-        })
-        .eq("id", messageId);
+      await supabaseAdmin.from("email_messages").update({
+        status: "failed",
+        error_message: String(resendData.message || resendData.name || "Resend-Fehler").slice(0, 500),
+      }).eq("id", messageId);
 
       return new Response(
         JSON.stringify({ error: "E-Mail-Versand fehlgeschlagen." }),
@@ -158,15 +151,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update message status to sent
-    await supabaseAdmin
-      .from("email_messages")
-      .update({
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        external_message_id: resendData?.id || null,
-      })
-      .eq("id", messageId);
+    await supabaseAdmin.from("email_messages").update({
+      status: "sent", sent_at: new Date().toISOString(),
+      external_message_id: resendData?.id || null,
+    }).eq("id", messageId);
 
     return new Response(
       JSON.stringify({ success: true, message_id: messageId, resend_id: resendData?.id }),
