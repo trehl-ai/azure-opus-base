@@ -93,6 +93,8 @@ interface SendOutlookRequest {
   subject: string;
   body_html?: string;
   body_text?: string;
+  contact_id?: string;
+  deal_id?: string;
 }
 
 Deno.serve(async (req) => {
