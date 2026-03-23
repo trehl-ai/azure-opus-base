@@ -289,7 +289,7 @@ export default function Deals() {
             {stages?.map((stage) => {
               const stageDeals = dealsByStage.get(stage.id) ?? [];
               const totalValue = stageDeals.reduce((sum, d) => sum + (d.value_amount ?? 0), 0);
-              const bgClass = stage.is_won_stage ? "bg-success/5 border-success/20" : stage.is_lost_stage ? "bg-destructive/5 border-destructive/20" : "bg-[#F0F1F5] border-transparent";
+              const bgClass = stage.is_won_stage ? "bg-success/5 border-success/20" : stage.is_lost_stage ? "bg-destructive/5 border-destructive/20" : "bg-[#D8DAE5] border-transparent";
 
               return (
                 <div key={stage.id} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-2", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.id)}>

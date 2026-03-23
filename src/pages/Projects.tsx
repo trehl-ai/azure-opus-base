@@ -216,7 +216,7 @@ export default function Projects() {
         </div>
       ) : view === "board" ? (
         <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-4 min-w-max pb-4">
+          <div className="flex gap-2.5 min-w-max pb-4">
             {statuses.map((status) => {
               const statusProjects = projectsByStatus.get(status) ?? [];
               const bgClass = columnBg[status] ?? "bg-[#D8DAE5] border-transparent";
