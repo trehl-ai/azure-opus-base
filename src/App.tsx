@@ -25,6 +25,7 @@ import Import from "./pages/Import.tsx";
 import Intake from "./pages/Intake.tsx";
 import SettingsPage from "./pages/Settings.tsx";
 import Compose from "./pages/Compose.tsx";
+import SetPassword from "./pages/SetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient({
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/auth/set-password" element={<SetPassword />} />
 
               {/* Protected routes with AppLayout */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

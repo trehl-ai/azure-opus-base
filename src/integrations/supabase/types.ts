@@ -1422,8 +1422,11 @@ export type Database = {
           email: string
           first_name: string
           id: string
+          invited_at: string | null
           is_active: boolean | null
           last_name: string
+          onboarding_completed_at: string | null
+          password_set_at: string | null
           role: string
           updated_at: string
         }
@@ -1432,8 +1435,11 @@ export type Database = {
           email: string
           first_name: string
           id?: string
+          invited_at?: string | null
           is_active?: boolean | null
           last_name: string
+          onboarding_completed_at?: string | null
+          password_set_at?: string | null
           role?: string
           updated_at?: string
         }
@@ -1442,8 +1448,11 @@ export type Database = {
           email?: string
           first_name?: string
           id?: string
+          invited_at?: string | null
           is_active?: boolean | null
           last_name?: string
+          onboarding_completed_at?: string | null
+          password_set_at?: string | null
           role?: string
           updated_at?: string
         }
