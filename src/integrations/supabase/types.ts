@@ -1164,6 +1164,39 @@ export type Database = {
           },
         ]
       }
+      task_statuses: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          position: number
+          slug: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          position?: number
+          slug: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          position?: number
+          slug?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_user_id: string | null
