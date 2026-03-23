@@ -454,20 +454,40 @@ export default function PipelinesSettings() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete / Archive Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={o => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Pipeline löschen</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteHasDeals ? "Pipeline archivieren" : "Pipeline löschen"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Bist du sicher, dass du die Pipeline „{deleteTarget?.name}" löschen möchtest? Alle zugehörigen Stages werden ebenfalls entfernt.
+              {deleteHasDeals
+                ? `Die Pipeline „${deleteTarget?.name}" hat noch verknüpfte Deals und kann nicht gelöscht werden. Du kannst sie stattdessen archivieren – bestehende Deals bleiben erhalten, aber die Pipeline erscheint nicht mehr in Auswahllisten.`
+                : `Bist du sicher, dass du die Pipeline „${deleteTarget?.name}" endgültig löschen möchtest? Alle zugehörigen Stages werden ebenfalls entfernt.`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={deletePipeline}>
-              Endgültig löschen
-            </AlertDialogAction>
+            <AlertDialogCancel disabled={deleteLoading}>Abbrechen</AlertDialogCancel>
+            {deleteHasDeals ? (
+              <AlertDialogAction
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                onClick={archivePipeline}
+                disabled={deleteLoading}
+              >
+                <Archive className="h-4 w-4 mr-1" />
+                {deleteLoading ? "Archivieren…" : "Archivieren"}
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={deletePipeline}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? "Löschen…" : "Endgültig löschen"}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
