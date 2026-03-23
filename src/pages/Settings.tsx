@@ -6,6 +6,7 @@ import UsersSettings from "@/pages/settings/UsersSettings";
 import RolesSettings from "@/pages/settings/RolesSettings";
 import GeneralSettings from "@/pages/settings/GeneralSettings";
 import PipelinesSettings from "@/pages/settings/PipelinesSettings";
+import TaskStatusesSettings from "@/pages/settings/TaskStatusesSettings";
 import TagsSettings from "@/pages/settings/TagsSettings";
 import EmailAccountsSettings from "@/pages/settings/EmailAccountsSettings";
 import PlaceholderSettings from "@/pages/settings/PlaceholderSettings";
