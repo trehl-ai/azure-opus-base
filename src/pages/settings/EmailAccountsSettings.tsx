@@ -5,10 +5,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Mail, Plus, Star, Trash2, ExternalLink, Server, ShieldOff, AlertTriangle } from "lucide-react";
+import {
+  Mail, Star, Trash2, Server, ShieldOff, CheckCircle2, XCircle, Info, Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -32,10 +35,23 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 export default function EmailAccountsSettings() {
   const { user } = useAuth();
   const { role } = usePermission();
+  const isAdmin = role === "admin";
   const queryClient = useQueryClient();
   const [disconnectId, setDisconnectId] = useState<string | null>(null);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const [connectingOutlook, setConnectingOutlook] = useState(false);
 
-  // Block non-authenticated
+  // Check provider setup status
+  const { data: providerStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ["email-provider-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("check-email-provider-status");
+      if (error) return { google: false, outlook: false, resend: false };
+      return data as { google: boolean; outlook: boolean; resend: boolean };
+    },
+    staleTime: 60_000,
+  });
+
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
@@ -60,13 +76,11 @@ export default function EmailAccountsSettings() {
 
   const setDefaultMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      // Remove current default
       await supabase
         .from("email_accounts")
         .update({ is_default: false })
         .eq("user_id", user.id)
         .eq("is_default", true);
-      // Set new default
       const { error } = await supabase
         .from("email_accounts")
         .update({ is_default: true })
@@ -82,10 +96,7 @@ export default function EmailAccountsSettings() {
 
   const disconnectMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const { error } = await supabase
-        .from("email_accounts")
-        .delete()
-        .eq("id", accountId);
+      const { error } = await supabase.from("email_accounts").delete().eq("id", accountId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -97,25 +108,15 @@ export default function EmailAccountsSettings() {
   });
 
   const handleConnectGoogle = async () => {
+    setConnectingGoogle(true);
     try {
       const { data, error } = await supabase.functions.invoke("start-google-oauth");
-
-      if (error) {
+      if (error || data?.error) {
         toast.error("Fehler beim Starten der Google-Verbindung.");
         return;
       }
-
-      if (data?.error) {
-        // Secret guard triggered
-        toast.error(data.details || data.error);
-        return;
-      }
-
       if (data?.auth_url) {
-        // Open OAuth popup
         const popup = window.open(data.auth_url, "google-oauth", "width=600,height=700,popup=yes");
-
-        // Listen for success message from callback
         const handler = (event: MessageEvent) => {
           if (event.data?.type === "google-oauth-success") {
             window.removeEventListener("message", handler);
@@ -128,26 +129,21 @@ export default function EmailAccountsSettings() {
       }
     } catch {
       toast.error("Fehler beim Starten der Google-Verbindung.");
+    } finally {
+      setConnectingGoogle(false);
     }
   };
 
   const handleConnectOutlook = async () => {
+    setConnectingOutlook(true);
     try {
       const { data, error } = await supabase.functions.invoke("start-outlook-oauth");
-
-      if (error) {
+      if (error || data?.error) {
         toast.error("Fehler beim Starten der Outlook-Verbindung.");
         return;
       }
-
-      if (data?.error) {
-        toast.error(data.details || data.error);
-        return;
-      }
-
       if (data?.auth_url) {
         const popup = window.open(data.auth_url, "outlook-oauth", "width=600,height=700,popup=yes");
-
         const handler = (event: MessageEvent) => {
           if (event.data?.type === "outlook-oauth-success") {
             window.removeEventListener("message", handler);
@@ -160,9 +156,14 @@ export default function EmailAccountsSettings() {
       }
     } catch {
       toast.error("Fehler beim Starten der Outlook-Verbindung.");
+    } finally {
+      setConnectingOutlook(false);
     }
   };
 
+  const googleReady = providerStatus?.google ?? false;
+  const outlookReady = providerStatus?.outlook ?? false;
+  const resendReady = providerStatus?.resend ?? false;
   const disconnectAccount = accounts.find((a) => a.id === disconnectId);
 
   return (
@@ -174,6 +175,67 @@ export default function EmailAccountsSettings() {
           Verwalte deine E-Mail-Versandkonten und verbinde weitere Provider.
         </p>
       </div>
+
+      {/* Admin: Provider Setup Status */}
+      {isAdmin && (
+        <Card className="border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[16px]">Provider-Status (nur Admin)</CardTitle>
+            <CardDescription className="text-[13px]">
+              Übersicht der konfigurierten E-Mail-Provider. Fehlende Secrets müssen im Backend hinterlegt werden.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {statusLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-[13px]">
+                <Loader2 className="h-4 w-4 animate-spin" /> Prüfe Konfiguration…
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Google */}
+                <div className={`rounded-lg border p-3 ${googleReady ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="h-4 w-4" />
+                    <span className="text-[13px] font-semibold">Google / Gmail</span>
+                    {googleReady
+                      ? <CheckCircle2 className="h-4 w-4 text-success ml-auto" />
+                      : <XCircle className="h-4 w-4 text-destructive ml-auto" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {googleReady ? "Alle Secrets konfiguriert" : "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET oder EMAIL_TOKEN_ENCRYPTION_KEY fehlt"}
+                  </p>
+                </div>
+                {/* Outlook */}
+                <div className={`rounded-lg border p-3 ${outlookReady ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Mail className="h-4 w-4 text-[#0078D4]" />
+                    <span className="text-[13px] font-semibold">Outlook / Microsoft</span>
+                    {outlookReady
+                      ? <CheckCircle2 className="h-4 w-4 text-success ml-auto" />
+                      : <XCircle className="h-4 w-4 text-destructive ml-auto" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {outlookReady ? "Alle Secrets konfiguriert" : "MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET oder EMAIL_TOKEN_ENCRYPTION_KEY fehlt"}
+                  </p>
+                </div>
+                {/* Resend */}
+                <div className={`rounded-lg border p-3 ${resendReady ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Server className="h-4 w-4 text-primary" />
+                    <span className="text-[13px] font-semibold">Resend (Plattform)</span>
+                    {resendReady
+                      ? <CheckCircle2 className="h-4 w-4 text-success ml-auto" />
+                      : <XCircle className="h-4 w-4 text-destructive ml-auto" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {resendReady ? "RESEND_API_KEY konfiguriert" : "RESEND_API_KEY fehlt"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* System / Resend card */}
       <Card className="border-primary/20 bg-primary/[0.02]">
@@ -210,7 +272,6 @@ export default function EmailAccountsSettings() {
           </div>
           <p className="text-[12px] text-muted-foreground mt-4 leading-relaxed">
             Dieser Kanal wird für automatische E-Mails, Einladungen und Benachrichtigungen verwendet.
-            Er ist kein persönliches Postfach und kann nicht für den individuellen Versand konfiguriert werden.
           </p>
         </CardContent>
       </Card>
@@ -220,16 +281,83 @@ export default function EmailAccountsSettings() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-[16px] font-semibold text-foreground">Persönliche Konten</h3>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleConnectGoogle} className="gap-1.5">
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="h-4 w-4" />
-              Google verbinden
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleConnectOutlook} className="gap-1.5">
-              <Mail className="h-4 w-4 text-[#0078D4]" />
-              Outlook verbinden
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConnectGoogle}
+                      disabled={!googleReady || connectingGoogle || statusLoading}
+                      className="gap-1.5"
+                    >
+                      {connectingGoogle
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="h-4 w-4" />}
+                      Google verbinden
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!googleReady && !statusLoading && (
+                  <TooltipContent>
+                    <p className="text-[12px] max-w-[250px]">
+                      {isAdmin
+                        ? "Google OAuth ist noch nicht konfiguriert. Bitte hinterlege GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET und EMAIL_TOKEN_ENCRYPTION_KEY als Backend-Secrets."
+                        : "Dieser Provider wurde von deinem Administrator noch nicht eingerichtet."}
+                    </p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConnectOutlook}
+                      disabled={!outlookReady || connectingOutlook || statusLoading}
+                      className="gap-1.5"
+                    >
+                      {connectingOutlook
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <Mail className="h-4 w-4 text-[#0078D4]" />}
+                      Outlook verbinden
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!outlookReady && !statusLoading && (
+                  <TooltipContent>
+                    <p className="text-[12px] max-w-[250px]">
+                      {isAdmin
+                        ? "Outlook OAuth ist noch nicht konfiguriert. Bitte hinterlege MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET und EMAIL_TOKEN_ENCRYPTION_KEY als Backend-Secrets."
+                        : "Dieser Provider wurde von deinem Administrator noch nicht eingerichtet."}
+                    </p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
+
+        {/* Info for non-admin when both unavailable */}
+        {!isAdmin && !googleReady && !outlookReady && !statusLoading && (
+          <Card className="mb-4 border-muted">
+            <CardContent className="flex items-start gap-3 py-4">
+              <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[14px] font-medium text-foreground">E-Mail-Provider noch nicht verfügbar</p>
+                <p className="text-[13px] text-muted-foreground mt-0.5">
+                  Die E-Mail-Integration (Google / Outlook) wurde von deinem Administrator noch nicht eingerichtet.
+                  Sobald die Konfiguration abgeschlossen ist, kannst du hier dein Konto verbinden.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <div className="space-y-3">
@@ -245,7 +373,11 @@ export default function EmailAccountsSettings() {
                 Noch keine persönlichen E-Mail-Konten verbunden.
               </p>
               <p className="text-[13px] text-muted-foreground max-w-md">
-                Verbinde dein Google- oder Outlook-Konto, um E-Mails direkt aus dem CRM zu versenden.
+                {googleReady || outlookReady
+                  ? "Verbinde dein Google- oder Outlook-Konto, um E-Mails direkt aus dem CRM zu versenden."
+                  : isAdmin
+                    ? "Konfiguriere zuerst die Provider-Secrets, um die Verbindung zu ermöglichen."
+                    : "Dein Administrator muss zuerst die E-Mail-Provider einrichten."}
               </p>
             </CardContent>
           </Card>
@@ -255,16 +387,12 @@ export default function EmailAccountsSettings() {
               const meta = providerMeta[account.provider] || providerMeta.resend;
               const status = statusLabels[account.status] || statusLabels.active;
               const Icon = meta.icon;
-
               return (
                 <Card key={account.id} className="transition-shadow hover:shadow-md">
                   <CardContent className="flex items-center gap-4 py-4">
-                    {/* Provider icon */}
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
                       <Icon className="h-5 w-5" />
                     </div>
-
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-[14px] truncate">
@@ -285,14 +413,10 @@ export default function EmailAccountsSettings() {
                       <p className="text-[13px] text-muted-foreground truncate mt-0.5">
                         {account.email_address}
                         {account.created_at && (
-                          <span className="ml-3">
-                            Verbunden seit {format(new Date(account.created_at), "dd.MM.yyyy")}
-                          </span>
+                          <span className="ml-3">Verbunden seit {format(new Date(account.created_at), "dd.MM.yyyy")}</span>
                         )}
                       </p>
                     </div>
-
-                    {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
                       {!account.is_default && (
                         <Button
@@ -302,8 +426,7 @@ export default function EmailAccountsSettings() {
                           disabled={setDefaultMutation.isPending}
                           className="text-[13px] gap-1"
                         >
-                          <Star className="h-3.5 w-3.5" />
-                          Standard
+                          <Star className="h-3.5 w-3.5" /> Standard
                         </Button>
                       )}
                       <Button
@@ -322,50 +445,6 @@ export default function EmailAccountsSettings() {
           </div>
         )}
       </div>
-
-      {/* Setup guide for non-production */}
-      <Card className="border-amber-300/50 bg-amber-50/50">
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <CardTitle className="text-[14px] text-amber-900">Einrichtung – OAuth-Provider</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-3 text-[13px] text-amber-900/80 leading-relaxed">
-          <p>
-            Damit Google- und Outlook-Konten verbunden werden können, müssen folgende Secrets
-            im Backend konfiguriert sein:
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-lg border border-amber-200 bg-white/60 p-3 space-y-1">
-              <p className="font-semibold text-amber-900 flex items-center gap-1.5">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="h-3.5 w-3.5" />
-                Google / Gmail
-              </p>
-              <ul className="list-disc list-inside text-[12px] space-y-0.5">
-                <li><code className="bg-amber-100 px-1 rounded text-[11px]">GOOGLE_CLIENT_ID</code></li>
-                <li><code className="bg-amber-100 px-1 rounded text-[11px]">GOOGLE_CLIENT_SECRET</code></li>
-                <li><code className="bg-amber-100 px-1 rounded text-[11px]">EMAIL_TOKEN_ENCRYPTION_KEY</code></li>
-              </ul>
-            </div>
-            <div className="rounded-lg border border-amber-200 bg-white/60 p-3 space-y-1">
-              <p className="font-semibold text-amber-900 flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-[#0078D4]" />
-                Outlook / Microsoft 365
-              </p>
-              <ul className="list-disc list-inside text-[12px] space-y-0.5">
-                <li><code className="bg-amber-100 px-1 rounded text-[11px]">MICROSOFT_CLIENT_ID</code></li>
-                <li><code className="bg-amber-100 px-1 rounded text-[11px]">MICROSOFT_CLIENT_SECRET</code></li>
-                <li><code className="bg-amber-100 px-1 rounded text-[11px]">EMAIL_TOKEN_ENCRYPTION_KEY</code></li>
-              </ul>
-            </div>
-          </div>
-          <p className="text-[12px]">
-            Solange diese nicht gesetzt sind, zeigen die Verbindungs-Buttons eine entsprechende Meldung.
-            Der Plattform-Versand (Resend) funktioniert unabhängig davon.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Info box */}
       <div className="rounded-xl bg-[hsl(var(--primary)/0.06)] border border-primary/10 p-4">
