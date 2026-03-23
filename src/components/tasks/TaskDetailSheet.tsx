@@ -170,9 +170,9 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const markDirty = () => setDirty(true);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader><SheetTitle>Task Details</SheetTitle></SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Task Details</DialogTitle></DialogHeader>
         {!task ? (
           <p className="mt-8 text-center text-muted-foreground">Laden…</p>
         ) : (
