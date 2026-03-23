@@ -190,7 +190,6 @@ Deno.serve(async (req) => {
     }
 
     // --- Load email account ---
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: account, error: accountError } = await supabaseAdmin
       .from("email_accounts")
