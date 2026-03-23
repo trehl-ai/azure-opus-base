@@ -111,6 +111,8 @@ async function sendViaGmail(params: SendEmailParams): Promise<SendEmailResult> {
       subject: params.subject,
       body_html: params.body_html,
       body_text: params.body_text,
+      contact_id: params.contact_id,
+      deal_id: params.deal_id,
     },
   });
 
