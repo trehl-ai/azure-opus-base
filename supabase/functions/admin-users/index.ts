@@ -69,14 +69,21 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check if user already exists in users table
-      const { data: existing } = await adminClient
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // Check if a public user record already exists
+      const { data: existingPublicUser } = await adminClient
         .from("users")
-        .select("id")
-        .eq("email", email)
+        .select("id, is_active, invited_at, password_set_at, onboarding_completed_at")
+        .ilike("email", normalizedEmail)
         .maybeSingle();
 
-      if (existing) {
+      const hasCompletedOnboarding = Boolean(
+        existingPublicUser?.password_set_at || existingPublicUser?.onboarding_completed_at
+      );
+
+      if (existingPublicUser?.is_active && hasCompletedOnboarding) {
+        console.error("Invite conflict: public user already active", { email: normalizedEmail });
         return new Response(JSON.stringify({ error: "Benutzer bereits vorhanden" }), {
           status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -84,12 +91,22 @@ Deno.serve(async (req) => {
       }
 
       // Build redirect URL for password setup
-      const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || "";
-      const redirectTo = origin ? `${origin}/auth/set-password` : undefined;
+      const originHeader = req.headers.get("origin");
+      const refererHeader = req.headers.get("referer");
+      let refererOrigin: string | undefined;
+      if (refererHeader) {
+        try {
+          refererOrigin = new URL(refererHeader).origin;
+        } catch {
+          refererOrigin = undefined;
+        }
+      }
+      const redirectBaseUrl = originHeader || refererOrigin || "";
+      const redirectTo = redirectBaseUrl ? `${redirectBaseUrl}/auth/set-password` : undefined;
       console.log("Invite redirectTo:", redirectTo);
 
-      // Invite user via Supabase Auth
-      const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+      // Invite user via Supabase Auth using service-role admin client
+      const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(normalizedEmail, {
         data: { first_name, last_name },
         redirectTo,
       });
@@ -102,20 +119,31 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create entry in users table
-      const { error: insertError } = await adminClient
-        .from("users")
-        .insert({
-          email,
-          first_name,
-          last_name,
-          role: role || "sales",
-          is_active: true,
-          invited_at: new Date().toISOString(),
-        });
+      const invitedAt = new Date().toISOString();
+      const publicUserPayload = {
+        email: normalizedEmail,
+        first_name,
+        last_name,
+        role: role || "sales",
+        is_active: true,
+        invited_at: invitedAt,
+      };
 
-      if (insertError) {
-        console.error("Insert user error:", insertError);
+      const { error: publicUserError } = existingPublicUser
+        ? await adminClient
+            .from("users")
+            .update(publicUserPayload)
+            .eq("id", existingPublicUser.id)
+        : await adminClient
+            .from("users")
+            .insert(publicUserPayload);
+
+      if (publicUserError) {
+        console.error("Public user sync error:", publicUserError);
+        return new Response(JSON.stringify({ error: "Einladung wurde erstellt, aber der Benutzerdatensatz konnte nicht aktualisiert werden" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       return new Response(JSON.stringify({ success: true, user_id: inviteData.user?.id }), {
