@@ -8,6 +8,7 @@ import { ContactStatusBadge } from "@/components/contacts/ContactStatusBadge";
 import { EditContactSheet } from "@/components/contacts/EditContactSheet";
 import { LinkCompanyDialog } from "@/components/contacts/LinkCompanyDialog";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
+import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
