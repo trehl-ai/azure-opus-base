@@ -292,13 +292,13 @@ export default function Deals() {
               const bgClass = stage.is_won_stage ? "bg-success/5 border-success/20" : stage.is_lost_stage ? "bg-destructive/5 border-destructive/20" : "bg-[#D8DAE5] border-transparent";
 
               return (
-                <div key={stage.id} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-2", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.id)}>
-                  <div className="mb-2 px-0.5">
+                <div key={stage.id} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-1.5", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.id)}>
+                  <div className="mb-1.5 px-0.5 h-[32px] flex flex-col justify-center">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[11px] font-semibold text-foreground">{stage.name}</h3>
                       <span className="text-[9px] font-medium text-muted-foreground">{stage.probability_percent}%</span>
                     </div>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">
+                    <p className="text-[9px] text-muted-foreground mt-0.5 leading-none">
                       {stageDeals.length} Deal{stageDeals.length !== 1 ? "s" : ""} · {formatSum(totalValue)}
                     </p>
                   </div>
