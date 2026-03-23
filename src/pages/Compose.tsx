@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendEmail, type EmailProvider } from "@/lib/email";
 import { toast } from "sonner";
 import {
-  Mail, Send, Server, ChevronDown, Plus, X, AlertCircle, Loader2,
+  Mail, Send, Server, ChevronDown, Plus, X, AlertCircle, Loader2, User, Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { EntitySearchSelect } from "@/components/shared/EntitySearchSelect";
 import { useNavigate } from "react-router-dom";
 
 // ---------------------------------------------------------------------------
@@ -103,6 +104,7 @@ function EmailTagInput({
 export default function ComposePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   // Form state
   const [selectedAccount, setSelectedAccount] = useState<string>("resend");
@@ -112,6 +114,8 @@ export default function ComposePage() {
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [subject, setSubject] = useState("");
   const [bodyText, setBodyText] = useState("");
+  const [contactId, setContactId] = useState<string | null>(null);
+  const [dealId, setDealId] = useState<string | null>(null);
 
   // Load personal accounts
   const { data: accounts = [] } = useQuery({
@@ -144,12 +148,20 @@ export default function ComposePage() {
 
   const canSend = resolvedAccount && SENDABLE_STATUSES.has(resolvedAccount.status) && to.length > 0 && subject.trim().length > 0 && bodyText.trim().length > 0;
 
+  // Handle deal selection – auto-link contact
+  const handleDealChange = (id: string | null, deal?: any) => {
+    setDealId(id);
+    if (deal?.primary_contact_id && !contactId) {
+      setContactId(deal.primary_contact_id);
+    }
+  };
+
   // Send mutation
   const sendMutation = useMutation({
     mutationFn: async () => {
       if (!resolvedAccount) throw new Error("Kein Konto ausgewählt.");
 
-      return sendEmail({
+      const result = await sendEmail({
         provider: resolvedAccount.provider,
         account_id: resolvedAccount.account_id,
         to,
@@ -158,11 +170,16 @@ export default function ComposePage() {
         subject,
         body_html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${bodyText.replace(/</g, "&lt;")}</pre>`,
         body_text: bodyText,
+        contact_id: contactId || undefined,
+        deal_id: dealId || undefined,
       });
+
+      return result;
     },
     onSuccess: (result) => {
       if (result.success) {
         toast.success("E-Mail erfolgreich versendet!");
+        qc.invalidateQueries({ queryKey: ["email-history"] });
         // Reset form
         setTo([]);
         setCc([]);
@@ -170,6 +187,8 @@ export default function ComposePage() {
         setSubject("");
         setBodyText("");
         setShowCcBcc(false);
+        setContactId(null);
+        setDealId(null);
       } else {
         toast.error(result.error || "Versand fehlgeschlagen.");
       }
@@ -267,6 +286,34 @@ export default function ComposePage() {
                 <span>Dieses Konto hat den Status „{statusInfo.label}" und kann aktuell nicht zum Versand genutzt werden.</span>
               </div>
             )}
+          </div>
+
+          {/* CRM Assignment */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                Contact zuordnen
+              </Label>
+              <EntitySearchSelect
+                entityType="contact"
+                value={contactId}
+                onChange={(id) => setContactId(id)}
+                placeholder="Contact suchen…"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium flex items-center gap-1.5">
+                <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                Deal zuordnen
+              </Label>
+              <EntitySearchSelect
+                entityType="deal"
+                value={dealId}
+                onChange={handleDealChange}
+                placeholder="Deal suchen…"
+              />
+            </div>
           </div>
 
           {/* To */}

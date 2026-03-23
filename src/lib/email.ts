@@ -19,6 +19,10 @@ export interface SendEmailParams {
   provider?: EmailProvider;
   /** Specific email_account id – required for gmail/outlook. */
   account_id?: string;
+  /** Optional CRM contact association */
+  contact_id?: string;
+  /** Optional CRM deal association */
+  deal_id?: string;
 }
 
 export interface SendEmailResult {
