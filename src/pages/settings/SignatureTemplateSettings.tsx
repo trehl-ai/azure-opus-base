@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_TEMPLATE_CONFIG, renderSignatureHtml, type SignatureTemplateConfig, type SignatureData } from "@/lib/signature";
@@ -49,11 +49,11 @@ export default function SignatureTemplateSettings() {
   const [config, setConfig] = useState<SignatureTemplateConfig>(existingConfig);
 
   // Sync state when data loads
-  useState(() => {
+  useEffect(() => {
     if (configData?.value) {
       setConfig({ ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(configData.value) });
     }
-  });
+  }, [configData]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {

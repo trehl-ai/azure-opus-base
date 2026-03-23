@@ -28,20 +28,65 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
   const { data: emails = [], isLoading } = useQuery({
     queryKey: ["email-history", contactId, dealId],
     queryFn: async () => {
-      let query = supabase
-        .from("email_messages")
-        .select("id, subject, to_email, from_email, provider, status, sent_at, created_at, body_text")
-        .order("created_at", { ascending: false });
-
       if (dealId) {
-        query = query.eq("deal_id", dealId);
-      } else if (contactId) {
-        query = query.eq("contact_id", contactId);
+        // Deal view: show emails linked to this deal
+        const { data, error } = await supabase
+          .from("email_messages")
+          .select("id, subject, to_email, from_email, provider, status, sent_at, created_at, body_text")
+          .eq("deal_id", dealId)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        return data;
       }
 
-      const { data, error } = await query.limit(50);
-      if (error) throw error;
-      return data;
+      if (contactId) {
+        // Contact view: show emails linked directly to this contact
+        // OR linked via a deal whose primary_contact_id matches
+        const { data: directEmails, error: e1 } = await supabase
+          .from("email_messages")
+          .select("id, subject, to_email, from_email, provider, status, sent_at, created_at, body_text")
+          .eq("contact_id", contactId)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (e1) throw e1;
+
+        // Also find emails linked to deals that belong to this contact
+        const { data: dealEmails, error: e2 } = await supabase
+          .from("email_messages")
+          .select("id, subject, to_email, from_email, provider, status, sent_at, created_at, body_text, deal_id")
+          .not("deal_id", "is", null)
+          .is("contact_id", null)
+          .order("created_at", { ascending: false })
+          .limit(100);
+
+        let mergedEmails = directEmails || [];
+
+        if (!e2 && dealEmails?.length) {
+          // Fetch deals to check primary_contact_id
+          const dealIds = [...new Set(dealEmails.map((e) => e.deal_id!))];
+          const { data: deals } = await supabase
+            .from("deals")
+            .select("id, primary_contact_id")
+            .in("id", dealIds);
+
+          if (deals?.length) {
+            const matchingDealIds = new Set(
+              deals.filter((d) => d.primary_contact_id === contactId).map((d) => d.id)
+            );
+            const extraEmails = dealEmails.filter(
+              (e) => e.deal_id && matchingDealIds.has(e.deal_id) && !mergedEmails.some((m) => m.id === e.id)
+            );
+            mergedEmails = [...mergedEmails, ...extraEmails]
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .slice(0, 50);
+          }
+        }
+
+        return mergedEmails;
+      }
+
+      return [];
     },
     enabled: !!(contactId || dealId),
   });
