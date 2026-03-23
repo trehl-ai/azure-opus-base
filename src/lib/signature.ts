@@ -139,7 +139,7 @@ export function renderSignatureHtml(
 <!--[if mso]></td></tr></table><![endif]-->`.trim();
 }
 
-function escHtml(str: string): string {
+function esc(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
