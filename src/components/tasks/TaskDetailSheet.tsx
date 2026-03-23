@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
+import { useTaskStatuses } from "@/hooks/queries/useTaskStatuses";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,18 +27,15 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const statusOptions = [
-  { value: "todo", label: "To Do" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "review", label: "Review" },
-  { value: "done", label: "Done" },
-];
+// statusOptions now loaded dynamically
 
 export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { data: taskStatusesData = [] } = useTaskStatuses();
+  const statusOptions = taskStatusesData.map((s) => ({ value: s.slug, label: s.name }));
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

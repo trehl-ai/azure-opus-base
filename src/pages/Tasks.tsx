@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTaskStatuses } from "@/hooks/queries/useTaskStatuses";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +18,7 @@ import { format, isAfter, isBefore, startOfDay, endOfWeek, startOfWeek, addWeeks
 import { cn } from "@/lib/utils";
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
 
-const taskStatuses = ["todo", "in_progress", "review", "done"] as const;
-const taskStatusLabel: Record<string, string> = { todo: "To Do", in_progress: "In Progress", review: "Review", done: "Done" };
-const taskColumnBg: Record<string, string> = { done: "bg-success/5 border-success/20" };
 const priorityDot: Record<string, string> = { low: "bg-muted-foreground", medium: "bg-warning", high: "bg-destructive" };
-const statusBadge: Record<string, string> = {
-  todo: "bg-secondary text-secondary-foreground", in_progress: "bg-primary/10 text-primary",
-  review: "bg-warning/10 text-warning", done: "bg-success/10 text-success",
-};
 const priorityBadge: Record<string, string> = {
   low: "bg-muted text-muted-foreground", medium: "bg-warning/10 text-warning", high: "bg-destructive/10 text-destructive",
 };
@@ -37,6 +31,20 @@ export default function Tasks() {
   const { user } = useAuth();
   const { canWrite, role } = usePermission();
   const canWriteTasks = canWrite("tasks");
+  const { data: taskStatusesRaw = [] } = useTaskStatuses();
+
+  // Derived lookups from dynamic statuses
+  const taskStatuses = taskStatusesRaw.map((s) => s.slug);
+  const taskStatusLabel: Record<string, string> = {};
+  taskStatusesRaw.forEach((s) => { taskStatusLabel[s.slug] = s.name; });
+  const statusBadge: Record<string, string> = {};
+  taskStatusesRaw.forEach((s, i) => {
+    const colors = ["bg-secondary text-secondary-foreground", "bg-primary/10 text-primary", "bg-warning/10 text-warning", "bg-success/10 text-success"];
+    statusBadge[s.slug] = colors[i % colors.length];
+  });
+  const taskColumnBg: Record<string, string> = {};
+  const lastSlug = taskStatusesRaw[taskStatusesRaw.length - 1]?.slug;
+  if (lastSlug) taskColumnBg[lastSlug] = "bg-success/5 border-success/20";
 
   const [view, setView] = useState<"board" | "list">("board");
   const [filterProject, setFilterProject] = useState("all");

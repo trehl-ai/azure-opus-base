@@ -6,6 +6,7 @@ import UsersSettings from "@/pages/settings/UsersSettings";
 import RolesSettings from "@/pages/settings/RolesSettings";
 import GeneralSettings from "@/pages/settings/GeneralSettings";
 import PipelinesSettings from "@/pages/settings/PipelinesSettings";
+import TaskStatusesSettings from "@/pages/settings/TaskStatusesSettings";
 import TagsSettings from "@/pages/settings/TagsSettings";
 import EmailAccountsSettings from "@/pages/settings/EmailAccountsSettings";
 import PlaceholderSettings from "@/pages/settings/PlaceholderSettings";
@@ -21,6 +22,7 @@ export default function SettingsPage() {
         <Route path="users" element={<UsersSettings />} />
         <Route path="roles" element={<RolesSettings />} />
         <Route path="pipelines" element={<PipelinesSettings />} />
+        <Route path="task-statuses" element={<TaskStatusesSettings />} />
         <Route path="tags" element={<TagsSettings />} />
         <Route path="email-accounts" element={<EmailAccountsSettings />} />
         <Route path="deal-fields" element={<PlaceholderSettings title="Deal-Felder" />} />
