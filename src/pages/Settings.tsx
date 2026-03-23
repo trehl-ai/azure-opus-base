@@ -10,6 +10,8 @@ import TaskStatusesSettings from "@/pages/settings/TaskStatusesSettings";
 import TagsSettings from "@/pages/settings/TagsSettings";
 import EmailAccountsSettings from "@/pages/settings/EmailAccountsSettings";
 import PlaceholderSettings from "@/pages/settings/PlaceholderSettings";
+import SignatureSettings from "@/pages/settings/SignatureSettings";
+import SignatureTemplateSettings from "@/pages/settings/SignatureTemplateSettings";
 
 export default function SettingsPage() {
   return (
@@ -25,6 +27,8 @@ export default function SettingsPage() {
         <Route path="task-statuses" element={<TaskStatusesSettings />} />
         <Route path="tags" element={<TagsSettings />} />
         <Route path="email-accounts" element={<EmailAccountsSettings />} />
+        <Route path="signature" element={<SignatureSettings />} />
+        <Route path="signature-template" element={<SignatureTemplateSettings />} />
         <Route path="deal-fields" element={<PlaceholderSettings title="Deal-Felder" />} />
       </Route>
     </Routes>

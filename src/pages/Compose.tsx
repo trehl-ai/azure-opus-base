@@ -1,8 +1,9 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendEmail, type EmailProvider } from "@/lib/email";
+import { loadUserSignature } from "@/lib/signature";
 import { toast } from "sonner";
 import {
   Mail, Send, Server, ChevronDown, Plus, X, AlertCircle, Loader2, User, Briefcase,
@@ -168,6 +169,15 @@ export default function ComposePage() {
   const [dealId, setDealId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
+  const [useSignature, setUseSignature] = useState(true);
+
+  // Load user signature
+  useEffect(() => {
+    loadUserSignature().then((sig) => {
+      if (sig?.html) setSignatureHtml(sig.html);
+    });
+  }, []);
 
   // Load personal accounts
   const { data: accounts = [] } = useQuery({
@@ -302,7 +312,13 @@ export default function ComposePage() {
         });
       }
 
-      // 3. Send email
+      // 3. Build body with signature
+      const bodyHtmlContent = `<pre style="font-family:sans-serif;white-space:pre-wrap">${bodyText.replace(/</g, "&lt;")}</pre>`;
+      const fullBodyHtml = useSignature && signatureHtml
+        ? `${bodyHtmlContent}\n${signatureHtml}`
+        : bodyHtmlContent;
+
+      // 4. Send email
       const result = await sendEmail({
         provider: resolvedAccount.provider,
         account_id: resolvedAccount.account_id,
@@ -310,7 +326,7 @@ export default function ComposePage() {
         cc: cc.length ? cc : undefined,
         bcc: bcc.length ? bcc : undefined,
         subject,
-        body_html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${bodyText.replace(/</g, "&lt;")}</pre>`,
+        body_html: fullBodyHtml,
         body_text: bodyText,
         contact_id: contactId || undefined,
         deal_id: dealId || undefined,
@@ -528,7 +544,29 @@ export default function ComposePage() {
             />
           </div>
 
-          {/* Attachments */}
+          {/* Signature toggle & preview */}
+          {signatureHtml && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-medium">Signatur anfügen</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] text-muted-foreground">{useSignature ? "Aktiv" : "Aus"}</span>
+                  <input
+                    type="checkbox"
+                    checked={useSignature}
+                    onChange={(e) => setUseSignature(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                </div>
+              </div>
+              {useSignature && (
+                <div className="rounded-lg border border-border bg-muted/20 p-4 overflow-hidden">
+                  <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label className="text-[13px] font-medium flex items-center gap-1.5">
               <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
