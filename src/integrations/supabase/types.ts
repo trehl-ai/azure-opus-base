@@ -1362,6 +1362,60 @@ export type Database = {
           },
         ]
       }
+      user_email_signatures: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          job_title: string | null
+          linkedin_url: string | null
+          phone: string | null
+          profile_image_path: string | null
+          twitter_url: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+          whatsapp_url: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          job_title?: string | null
+          linkedin_url?: string | null
+          phone?: string | null
+          profile_image_path?: string | null
+          twitter_url?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+          whatsapp_url?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          job_title?: string | null
+          linkedin_url?: string | null
+          phone?: string | null
+          profile_image_path?: string | null
+          twitter_url?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+          whatsapp_url?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
