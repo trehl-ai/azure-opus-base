@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
 import { useConflictCheck } from "@/hooks/useConflictCheck";
+import { usePipelines } from "@/hooks/queries/usePipelines";
 import { ConflictWarning } from "@/components/shared/ConflictWarning";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -43,11 +44,12 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { captureTimestamp, checkConflict, dismissConflict, hasConflict } = useConflictCheck("deals", deal.id);
+  const { data: pipelines } = usePipelines();
 
   const [form, setForm] = useState({
     title: "", value_amount: "", currency: "EUR", probability_percent: "",
     priority: "medium", source: "", owner_user_id: "", description: "",
-    pipeline_stage_id: "",
+    pipeline_id: "", pipeline_stage_id: "",
   });
   const [expectedCloseDate, setExpectedCloseDate] = useState<Date>();
 
@@ -62,6 +64,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
         source: deal.source ?? "",
         owner_user_id: deal.owner_user_id ?? "",
         description: deal.description ?? "",
+        pipeline_id: deal.pipeline_id,
         pipeline_stage_id: deal.pipeline_stage_id,
       });
       setExpectedCloseDate(deal.expected_close_date ? new Date(deal.expected_close_date) : undefined);
@@ -70,14 +73,28 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
   }, [open, deal, captureTimestamp]);
 
   const { data: stages } = useQuery({
-    queryKey: ["pipeline-stages", deal.pipeline_id],
+    queryKey: ["pipeline-stages", form.pipeline_id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("pipeline_stages").select("*").eq("pipeline_id", deal.pipeline_id).order("position");
+      const { data, error } = await supabase.from("pipeline_stages").select("*").eq("pipeline_id", form.pipeline_id).order("position");
       if (error) throw error;
       return data;
     },
-    enabled: open,
+    enabled: open && !!form.pipeline_id,
   });
+
+  // When pipeline changes and stages load, ensure stage_id is valid
+  useEffect(() => {
+    if (!stages || stages.length === 0) return;
+    const currentValid = stages.some(s => s.id === form.pipeline_stage_id);
+    if (!currentValid) {
+      const firstOpen = stages.find(s => s.stage_type === "open") ?? stages[0];
+      setForm(prev => ({ ...prev, pipeline_stage_id: firstOpen.id }));
+    }
+  }, [stages, form.pipeline_stage_id]);
+
+  const handlePipelineChange = (newPipelineId: string) => {
+    setForm(prev => ({ ...prev, pipeline_id: newPipelineId, pipeline_stage_id: "" }));
+  };
 
   const u = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
@@ -93,6 +110,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
         source: form.source.trim() || null,
         owner_user_id: form.owner_user_id || null,
         description: form.description.trim() || null,
+        pipeline_id: form.pipeline_id,
         pipeline_stage_id: form.pipeline_stage_id,
       }).eq("id", deal.id);
       if (error) throw error;
@@ -101,6 +119,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
       toast({ title: "Deal aktualisiert" });
       qc.invalidateQueries({ queryKey: ["deal", deal.id] });
       qc.invalidateQueries({ queryKey: ["deals-board"] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
       onOpenChange(false);
     },
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
@@ -121,12 +140,21 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
             <Label>Deal-Name</Label>
             <Input value={form.title} onChange={(e) => u("title", e.target.value)} />
           </div>
-          <div className="space-y-1.5">
-            <Label>Stage</Label>
-            <Select value={form.pipeline_stage_id} onValueChange={(v) => u("pipeline_stage_id", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{stages?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Pipeline</Label>
+              <Select value={form.pipeline_id} onValueChange={handlePipelineChange}>
+                <SelectTrigger><SelectValue placeholder="Pipeline wählen" /></SelectTrigger>
+                <SelectContent>{pipelines?.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Stage</Label>
+              <Select value={form.pipeline_stage_id} onValueChange={(v) => u("pipeline_stage_id", v)}>
+                <SelectTrigger><SelectValue placeholder={stages ? "Stage wählen" : "Laden…"} /></SelectTrigger>
+                <SelectContent>{stages?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2 space-y-1.5">
@@ -185,7 +213,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={3} />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1" onClick={async () => { const c = await checkConflict(); if (!c) mutation.mutate(); }} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
+            <Button className="flex-1" onClick={async () => { const c = await checkConflict(); if (!c) mutation.mutate(); }} disabled={mutation.isPending || !form.pipeline_stage_id}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           </div>
         </div>
