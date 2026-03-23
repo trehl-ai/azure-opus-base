@@ -155,6 +155,7 @@ export default function ContactDetail() {
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
           <TabsTrigger value="companies">Unternehmen {contactCompanies?.length ? `(${contactCompanies.length})` : ""}</TabsTrigger>
           <TabsTrigger value="deals">Deals {deals?.length ? `(${deals.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
