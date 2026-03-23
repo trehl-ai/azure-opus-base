@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<DbUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchOrCreateDbUser = useCallback(async (supaUser: SupabaseUser) => {
+  const fetchOrCreateDbUser = useCallback(async (supaUser: SupabaseUser): Promise<DbUser | null> => {
     // Try to find user by auth id first, then by email
     const { data: existingUser } = await supabase
       .from("users")
@@ -30,8 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (existingUser) {
-      setUser(existingUser);
-      return;
+      return existingUser;
     }
 
     // Create new user entry
@@ -50,38 +49,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (!error && newUser) {
-      setUser(newUser);
+      return newUser;
     }
+
+    return null;
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const syncAuthState = async (nextSession: Session | null) => {
+      if (!isMounted) return;
+
+      setSession(nextSession);
+      setAuthUser(nextSession?.user ?? null);
+
+      if (!nextSession?.user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const dbUser = await fetchOrCreateDbUser(nextSession.user);
+
+      if (!isMounted) return;
+
+      setUser(dbUser);
+      setLoading(false);
+    };
+
+    setLoading(true);
+
     // Set up auth state listener BEFORE checking session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        setSession(newSession);
-        setAuthUser(newSession?.user ?? null);
-
-        if (newSession?.user) {
-          // Use setTimeout to avoid Supabase client deadlock
-          setTimeout(() => fetchOrCreateDbUser(newSession.user), 0);
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
+        // Use setTimeout to avoid Supabase client deadlock
+        setTimeout(() => {
+          void syncAuthState(newSession);
+        }, 0);
       }
     );
 
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setAuthUser(currentSession?.user ?? null);
-      if (currentSession?.user) {
-        fetchOrCreateDbUser(currentSession.user);
-      }
-      setLoading(false);
+      void syncAuthState(currentSession);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchOrCreateDbUser]);
 
   const logout = useCallback(async () => {

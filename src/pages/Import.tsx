@@ -17,6 +17,13 @@ import { Link } from "react-router-dom";
 
 type ImportType = "companies" | "contacts";
 type WizardStep = "upload" | "mapping" | "preview" | "importing" | "result";
+type ImportAuthDiagnosis =
+  | "loading"
+  | "missing_public_user"
+  | "missing_context_auth_user"
+  | "missing_live_auth_user"
+  | "auth_user_mismatch"
+  | "ready";
 
 const companyFields = [
   { value: "name", label: "Firmenname", required: true },
@@ -79,8 +86,16 @@ interface RowValidation {
   selected: boolean;
 }
 
+interface ImportAuthState {
+  ready: boolean;
+  diagnosis: ImportAuthDiagnosis;
+  title: string;
+  description: string;
+  liveAuthUser: { id: string; email: string | null } | null;
+}
+
 export default function Import() {
-  const { user } = useAuth();
+  const { user, authUser, loading } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,57 +128,104 @@ export default function Import() {
     },
   });
 
+  const {
+    data: importAuthState,
+    isLoading: importAuthStateLoading,
+    isFetching: importAuthStateFetching,
+    refetch: refetchImportAuthState,
+  } = useQuery<ImportAuthState>({
+    queryKey: ["import-auth-context", user?.id ?? null, authUser?.id ?? null],
+    enabled: !loading,
+    queryFn: async () => {
+      const { data, error } = await supabase.auth.getUser();
+      const liveAuthUser = data.user ?? null;
+
+      console.info("[Import] Auth-Kontextprüfung", {
+        publicUserId: user?.id ?? null,
+        publicUserEmail: user?.email ?? null,
+        contextAuthUserId: authUser?.id ?? null,
+        contextAuthUserEmail: authUser?.email ?? null,
+        liveAuthUserId: liveAuthUser?.id ?? null,
+        liveAuthUserEmail: liveAuthUser?.email ?? null,
+        authError: error?.message ?? null,
+      });
+
+      if (error || !liveAuthUser) {
+        return {
+          ready: false,
+          diagnosis: "missing_live_auth_user",
+          title: "Anmeldung wird geprüft",
+          description: "Deine aktive Sitzung ist noch nicht verfügbar. Bitte melde dich erneut an oder warte einen Moment.",
+          liveAuthUser: null,
+        } satisfies ImportAuthState;
+      }
+
+      if (!authUser) {
+        return {
+          ready: false,
+          diagnosis: "missing_context_auth_user",
+          title: "Sitzung wird synchronisiert",
+          description: "Die Import-Seite wartet noch auf den vollständigen Auth-Kontext aus der App.",
+          liveAuthUser: { id: liveAuthUser.id, email: liveAuthUser.email ?? null },
+        } satisfies ImportAuthState;
+      }
+
+      if (authUser.id !== liveAuthUser.id) {
+        return {
+          ready: false,
+          diagnosis: "auth_user_mismatch",
+          title: "Anmeldung wird abgeglichen",
+          description: "Die aktive Sitzung im Browser und der App-Kontext stimmen noch nicht überein. Bitte kurz warten oder die Seite neu laden.",
+          liveAuthUser: { id: liveAuthUser.id, email: liveAuthUser.email ?? null },
+        } satisfies ImportAuthState;
+      }
+
+      if (!user) {
+        return {
+          ready: false,
+          diagnosis: "missing_public_user",
+          title: "Benutzerprofil wird geladen",
+          description: "Dein Anwendungsprofil ist noch nicht vollständig geladen. Der Import wird freigeschaltet, sobald es bereit ist.",
+          liveAuthUser: { id: liveAuthUser.id, email: liveAuthUser.email ?? null },
+        } satisfies ImportAuthState;
+      }
+
+      return {
+        ready: true,
+        diagnosis: "ready",
+        title: "Import bereit",
+        description: "Dein Benutzerkontext ist vollständig geladen und der CSV-Import kann gestartet werden.",
+        liveAuthUser: { id: liveAuthUser.id, email: liveAuthUser.email ?? null },
+      } satisfies ImportAuthState;
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+
+  const authGate = useMemo<ImportAuthState>(() => {
+    if (loading || importAuthStateLoading) {
+      return {
+        ready: false,
+        diagnosis: "loading",
+        title: "Authentifizierung wird geladen",
+        description: "Die Import-Seite wartet, bis Sitzung und Benutzerprofil sicher geladen sind.",
+        liveAuthUser: null,
+      };
+    }
+
+    return importAuthState ?? {
+      ready: false,
+      diagnosis: "missing_live_auth_user",
+      title: "Anmeldung wird geprüft",
+      description: "Deine Sitzung konnte noch nicht verifiziert werden.",
+      liveAuthUser: null,
+    };
+  }, [importAuthState, importAuthStateLoading, loading]);
+
+  const importReady = authGate.ready;
+
   const targetFields = importType === "companies" ? companyFields : contactFields;
   const requiredFields = targetFields.filter((f) => f.required).map((f) => f.value);
-
-  const resolveAuthenticatedImportUser = useCallback(async () => {
-    const { data, error } = await supabase.auth.getUser();
-    const authUser = data.user ?? null;
-
-    console.info("[Import] Auth-Kontext vor import_jobs Insert", {
-      contextUserId: user?.id ?? null,
-      contextUserEmail: user?.email ?? null,
-      authUserId: authUser?.id ?? null,
-      authUserEmail: authUser?.email ?? null,
-      authError: error?.message ?? null,
-    });
-
-    if (error || !authUser) {
-      console.warn("[Import] Keine gültige Auth-Session für CSV-Import", {
-        error: error?.message ?? null,
-      });
-
-      toast({
-        variant: "destructive",
-        title: "Sitzung nicht verfügbar",
-        description: "Deine Anmeldung ist nicht mehr gültig. Bitte melde dich erneut an, bevor du den Import startest.",
-      });
-
-      return {
-        authUser: null,
-        diagnosis: "missing_session" as const,
-      };
-    }
-
-    if (user?.id && user.id !== authUser.id) {
-      console.warn("[Import] useAuth() und supabase.auth.getUser() liefern unterschiedliche IDs", {
-        contextUserId: user.id,
-        authUserId: authUser.id,
-        contextUserEmail: user.email,
-        authUserEmail: authUser.email ?? null,
-      });
-
-      return {
-        authUser,
-        diagnosis: "id_mismatch" as const,
-      };
-    }
-
-    return {
-      authUser,
-      diagnosis: "ok" as const,
-    };
-  }, [toast, user?.email, user?.id]);
 
   // File handling
   const handleFile = useCallback((file: File) => {
@@ -202,36 +264,51 @@ export default function Import() {
 
   // Step 1 → 2: create job
   const createJob = async () => {
-    const { authUser, diagnosis } = await resolveAuthenticatedImportUser();
+    const { data: latestAuthState } = await refetchImportAuthState();
+    const resolvedAuthState = latestAuthState ?? authGate;
 
-    if (!authUser) {
+    if (!resolvedAuthState?.ready || !user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Import noch nicht bereit",
+        description: resolvedAuthState?.description ?? "Dein Benutzerkontext ist noch nicht vollständig geladen.",
+      });
       return;
     }
+
+    console.info("[Import] createJob freigegeben", {
+      publicUserId: user.id,
+      publicUserEmail: user.email,
+      contextAuthUserId: authUser?.id ?? null,
+      contextAuthUserEmail: authUser?.email ?? null,
+      liveAuthUserId: resolvedAuthState.liveAuthUser?.id ?? null,
+      liveAuthUserEmail: resolvedAuthState.liveAuthUser?.email ?? null,
+    });
 
     const { data, error } = await supabase.from("import_jobs").insert({
       import_type: importType,
       file_name: fileName,
-      started_by_user_id: authUser.id,
+      started_by_user_id: user.id,
       status: "uploaded",
       total_rows: csvData.length,
     }).select("id").single();
 
     if (error) {
       console.error("[Import] import_jobs Insert fehlgeschlagen", {
-        diagnosis,
-        contextUserId: user?.id ?? null,
-        contextUserEmail: user?.email ?? null,
-        authUserId: authUser.id,
-        authUserEmail: authUser.email ?? null,
+        diagnosis: resolvedAuthState.diagnosis,
+        publicUserId: user.id,
+        publicUserEmail: user.email,
+        contextAuthUserId: authUser?.id ?? null,
+        contextAuthUserEmail: authUser?.email ?? null,
+        liveAuthUserId: resolvedAuthState.liveAuthUser?.id ?? null,
+        liveAuthUserEmail: resolvedAuthState.liveAuthUser?.email ?? null,
         errorMessage: error.message,
       });
 
       toast({
         variant: "destructive",
         title: "Import konnte nicht gestartet werden",
-        description: diagnosis === "id_mismatch"
-          ? "Dein Benutzerkontext war inkonsistent. Bitte lade die Seite neu und versuche es erneut."
-          : "Bitte prüfe Anmeldung und Berechtigungen und versuche es erneut.",
+        description: "Bitte prüfe Anmeldung und Berechtigungen und versuche es erneut.",
       });
       return;
     }
@@ -276,6 +353,15 @@ export default function Import() {
 
   // Step 3 → 4: import
   const runImport = useCallback(async () => {
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Import nicht möglich",
+        description: "Dein Benutzerprofil ist nicht geladen. Bitte lade die Seite neu.",
+      });
+      return;
+    }
+
     setStep("importing");
     setImportProgress(0);
     const selected = validatedRows.filter((r) => r.selected);
@@ -308,7 +394,7 @@ export default function Import() {
               street: mapped.street || null, postal_code: mapped.postal_code || null,
               city: mapped.city || null, country: mapped.country || null,
               status: mapped.status || "prospect", source: mapped.source,
-              notes: mapped.notes || null, created_by_user_id: user?.id ?? null,
+                notes: mapped.notes || null, created_by_user_id: user.id,
             }).select("id").single();
             if (error) throw error;
             entityId = data.id;
@@ -319,7 +405,7 @@ export default function Import() {
               mobile: mapped.mobile || null, job_title: mapped.job_title || null,
               linkedin_url: mapped.linkedin_url || null,
               status: mapped.status || "lead", source: mapped.source,
-              notes: mapped.notes || null, created_by_user_id: user?.id ?? null,
+                notes: mapped.notes || null, created_by_user_id: user.id,
             }).select("id").single();
             if (error) throw error;
             entityId = data.id;
@@ -377,6 +463,37 @@ export default function Import() {
 
   // ──── RENDER ────
   if (wizardOpen) {
+    if (!importReady) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={resetWizard}><ArrowLeft className="h-4 w-4 mr-1" /> Zurück</Button>
+            <h1 className="text-[28px] font-semibold text-foreground">Neuer Import</h1>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-8">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-warning" />
+              <div className="space-y-2">
+                <h2 className="text-[15px] font-semibold text-foreground">{authGate.title}</h2>
+                <p className="text-sm text-muted-foreground">{authGate.description}</p>
+                <p className="text-[12px] text-muted-foreground">
+                  Freigabe erst, wenn App-Sitzung, Live-Session und Benutzerprofil vollständig synchronisiert sind.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" onClick={resetWizard}>Abbrechen</Button>
+              <Button onClick={() => void refetchImportAuthState()} disabled={loading || importAuthStateFetching}>
+                {loading || importAuthStateFetching ? "Prüft…" : "Erneut prüfen"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
@@ -613,8 +730,20 @@ export default function Import() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] font-semibold text-foreground">CSV Import</h1>
-        <Button onClick={() => setWizardOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Neuer Import</Button>
+        <Button onClick={() => setWizardOpen(true)} className="gap-1.5" disabled={!importReady}><Plus className="h-4 w-4" /> Neuer Import</Button>
       </div>
+
+      {!importReady && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 text-warning" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">{authGate.title}</p>
+              <p className="text-sm text-muted-foreground">{authGate.description}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border bg-card">
         <Table>
