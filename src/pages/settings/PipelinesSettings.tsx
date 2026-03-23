@@ -70,6 +70,8 @@ export default function PipelinesSettings() {
   const [originalStageIds, setOriginalStageIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteHasDeals, setDeleteHasDeals] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const { data: pipelines = [], isLoading } = useQuery({
