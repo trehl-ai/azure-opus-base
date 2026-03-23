@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
       }
     } else {
       const { error: insertError } = await supabaseAdmin.from("email_accounts").insert({
-        user_id: userId,
+        user_id: mappedUserId,
         provider: "outlook",
         email_address: email,
         is_default: false,
