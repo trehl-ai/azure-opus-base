@@ -261,6 +261,14 @@ export default function ContactDetail() {
           </div>
         </TabsContent>
 
+        {/* E-Mails */}
+        <TabsContent value="emails" className="mt-4">
+          <div className={cardClass}>
+            <h2 className="text-body font-semibold text-foreground mb-4">E-Mail-Historie</h2>
+            <EmailHistory contactId={id!} />
+          </div>
+        </TabsContent>
+
         {/* Notes */}
         <TabsContent value="notes" className="mt-4">
           <div className={cardClass}>

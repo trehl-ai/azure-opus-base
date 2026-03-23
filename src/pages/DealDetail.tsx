@@ -331,6 +331,14 @@ export default function DealDetail() {
           )}
         </TabsContent>
 
+        {/* E-Mails */}
+        <TabsContent value="emails" className="mt-4">
+          <div className={cardClass}>
+            <h2 className="text-label font-semibold text-foreground mb-4">E-Mail-Historie</h2>
+            <EmailHistory dealId={id!} />
+          </div>
+        </TabsContent>
+
         {/* Notes */}
         <TabsContent value="notes" className="mt-4">
           <div className={cardClass + " space-y-3"}>
