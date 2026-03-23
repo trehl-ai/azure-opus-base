@@ -84,24 +84,15 @@ Deno.serve(async (req) => {
       }
 
       // Build redirect URL for password setup
-      const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovable.app") 
-        || req.headers.get("origin") 
-        || "";
-      const redirectTo = siteUrl ? `${siteUrl}/auth/set-password` : undefined;
+      const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || "";
+      const redirectTo = origin ? `${origin}/auth/set-password` : undefined;
+      console.log("Invite redirectTo:", redirectTo);
 
       // Invite user via Supabase Auth
       const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         data: { first_name, last_name },
         redirectTo,
       });
-
-      // Set invited_at timestamp
-      if (!inviteError) {
-        await adminClient
-          .from("users")
-          .update({ invited_at: new Date().toISOString() })
-          .eq("email", email);
-      }
 
       if (inviteError) {
         console.error("Invite error:", inviteError);
@@ -120,6 +111,7 @@ Deno.serve(async (req) => {
           last_name,
           role: role || "sales",
           is_active: true,
+          invited_at: new Date().toISOString(),
         });
 
       if (insertError) {
