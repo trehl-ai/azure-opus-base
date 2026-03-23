@@ -73,6 +73,7 @@ export default function UsersSettings() {
       const { data, error } = await supabase
         .from("users")
         .select("*")
+        .eq("is_active", true)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data;
