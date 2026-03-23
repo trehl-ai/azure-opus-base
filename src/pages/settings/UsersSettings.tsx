@@ -130,7 +130,8 @@ export default function UsersSettings() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: () => callAdminFn({ action: "delete", user_id: removeUser.id, auth_user_email: removeUser.email }),
+    mutationFn: (userToRemove: { id: string; email: string }) =>
+      callAdminFn({ action: "delete", user_id: userToRemove.id, auth_user_email: userToRemove.email }),
     onSuccess: () => {
       toast.success("Benutzer wurde entfernt");
       setRemoveUser(null);
@@ -378,7 +379,7 @@ export default function UsersSettings() {
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => removeMutation.mutate()}
+              onClick={() => removeUser && removeMutation.mutate({ id: removeUser.id, email: removeUser.email })}
               disabled={removeMutation.isPending}
             >
               {removeMutation.isPending ? "Entfernen…" : "Endgültig entfernen"}
