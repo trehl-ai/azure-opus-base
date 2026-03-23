@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, ShieldAlert, GripVertical, Trash2, Pencil } from "lucide-react";
+import { Plus, ShieldAlert, GripVertical, Trash2, Pencil, Archive } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,8 @@ export default function PipelinesSettings() {
   const [originalStageIds, setOriginalStageIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteHasDeals, setDeleteHasDeals] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const { data: pipelines = [], isLoading } = useQuery({
@@ -231,34 +234,43 @@ export default function PipelinesSettings() {
     }
   };
 
+  const openDeleteDialog = async (pipeline: any) => {
+    // Check deal count before showing dialog
+    const { count } = await supabase
+      .from("deals")
+      .select("id", { count: "exact", head: true })
+      .eq("pipeline_id", pipeline.id)
+      .is("deleted_at", null);
+    setDeleteHasDeals((count ?? 0) > 0);
+    setDeleteTarget(pipeline);
+  };
+
+  const archivePipeline = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const { error } = await supabase.from("pipelines").update({ is_active: false }).eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast.success("Pipeline archiviert – bestehende Deals bleiben erhalten.");
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["pipelines-all"] });
+    } catch (e: any) {
+      toast.error(`Archivierung fehlgeschlagen: ${e.message}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const deletePipeline = async () => {
     if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      // Check for ANY deals (open, won, lost) linked to this pipeline
-      const { count, error: countErr } = await supabase
-        .from("deals")
-        .select("id", { count: "exact", head: true })
-        .eq("pipeline_id", deleteTarget.id)
-        .is("deleted_at", null);
-      if (countErr) throw countErr;
-      if ((count ?? 0) > 0) {
-        toast.error(`Diese Pipeline hat noch ${count} verknüpfte Deals. Bitte alle Deals löschen oder in eine andere Pipeline verschieben.`);
-        setDeleteTarget(null);
-        return;
-      }
-
-      // Delete stages first (FK constraint)
       const { error: stagesErr } = await supabase
-        .from("pipeline_stages")
-        .delete()
-        .eq("pipeline_id", deleteTarget.id);
+        .from("pipeline_stages").delete().eq("pipeline_id", deleteTarget.id);
       if (stagesErr) throw stagesErr;
 
-      // Delete pipeline
       const { error: pipeErr } = await supabase
-        .from("pipelines")
-        .delete()
-        .eq("id", deleteTarget.id);
+        .from("pipelines").delete().eq("id", deleteTarget.id);
       if (pipeErr) throw pipeErr;
 
       toast.success("Pipeline gelöscht");
@@ -268,7 +280,8 @@ export default function PipelinesSettings() {
       queryClient.invalidateQueries({ queryKey: ["deal-counts-by-pipeline"] });
     } catch (e: any) {
       toast.error(`Pipeline konnte nicht gelöscht werden: ${e.message}`);
-      setDeleteTarget(null);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -307,17 +320,20 @@ export default function PipelinesSettings() {
         <div className="space-y-3">
           {pipelines.map(p => {
             const stageCount = stagesMap[p.id]?.length ?? 0;
+            const dealCount = (dealCounts as any).byPipeline?.[p.id] ?? 0;
             return (
-              <Card key={p.id} className="rounded-2xl">
+              <Card key={p.id} className={cn("rounded-2xl", !p.is_active && "opacity-60")}>
                 <CardContent className="flex items-center justify-between py-4 px-6">
                   <div className="flex items-center gap-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{p.name}</span>
                         {p.is_default && <Badge variant="secondary" className="text-xs">Standard</Badge>}
-                        {!p.is_active && <Badge variant="outline" className="text-xs text-muted-foreground">Inaktiv</Badge>}
+                        {!p.is_active && <Badge variant="outline" className="text-xs text-muted-foreground"><Archive className="h-3 w-3 mr-1 inline" />Archiviert</Badge>}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{stageCount} Stages</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {stageCount} Stages{dealCount > 0 && ` · ${dealCount} offene Deals`}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -336,7 +352,7 @@ export default function PipelinesSettings() {
                         <TooltipContent>Standard-Pipeline kann nicht gelöscht werden</TooltipContent>
                       </Tooltip>
                     ) : (
-                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(p)}>Löschen</Button>
+                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => openDeleteDialog(p)}>Löschen</Button>
                     )}
                   </div>
                 </CardContent>
@@ -439,20 +455,40 @@ export default function PipelinesSettings() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete / Archive Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={o => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Pipeline löschen</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteHasDeals ? "Pipeline archivieren" : "Pipeline löschen"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Bist du sicher, dass du die Pipeline „{deleteTarget?.name}" löschen möchtest? Alle zugehörigen Stages werden ebenfalls entfernt.
+              {deleteHasDeals
+                ? `Die Pipeline „${deleteTarget?.name}" hat noch verknüpfte Deals und kann nicht gelöscht werden. Du kannst sie stattdessen archivieren – bestehende Deals bleiben erhalten, aber die Pipeline erscheint nicht mehr in Auswahllisten.`
+                : `Bist du sicher, dass du die Pipeline „${deleteTarget?.name}" endgültig löschen möchtest? Alle zugehörigen Stages werden ebenfalls entfernt.`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={deletePipeline}>
-              Endgültig löschen
-            </AlertDialogAction>
+            <AlertDialogCancel disabled={deleteLoading}>Abbrechen</AlertDialogCancel>
+            {deleteHasDeals ? (
+              <AlertDialogAction
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                onClick={archivePipeline}
+                disabled={deleteLoading}
+              >
+                <Archive className="h-4 w-4 mr-1" />
+                {deleteLoading ? "Archivieren…" : "Archivieren"}
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={deletePipeline}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? "Löschen…" : "Endgültig löschen"}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
