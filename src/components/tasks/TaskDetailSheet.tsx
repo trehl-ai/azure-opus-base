@@ -309,7 +309,7 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
