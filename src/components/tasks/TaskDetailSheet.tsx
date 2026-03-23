@@ -15,6 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Send, Plus, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
+import { TaskAttachments } from "./TaskAttachments";
+import { TaskLinks } from "./TaskLinks";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
