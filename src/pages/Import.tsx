@@ -153,10 +153,14 @@ export default function Import() {
 
   // Step 1 → 2: create job
   const createJob = async () => {
+    if (!user?.id) {
+      toast({ variant: "destructive", title: "Fehler", description: "Benutzer nicht angemeldet. Bitte erneut einloggen." });
+      return;
+    }
     const { data, error } = await supabase.from("import_jobs").insert({
       import_type: importType,
       file_name: fileName,
-      started_by_user_id: user?.id ?? null,
+      started_by_user_id: user.id,
       status: "uploaded",
       total_rows: csvData.length,
     }).select("id").single();
