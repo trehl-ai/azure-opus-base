@@ -12,6 +12,7 @@ import { DealCard } from "@/components/deals/DealCard";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { MobileStageSelector, StageChangeSheet } from "@/components/shared/MobileStageSelector";
+import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +22,7 @@ import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { RoadshowEignung } from "@/lib/roadshowEignung";
 
 const eur = (v: number) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
