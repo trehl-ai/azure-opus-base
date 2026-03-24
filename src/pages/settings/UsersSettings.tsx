@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useProfileImages } from "@/hooks/useProfileImage";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -81,6 +82,8 @@ export default function UsersSettings() {
   });
 
   const adminCount = users.filter(u => u.role === "admin" && u.is_active).length;
+  const userIds = users.map(u => u.id);
+  const { data: profileImages = {} } = useProfileImages(userIds);
 
   const filteredUsers = users.filter(u => {
     if (!search) return true;
@@ -252,9 +255,13 @@ export default function UsersSettings() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                          {initials.toUpperCase()}
-                        </AvatarFallback>
+                        {profileImages[u.id] ? (
+                          <AvatarImage src={profileImages[u.id]} alt="Profil" className="object-cover" />
+                        ) : (
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                            {initials.toUpperCase()}
+                          </AvatarFallback>
+                        )}
                       </Avatar>
                       <div>
                         <p className="text-sm font-medium">{u.first_name} {u.last_name}</p>

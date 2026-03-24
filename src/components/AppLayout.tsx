@@ -1,11 +1,15 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, lazy, Suspense } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useProfileImage } from "@/hooks/useProfileImage";
 import { Menu, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+const FirstLoginOnboarding = lazy(() => import("@/components/onboarding/FirstLoginOnboarding"));
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +67,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const bp = useBreakpoint();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { data: profileImageUrl } = useProfileImage(user?.id);
+
+  const needsOnboarding = user && !user.onboarding_completed_at;
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -80,6 +87,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex min-h-screen w-full">
+      {/* Onboarding Modal */}
+      {needsOnboarding && (
+        <Suspense fallback={null}>
+          <FirstLoginOnboarding />
+        </Suspense>
+      )}
+
       {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
         <div
@@ -121,9 +135,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-[12px] font-semibold text-primary-foreground">
-                  {initials}
-                </button>
+                <Avatar className="h-9 w-9">
+                  {profileImageUrl ? (
+                    <AvatarImage src={profileImageUrl} alt="Profil" className="object-cover" />
+                  ) : (
+                    <AvatarFallback className="bg-primary text-primary-foreground text-[12px] font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => navigate("/settings/profile")}>

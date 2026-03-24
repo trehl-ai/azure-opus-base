@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasPermission } from "@/lib/permissions";
+import { useProfileImage } from "@/hooks/useProfileImage";
 import {
   LayoutDashboard,
   Users,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navSections = [
   {
@@ -65,6 +67,10 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const role = user?.role ?? "read_only";
+  const { data: profileImageUrl } = useProfileImage(user?.id);
+  const initials = user
+    ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
+    : "?";
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
@@ -84,13 +90,38 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
       </div>
 
       {user && !collapsed && (
-        <div className="mx-4 mb-4 rounded-lg bg-white/10 px-4 py-3">
-          <p className="text-[14px] font-medium leading-tight truncate">
-            {user.first_name} {user.last_name}
-          </p>
-          <p className="text-[12px] font-medium text-white/60 mt-0.5">
-            {roleLabels[user.role] ?? user.role}
-          </p>
+        <div className="mx-4 mb-4 rounded-lg bg-white/10 px-4 py-3 flex items-center gap-3">
+          <Avatar className="h-9 w-9 shrink-0">
+            {profileImageUrl ? (
+              <AvatarImage src={profileImageUrl} alt="Profil" className="object-cover" />
+            ) : (
+              <AvatarFallback className="bg-white/20 text-white text-xs font-semibold">
+                {initials}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-[14px] font-medium leading-tight truncate">
+              {user.first_name} {user.last_name}
+            </p>
+            <p className="text-[12px] font-medium text-white/60 mt-0.5">
+              {roleLabels[user.role] ?? user.role}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {user && collapsed && (
+        <div className="flex justify-center mb-3">
+          <Avatar className="h-8 w-8">
+            {profileImageUrl ? (
+              <AvatarImage src={profileImageUrl} alt="Profil" className="object-cover" />
+            ) : (
+              <AvatarFallback className="bg-white/20 text-white text-[10px] font-semibold">
+                {initials}
+              </AvatarFallback>
+            )}
+          </Avatar>
         </div>
       )}
 
