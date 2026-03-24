@@ -43,6 +43,7 @@ export default function Deals() {
   const [showAll, setShowAll] = useState(!showOwnerToggle);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
+  const [eignungFilter, setEignungFilter] = useState<string>("all");
 
   // Mobile stage selector state
   const [mobileStageId, setMobileStageId] = useState<string>("");
