@@ -265,14 +265,12 @@ export default function PipelinesSettings() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      // Nullify pipeline references on soft-deleted deals to avoid FK violations
-      const { error: fkErr } = await supabase
+      // Hard-delete any soft-deleted deals still referencing this pipeline (FK cleanup)
+      await supabase
         .from("deals")
-        .update({ pipeline_id: deleteTarget.id, deleted_at: new Date().toISOString() } as any)
+        .delete()
         .eq("pipeline_id", deleteTarget.id)
         .not("deleted_at", "is", null);
-      // For soft-deleted deals, we can't easily re-assign — but we need to handle the FK.
-      // Actually, just delete stages first (they cascade), then pipeline.
 
       const { error: stagesErr } = await supabase
         .from("pipeline_stages").delete().eq("pipeline_id", deleteTarget.id);
