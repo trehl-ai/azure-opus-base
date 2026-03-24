@@ -464,6 +464,10 @@ export default function Import() {
   };
 
   // ──── RENDER ────
+  if (excelMode) {
+    return <ExcelMultiSheetImport onClose={() => setExcelMode(false)} />;
+  }
+
   if (wizardOpen) {
     if (!importReady) {
       return (
