@@ -100,6 +100,7 @@ export default function Import() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [excelMode, setExcelMode] = useState(false);
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>("upload");
