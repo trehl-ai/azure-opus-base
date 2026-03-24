@@ -333,6 +333,108 @@ export type Database = {
           },
         ]
       }
+      deal_roadshow_details: {
+        Row: {
+          aufmerksam_geworden_durch: string | null
+          ausweichen_turnhalle: string
+          ausweichen_turnhalle_notiz: string | null
+          baustelle_aktionszeitraum: string
+          created_at: string
+          deal_id: string
+          erstkontakt_datum: string | null
+          hort_ganztag: string
+          id: string
+          intern_attraktivitaet_score: number | null
+          intern_checkliste_ausgefuellt: string
+          intern_tempo_kommunikation: string | null
+          platzbedarf_details: string | null
+          platzbedarf_erfuellt: string
+          potential_notizen: string | null
+          region: string | null
+          roadshow_eignung: string
+          schueler_kl23_ausreichend: string
+          schueler_kl234_ausreichend: string
+          stromanschluss_230v: string
+          umzaeunung_aktionsflaeche: string
+          untergrund: string
+          untergrund_notiz: string | null
+          updated_at: string
+          zufahrt_fahrzeuge: string
+          zufahrt_notiz: string | null
+        }
+        Insert: {
+          aufmerksam_geworden_durch?: string | null
+          ausweichen_turnhalle?: string
+          ausweichen_turnhalle_notiz?: string | null
+          baustelle_aktionszeitraum?: string
+          created_at?: string
+          deal_id: string
+          erstkontakt_datum?: string | null
+          hort_ganztag?: string
+          id?: string
+          intern_attraktivitaet_score?: number | null
+          intern_checkliste_ausgefuellt?: string
+          intern_tempo_kommunikation?: string | null
+          platzbedarf_details?: string | null
+          platzbedarf_erfuellt?: string
+          potential_notizen?: string | null
+          region?: string | null
+          roadshow_eignung?: string
+          schueler_kl23_ausreichend?: string
+          schueler_kl234_ausreichend?: string
+          stromanschluss_230v?: string
+          umzaeunung_aktionsflaeche?: string
+          untergrund?: string
+          untergrund_notiz?: string | null
+          updated_at?: string
+          zufahrt_fahrzeuge?: string
+          zufahrt_notiz?: string | null
+        }
+        Update: {
+          aufmerksam_geworden_durch?: string | null
+          ausweichen_turnhalle?: string
+          ausweichen_turnhalle_notiz?: string | null
+          baustelle_aktionszeitraum?: string
+          created_at?: string
+          deal_id?: string
+          erstkontakt_datum?: string | null
+          hort_ganztag?: string
+          id?: string
+          intern_attraktivitaet_score?: number | null
+          intern_checkliste_ausgefuellt?: string
+          intern_tempo_kommunikation?: string | null
+          platzbedarf_details?: string | null
+          platzbedarf_erfuellt?: string
+          potential_notizen?: string | null
+          region?: string | null
+          roadshow_eignung?: string
+          schueler_kl23_ausreichend?: string
+          schueler_kl234_ausreichend?: string
+          stromanschluss_230v?: string
+          umzaeunung_aktionsflaeche?: string
+          untergrund?: string
+          untergrund_notiz?: string | null
+          updated_at?: string
+          zufahrt_fahrzeuge?: string
+          zufahrt_notiz?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_roadshow_details_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: true
+            referencedRelation: "active_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_roadshow_details_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: true
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           company_id: string | null
