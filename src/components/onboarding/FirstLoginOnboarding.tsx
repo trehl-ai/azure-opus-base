@@ -203,7 +203,7 @@ export default function FirstLoginOnboarding() {
       <div className="w-full max-w-2xl mx-4 bg-card rounded-2xl shadow-2xl border border-border overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-8 pt-8 pb-4">
-          <h1 className="text-2xl font-bold text-foreground">Willkommen bei BOOST</h1>
+          <h1 className="text-2xl font-bold text-foreground">Servus auf der eo ipso Boost Plattform</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Richte dein Profil ein, damit du sofort starten kannst.
           </p>
