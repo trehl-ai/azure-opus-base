@@ -192,8 +192,8 @@ export default function Deals() {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   // Group deals by stage
-  const dealsByStage = new Map<string, typeof deals>();
-  deals?.forEach((deal) => {
+  const dealsByStage = new Map<string, typeof filteredDeals>();
+  filteredDeals?.forEach((deal) => {
     const list = dealsByStage.get(deal.pipeline_stage_id) ?? [];
     list.push(deal);
     dealsByStage.set(deal.pipeline_stage_id, list);
