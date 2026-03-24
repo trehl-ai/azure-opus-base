@@ -171,7 +171,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
 
     // Create import job
     const { data: job, error: jobErr } = await supabase.from("import_jobs").insert({
-      import_type: "excel_multi",
+      import_type: "mixed",
       file_name: fileName,
       started_by_user_id: user.id,
       status: "processing",
