@@ -74,7 +74,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
 
   return (
     <aside className={cn(
-      "flex shrink-0 flex-col bg-primary text-white transition-all duration-200",
+      "flex shrink-0 flex-col bg-primary text-white transition-all duration-200 h-screen sticky top-0",
       collapsed ? "w-16" : "w-[260px]"
     )}>
       <div className={cn("pt-6 pb-2", collapsed ? "px-3 text-center" : "px-6")}>
