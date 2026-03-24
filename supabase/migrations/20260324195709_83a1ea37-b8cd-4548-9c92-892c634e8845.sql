@@ -1,0 +1,1 @@
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_sign_in_at timestamptz DEFAULT NULL;

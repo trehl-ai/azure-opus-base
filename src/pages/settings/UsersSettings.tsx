@@ -3,7 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
+import { de } from "date-fns/locale";
 import { Search, Plus, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -237,15 +238,16 @@ export default function UsersSettings() {
               <TableHead>Benutzer</TableHead>
               <TableHead>Rolle</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Letzter Login</TableHead>
               <TableHead>Mitglied seit</TableHead>
               <TableHead className="w-[60px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
             ) : filteredUsers.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Keine Benutzer gefunden</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Keine Benutzer gefunden</TableCell></TableRow>
             ) : filteredUsers.map(u => {
               const initials = (u.first_name?.[0] ?? "") + (u.last_name?.[0] ?? "");
               const isSelf = u.id === currentUser?.id;
@@ -279,6 +281,12 @@ export default function UsersSettings() {
                       className={u.is_active ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}>
                       {u.is_active ? "Aktiv" : "Inaktiv"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {(u as any).last_sign_in_at
+                      ? formatDistanceToNow(new Date((u as any).last_sign_in_at), { addSuffix: true, locale: de })
+                      : <span className="italic text-muted-foreground/60">Noch nie</span>
+                    }
                   </TableCell>
                   <TableCell className="text-sm">{format(new Date(u.created_at), "dd.MM.yyyy")}</TableCell>
                   <TableCell>

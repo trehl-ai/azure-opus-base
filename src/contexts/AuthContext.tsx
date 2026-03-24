@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    const syncAuthState = async (nextSession: Session | null) => {
+    const syncAuthState = async (nextSession: Session | null, event?: string) => {
       if (!isMounted) return;
 
       setSession(nextSession);
@@ -76,16 +76,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(dbUser);
       setLoading(false);
+
+      // Update last_sign_in_at on sign-in events
+      if (dbUser && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+        supabase
+          .from("users")
+          .update({ last_sign_in_at: new Date().toISOString() })
+          .eq("id", dbUser.id)
+          .then(() => {});
+      }
     };
 
     setLoading(true);
 
     // Set up auth state listener BEFORE checking session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      async (event, newSession) => {
         // Use setTimeout to avoid Supabase client deadlock
         setTimeout(() => {
-          void syncAuthState(newSession);
+          void syncAuthState(newSession, event);
         }, 0);
       }
     );
