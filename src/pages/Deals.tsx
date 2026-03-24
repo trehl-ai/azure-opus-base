@@ -83,6 +83,21 @@ export default function Deals() {
   // Set initial mobile stage
   const effectiveMobileStageId = mobileStageId || stages?.[0]?.id || "";
 
+  // Roadshow details for all deals in pipeline
+  const { data: roadshowMap } = useQuery({
+    queryKey: ["roadshow-map", activePipelineId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deal_roadshow_details" as any)
+        .select("deal_id, roadshow_eignung");
+      if (error) throw error;
+      const map = new Map<string, string>();
+      (data as any[])?.forEach((r: any) => map.set(r.deal_id, r.roadshow_eignung));
+      return map;
+    },
+    enabled: !!activePipelineId,
+  });
+
   // Deals
   const { data: deals } = useQuery({
     queryKey: ["deals-board", activePipelineId, ownerFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -103,6 +118,13 @@ export default function Deals() {
       return data;
     },
     enabled: !!activePipelineId,
+  });
+
+  // Filtered deals by eignung
+  const filteredDeals = deals?.filter((d) => {
+    if (eignungFilter === "all") return true;
+    const eignung = roadshowMap?.get(d.id) ?? "grau";
+    return eignung === eignungFilter;
   });
 
   // Move deal mutation
