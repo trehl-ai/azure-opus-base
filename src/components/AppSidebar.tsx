@@ -67,6 +67,10 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const role = user?.role ?? "read_only";
+  const { data: profileImageUrl } = useProfileImage(user?.id);
+  const initials = user
+    ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
+    : "?";
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
