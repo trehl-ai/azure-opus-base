@@ -14,6 +14,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, ArrowRig
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import ExcelMultiSheetImport from "@/components/import/ExcelMultiSheetImport";
 
 type ImportType = "companies" | "contacts";
 type WizardStep = "upload" | "mapping" | "preview" | "importing" | "result";
@@ -99,6 +100,7 @@ export default function Import() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [excelMode, setExcelMode] = useState(false);
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>("upload");
@@ -462,6 +464,10 @@ export default function Import() {
   };
 
   // ──── RENDER ────
+  if (excelMode) {
+    return <ExcelMultiSheetImport onClose={() => setExcelMode(false)} />;
+  }
+
   if (wizardOpen) {
     if (!importReady) {
       return (
@@ -729,8 +735,13 @@ export default function Import() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[28px] font-semibold text-foreground">CSV Import</h1>
-        <Button onClick={() => setWizardOpen(true)} className="gap-1.5" disabled={!importReady}><Plus className="h-4 w-4" /> Neuer Import</Button>
+        <h1 className="text-[28px] font-semibold text-foreground">Daten Import</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setExcelMode(true)} disabled={!importReady} className="gap-1.5">
+            <FileSpreadsheet className="h-4 w-4" /> Excel Multi-Sheet
+          </Button>
+          <Button onClick={() => setWizardOpen(true)} className="gap-1.5" disabled={!importReady}><Plus className="h-4 w-4" /> CSV Import</Button>
+        </div>
       </div>
 
       {!importReady && (
