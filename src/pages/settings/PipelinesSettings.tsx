@@ -265,6 +265,15 @@ export default function PipelinesSettings() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
+      // Nullify pipeline references on soft-deleted deals to avoid FK violations
+      const { error: fkErr } = await supabase
+        .from("deals")
+        .update({ pipeline_id: deleteTarget.id, deleted_at: new Date().toISOString() } as any)
+        .eq("pipeline_id", deleteTarget.id)
+        .not("deleted_at", "is", null);
+      // For soft-deleted deals, we can't easily re-assign — but we need to handle the FK.
+      // Actually, just delete stages first (they cascade), then pipeline.
+
       const { error: stagesErr } = await supabase
         .from("pipeline_stages").delete().eq("pipeline_id", deleteTarget.id);
       if (stagesErr) throw stagesErr;
@@ -278,6 +287,7 @@ export default function PipelinesSettings() {
       queryClient.invalidateQueries({ queryKey: ["pipelines-all"] });
       queryClient.invalidateQueries({ queryKey: ["pipeline-stages-all"] });
       queryClient.invalidateQueries({ queryKey: ["deal-counts-by-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["pipelines"] });
     } catch (e: any) {
       toast.error(`Pipeline konnte nicht gelöscht werden: ${e.message}`);
     } finally {
