@@ -135,9 +135,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-[12px] font-semibold text-primary-foreground">
-                  {initials}
-                </button>
+                <Avatar className="h-9 w-9">
+                  {profileImageUrl ? (
+                    <AvatarImage src={profileImageUrl} alt="Profil" className="object-cover" />
+                  ) : (
+                    <AvatarFallback className="bg-primary text-primary-foreground text-[12px] font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => navigate("/settings/profile")}>
