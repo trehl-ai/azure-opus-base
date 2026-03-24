@@ -380,7 +380,20 @@ export default function FirstLoginOnboarding() {
 
         {/* Footer */}
         <div className="px-8 py-5 border-t border-border flex items-center justify-between bg-muted/30">
-          <p className="text-sm text-muted-foreground">Schritt {step + 1} von {STEPS.length}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Schritt {step + 1} von {STEPS.length}</p>
+            <span className="text-muted-foreground/40">·</span>
+            <Button
+              variant="link"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground px-0 h-auto text-sm"
+              onClick={() => skipMutation.mutate()}
+              disabled={skipMutation.isPending}
+            >
+              {skipMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Später einrichten
+            </Button>
+          </div>
           <div className="flex items-center gap-3">
             {step > 0 && (
               <Button variant="outline" onClick={() => setStep(step - 1)}>
@@ -390,7 +403,7 @@ export default function FirstLoginOnboarding() {
             {step < 2 && (
               <Button
                 onClick={() => setStep(step + 1)}
-                disabled={step === 0 ? !canProceedStep0 : !canProceedStep1}
+                disabled={step === 1 ? !canProceedStep1 : false}
               >
                 Weiter <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
