@@ -349,6 +349,7 @@ export default function Deals() {
                             value_amount: deal.value_amount, currency: deal.currency,
                             priority: deal.priority, owner_first_name: owner?.first_name ?? null,
                             owner_last_name: owner?.last_name ?? null,
+                            roadshow_eignung: (roadshowMap?.get(deal.id) as RoadshowEignung) ?? null,
                           }}
                           onDragStart={handleDragStart}
                         />
