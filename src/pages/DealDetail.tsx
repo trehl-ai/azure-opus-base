@@ -8,6 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EditDealSheet } from "@/components/deals/EditDealSheet";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
+import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
+import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
+import { useRoadshowDetails } from "@/hooks/queries/useRoadshowDetails";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
@@ -255,6 +258,7 @@ export default function DealDetail() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
+          <TabsTrigger value="roadshow">Roadshow-Checkliste</TabsTrigger>
           <TabsTrigger value="activities">Aktivitäten</TabsTrigger>
           <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
@@ -352,6 +356,11 @@ export default function DealDetail() {
           <div className={cardClass}>
             <EntityTagsManager entityType="deal" entityId={id!} />
           </div>
+        </TabsContent>
+
+        {/* Roadshow */}
+        <TabsContent value="roadshow" className="mt-4">
+          <RoadshowChecklist dealId={id!} />
         </TabsContent>
 
         {/* Project */}

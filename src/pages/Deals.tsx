@@ -12,6 +12,7 @@ import { DealCard } from "@/components/deals/DealCard";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { MobileStageSelector, StageChangeSheet } from "@/components/shared/MobileStageSelector";
+import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +22,7 @@ import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { RoadshowEignung } from "@/lib/roadshowEignung";
 
 const eur = (v: number) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
@@ -41,6 +43,7 @@ export default function Deals() {
   const [showAll, setShowAll] = useState(!showOwnerToggle);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
+  const [eignungFilter, setEignungFilter] = useState<string>("all");
 
   // Mobile stage selector state
   const [mobileStageId, setMobileStageId] = useState<string>("");
@@ -80,6 +83,21 @@ export default function Deals() {
   // Set initial mobile stage
   const effectiveMobileStageId = mobileStageId || stages?.[0]?.id || "";
 
+  // Roadshow details for all deals in pipeline
+  const { data: roadshowMap } = useQuery({
+    queryKey: ["roadshow-map", activePipelineId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deal_roadshow_details" as any)
+        .select("deal_id, roadshow_eignung");
+      if (error) throw error;
+      const map = new Map<string, string>();
+      (data as any[])?.forEach((r: any) => map.set(r.deal_id, r.roadshow_eignung));
+      return map;
+    },
+    enabled: !!activePipelineId,
+  });
+
   // Deals
   const { data: deals } = useQuery({
     queryKey: ["deals-board", activePipelineId, ownerFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -100,6 +118,13 @@ export default function Deals() {
       return data;
     },
     enabled: !!activePipelineId,
+  });
+
+  // Filtered deals by eignung
+  const filteredDeals = deals?.filter((d) => {
+    if (eignungFilter === "all") return true;
+    const eignung = roadshowMap?.get(d.id) ?? "grau";
+    return eignung === eignungFilter;
   });
 
   // Move deal mutation
@@ -167,8 +192,8 @@ export default function Deals() {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   // Group deals by stage
-  const dealsByStage = new Map<string, typeof deals>();
-  deals?.forEach((deal) => {
+  const dealsByStage = new Map<string, typeof filteredDeals>();
+  filteredDeals?.forEach((deal) => {
     const list = dealsByStage.get(deal.pipeline_stage_id) ?? [];
     list.push(deal);
     dealsByStage.set(deal.pipeline_stage_id, list);
@@ -177,7 +202,7 @@ export default function Deals() {
   const formatSum = (v: number) => eur(v);
 
   // Mobile: deals in selected stage
-  const mobileDeals = deals?.filter((d) => d.pipeline_stage_id === effectiveMobileStageId) ?? [];
+  const mobileDeals = filteredDeals?.filter((d) => d.pipeline_stage_id === effectiveMobileStageId) ?? [];
 
   return (
     <div className="flex flex-col h-full">
@@ -237,6 +262,16 @@ export default function Deals() {
             {showAll ? "Alle Deals" : "Meine Deals"}
           </Button>
         )}
+        <Select value={eignungFilter} onValueChange={setEignungFilter}>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Roadshow-Eignung" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle Eignungen</SelectItem>
+            <SelectItem value="gruen">🟢 Geeignet</SelectItem>
+            <SelectItem value="gelb">🟡 Eingeschränkt</SelectItem>
+            <SelectItem value="rot">🔴 Ungeeignet</SelectItem>
+            <SelectItem value="grau">⚪ Offen</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Mobile: Stage selector + card list */}
@@ -314,6 +349,7 @@ export default function Deals() {
                             value_amount: deal.value_amount, currency: deal.currency,
                             priority: deal.priority, owner_first_name: owner?.first_name ?? null,
                             owner_last_name: owner?.last_name ?? null,
+                            roadshow_eignung: (roadshowMap?.get(deal.id) as RoadshowEignung) ?? null,
                           }}
                           onDragStart={handleDragStart}
                         />

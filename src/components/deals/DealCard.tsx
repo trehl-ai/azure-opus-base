@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
+import type { RoadshowEignung } from "@/lib/roadshowEignung";
 
 interface DealCardData {
   id: string;
@@ -10,6 +12,7 @@ interface DealCardData {
   priority: string | null;
   owner_first_name: string | null;
   owner_last_name: string | null;
+  roadshow_eignung?: RoadshowEignung | null;
 }
 
 const priorityDot: Record<string, string> = {
@@ -42,9 +45,12 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
             <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-tight">{deal.company_name}</p>
           )}
         </div>
-        {deal.priority && (
-          <span className={cn("mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full", priorityDot[deal.priority] ?? priorityDot.medium)} />
-        )}
+        <div className="flex items-center gap-1 shrink-0 mt-0.5">
+          <RoadshowBadge eignung={deal.roadshow_eignung} size="sm" />
+          {deal.priority && (
+            <span className={cn("h-1.5 w-1.5 rounded-full", priorityDot[deal.priority] ?? priorityDot.medium)} />
+          )}
+        </div>
       </div>
       <div className="mt-1.5 flex items-center justify-between">
         {deal.value_amount ? (
