@@ -258,11 +258,16 @@ export default function Deals() {
           <h1 className="text-[28px] font-semibold text-foreground">Deals</h1>
           <PresenceAvatars users={onlineUsers} />
         </div>
-        {canWriteDeals && (
-          <Button onClick={() => setSheetOpen(true)} className="gap-2 w-full sm:w-auto min-h-[44px]">
-            <Plus className="h-4 w-4" /> Neuer Deal
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={handleExport} disabled={exporting} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+            <Download className="h-4 w-4" /> {exporting ? "Exportiert…" : "Exportieren"}
           </Button>
-        )}
+          {canWriteDeals && (
+            <Button onClick={() => setSheetOpen(true)} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+              <Plus className="h-4 w-4" /> Neuer Deal
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
