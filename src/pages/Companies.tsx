@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { exportToExcel, todayString } from "@/lib/excelExport";
+import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
 
