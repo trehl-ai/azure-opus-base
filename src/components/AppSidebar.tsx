@@ -90,13 +90,38 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
       </div>
 
       {user && !collapsed && (
-        <div className="mx-4 mb-4 rounded-lg bg-white/10 px-4 py-3">
-          <p className="text-[14px] font-medium leading-tight truncate">
-            {user.first_name} {user.last_name}
-          </p>
-          <p className="text-[12px] font-medium text-white/60 mt-0.5">
-            {roleLabels[user.role] ?? user.role}
-          </p>
+        <div className="mx-4 mb-4 rounded-lg bg-white/10 px-4 py-3 flex items-center gap-3">
+          <Avatar className="h-9 w-9 shrink-0">
+            {profileImageUrl ? (
+              <AvatarImage src={profileImageUrl} alt="Profil" className="object-cover" />
+            ) : (
+              <AvatarFallback className="bg-white/20 text-white text-xs font-semibold">
+                {initials}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-[14px] font-medium leading-tight truncate">
+              {user.first_name} {user.last_name}
+            </p>
+            <p className="text-[12px] font-medium text-white/60 mt-0.5">
+              {roleLabels[user.role] ?? user.role}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {user && collapsed && (
+        <div className="flex justify-center mb-3">
+          <Avatar className="h-8 w-8">
+            {profileImageUrl ? (
+              <AvatarImage src={profileImageUrl} alt="Profil" className="object-cover" />
+            ) : (
+              <AvatarFallback className="bg-white/20 text-white text-[10px] font-semibold">
+                {initials}
+              </AvatarFallback>
+            )}
+          </Avatar>
         </div>
       )}
 
