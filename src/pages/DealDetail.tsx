@@ -258,6 +258,7 @@ export default function DealDetail() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
+          <TabsTrigger value="roadshow">Roadshow-Checkliste</TabsTrigger>
           <TabsTrigger value="activities">Aktivitäten</TabsTrigger>
           <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
