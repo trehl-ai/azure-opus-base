@@ -14,6 +14,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, ArrowRig
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import ExcelMultiSheetImport from "@/components/import/ExcelMultiSheetImport";
 
 type ImportType = "companies" | "contacts";
 type WizardStep = "upload" | "mapping" | "preview" | "importing" | "result";
