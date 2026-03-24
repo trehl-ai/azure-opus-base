@@ -82,6 +82,8 @@ export default function UsersSettings() {
   });
 
   const adminCount = users.filter(u => u.role === "admin" && u.is_active).length;
+  const userIds = users.map(u => u.id);
+  const { data: profileImages = {} } = useProfileImages(userIds);
 
   const filteredUsers = users.filter(u => {
     if (!search) return true;
