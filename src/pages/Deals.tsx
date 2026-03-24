@@ -17,11 +17,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, ArrowRightLeft } from "lucide-react";
+import { CalendarIcon, Plus, ArrowRightLeft, Download } from "lucide-react";
 import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { exportToExcel, todayString } from "@/lib/excelExport";
 import type { RoadshowEignung } from "@/lib/roadshowEignung";
 
 const eur = (v: number) =>
@@ -44,6 +45,51 @@ export default function Deals() {
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
   const [eignungFilter, setEignungFilter] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!activePipelineId || !stages) return;
+    setExporting(true);
+    try {
+      const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
+      let q = supabase
+        .from("deals")
+        .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)")
+        .eq("pipeline_id", activePipelineId)
+        .is("deleted_at", null);
+      if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
+      if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
+      if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
+      const { data, error } = await q.order("created_at", { ascending: false });
+      if (error) throw error;
+
+      let exportData = data ?? [];
+      if (eignungFilter !== "all") {
+        exportData = exportData.filter((d: any) => (roadshowMap?.get(d.id) ?? "grau") === eignungFilter);
+      }
+
+      const pipelineName = pipelines?.find(p => p.id === activePipelineId)?.name ?? "";
+      const stageMap = new Map(stages.map(s => [s.id, s.name]));
+
+      exportToExcel(exportData, [
+        { header: "Titel", accessor: (r: any) => r.title },
+        { header: "Pipeline", accessor: () => pipelineName },
+        { header: "Stage", accessor: (r: any) => stageMap.get(r.pipeline_stage_id) ?? "" },
+        { header: "Wert", accessor: (r: any) => r.value_amount },
+        { header: "Wahrscheinlichkeit %", accessor: (r: any) => r.probability_percent },
+        { header: "Unternehmen", accessor: (r: any) => (r.company as any)?.name ?? "" },
+        { header: "Kontakt", accessor: (r: any) => { const c = r.primary_contact as any; return c ? `${c.first_name} ${c.last_name}` : ""; } },
+        { header: "Owner", accessor: (r: any) => { const o = r.owner as any; return o ? `${o.first_name} ${o.last_name}` : ""; } },
+        { header: "Status", accessor: (r: any) => r.status },
+        { header: "Erstellt am", accessor: (r: any) => r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : "" },
+      ], `deals_${todayString()}.xlsx`);
+      toast({ title: `${exportData.length} Deals exportiert` });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Export fehlgeschlagen", description: err.message });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Mobile stage selector state
   const [mobileStageId, setMobileStageId] = useState<string>("");
@@ -212,11 +258,16 @@ export default function Deals() {
           <h1 className="text-[28px] font-semibold text-foreground">Deals</h1>
           <PresenceAvatars users={onlineUsers} />
         </div>
-        {canWriteDeals && (
-          <Button onClick={() => setSheetOpen(true)} className="gap-2 w-full sm:w-auto min-h-[44px]">
-            <Plus className="h-4 w-4" /> Neuer Deal
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={handleExport} disabled={exporting} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+            <Download className="h-4 w-4" /> {exporting ? "Exportiert…" : "Exportieren"}
           </Button>
-        )}
+          {canWriteDeals && (
+            <Button onClick={() => setSheetOpen(true)} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+              <Plus className="h-4 w-4" /> Neuer Deal
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}

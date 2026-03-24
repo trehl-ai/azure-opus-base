@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { exportToExcel, todayString } from "@/lib/excelExport";
+import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
 
@@ -26,6 +29,7 @@ const statusFilterOptions = [
 export default function Companies() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
   const { canWrite } = usePermission();
   const canWriteCompanies = canWrite("companies");
   const [search, setSearch] = useState("");
@@ -33,6 +37,40 @@ export default function Companies() {
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      let q = supabase
+        .from("companies")
+        .select("name, street, postal_code, city, country, website, industry, source, status, created_at")
+        .is("deleted_at", null);
+      if (search.trim()) q = q.ilike("name", `%${search.trim()}%`);
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (ownerFilter !== "all") q = q.eq("owner_user_id", ownerFilter);
+      const { data, error } = await q.order("created_at", { ascending: false });
+      if (error) throw error;
+
+      exportToExcel(data ?? [], [
+        { header: "Name", accessor: (r: any) => r.name },
+        { header: "Straße", accessor: (r: any) => r.street },
+        { header: "PLZ", accessor: (r: any) => r.postal_code },
+        { header: "Stadt", accessor: (r: any) => r.city },
+        { header: "Land", accessor: (r: any) => r.country },
+        { header: "Website", accessor: (r: any) => r.website },
+        { header: "Branche", accessor: (r: any) => r.industry },
+        { header: "Quelle", accessor: (r: any) => r.source },
+        { header: "Status", accessor: (r: any) => r.status },
+        { header: "Erstellt am", accessor: (r: any) => r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : "" },
+      ], `companies_${todayString()}.xlsx`);
+      toast({ title: `${data?.length ?? 0} Companies exportiert` });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Export fehlgeschlagen", description: err.message });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data: users } = useUsers();
   const { data, isLoading } = useCompanies({
@@ -55,11 +93,16 @@ export default function Companies() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-section-title text-foreground">Companies</h1>
-        {canWriteCompanies && (
-          <Button onClick={() => setSheetOpen(true)} className="gap-2 w-full sm:w-auto min-h-[44px]">
-            <Plus className="h-4 w-4" /> Neue Company
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={handleExport} disabled={exporting} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+            <Download className="h-4 w-4" /> {exporting ? "Exportiert…" : "Exportieren"}
           </Button>
-        )}
+          {canWriteCompanies && (
+            <Button onClick={() => setSheetOpen(true)} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+              <Plus className="h-4 w-4" /> Neue Company
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
