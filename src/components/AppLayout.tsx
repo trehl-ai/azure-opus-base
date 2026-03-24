@@ -67,6 +67,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const bp = useBreakpoint();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { data: profileImageUrl } = useProfileImage(user?.id);
+
+  const needsOnboarding = user && !user.onboarding_completed_at;
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
