@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: body.from || "CRM <noreply@yourdomain.com>",
+        from: body.from || "BOOST <noreply@yourdomain.com>",
         to: Array.isArray(body.to) ? body.to : [body.to],
         subject: body.subject,
         html: body.html,

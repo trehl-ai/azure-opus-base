@@ -99,7 +99,7 @@ export default function Login() {
         </div>
       </div>
       <span className="absolute bottom-4 right-6 z-10 text-sm font-bold text-black">
-        CRM by Tomas Schwirkmann
+        BOOST by Tomas Schwirkmann
       </span>
     </div>
   );

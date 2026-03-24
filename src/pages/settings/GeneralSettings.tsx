@@ -294,7 +294,7 @@ export default function GeneralSettings() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h2 className="text-xl font-semibold">Allgemein</h2>
-        <p className="text-sm text-muted-foreground mt-1">Grundlegende Workspace- und CRM-Einstellungen.</p>
+        <p className="text-sm text-muted-foreground mt-1">Grundlegende Workspace- und BOOST-Einstellungen.</p>
       </div>
 
       {/* Card 1 – Workspace */}
