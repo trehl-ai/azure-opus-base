@@ -282,6 +282,12 @@ export default function UsersSettings() {
                       {u.is_active ? "Aktiv" : "Inaktiv"}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {(u as any).last_sign_in_at
+                      ? formatDistanceToNow(new Date((u as any).last_sign_in_at), { addSuffix: true, locale: de })
+                      : <span className="italic text-muted-foreground/60">Noch nie</span>
+                    }
+                  </TableCell>
                   <TableCell className="text-sm">{format(new Date(u.created_at), "dd.MM.yyyy")}</TableCell>
                   <TableCell>
                     <DropdownMenu>
