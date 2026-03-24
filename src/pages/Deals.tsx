@@ -262,6 +262,16 @@ export default function Deals() {
             {showAll ? "Alle Deals" : "Meine Deals"}
           </Button>
         )}
+        <Select value={eignungFilter} onValueChange={setEignungFilter}>
+          <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Roadshow-Eignung" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle Eignungen</SelectItem>
+            <SelectItem value="gruen">🟢 Geeignet</SelectItem>
+            <SelectItem value="gelb">🟡 Eingeschränkt</SelectItem>
+            <SelectItem value="rot">🔴 Ungeeignet</SelectItem>
+            <SelectItem value="grau">⚪ Offen</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Mobile: Stage selector + card list */}
