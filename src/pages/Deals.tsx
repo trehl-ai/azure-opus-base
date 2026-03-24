@@ -202,7 +202,7 @@ export default function Deals() {
   const formatSum = (v: number) => eur(v);
 
   // Mobile: deals in selected stage
-  const mobileDeals = deals?.filter((d) => d.pipeline_stage_id === effectiveMobileStageId) ?? [];
+  const mobileDeals = filteredDeals?.filter((d) => d.pipeline_stage_id === effectiveMobileStageId) ?? [];
 
   return (
     <div className="flex flex-col h-full">
