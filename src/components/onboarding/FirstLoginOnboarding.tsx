@@ -162,8 +162,26 @@ export default function FirstLoginOnboarding() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const canProceedStep0 = !!imagePreview;
   const canProceedStep1 = form.first_name.trim() && form.last_name.trim() && form.job_title.trim() && form.phone.trim();
+
+  const skipMutation = useMutation({
+    mutationFn: async () => {
+      const { data: publicUserId } = await supabase.rpc("get_public_user_id", {
+        _auth_user_id: (await supabase.auth.getUser()).data.user!.id,
+      });
+      if (!publicUserId) throw new Error("User-ID Zuordnung fehlgeschlagen");
+      const { error } = await supabase
+        .from("users")
+        .update({ onboarding_completed_at: new Date().toISOString() })
+        .eq("id", publicUserId as string);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.info("Du kannst dein Profil jederzeit unter Einstellungen → Signatur einrichten.");
+      window.location.reload();
+    },
+    onError: (err: Error) => toast.error("Fehler: " + err.message),
+  });
 
   const previewData: SignatureData = {
     full_name: `${form.first_name} ${form.last_name}`.trim() || "Dein Name",
@@ -185,7 +203,7 @@ export default function FirstLoginOnboarding() {
       <div className="w-full max-w-2xl mx-4 bg-card rounded-2xl shadow-2xl border border-border overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-8 pt-8 pb-4">
-          <h1 className="text-2xl font-bold text-foreground">Willkommen bei BOOST</h1>
+          <h1 className="text-2xl font-bold text-foreground">Servus auf der eo ipso Boost Plattform</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Richte dein Profil ein, damit du sofort starten kannst.
           </p>
@@ -362,7 +380,20 @@ export default function FirstLoginOnboarding() {
 
         {/* Footer */}
         <div className="px-8 py-5 border-t border-border flex items-center justify-between bg-muted/30">
-          <p className="text-sm text-muted-foreground">Schritt {step + 1} von {STEPS.length}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Schritt {step + 1} von {STEPS.length}</p>
+            <span className="text-muted-foreground/40">·</span>
+            <Button
+              variant="link"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground px-0 h-auto text-sm"
+              onClick={() => skipMutation.mutate()}
+              disabled={skipMutation.isPending}
+            >
+              {skipMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Später einrichten
+            </Button>
+          </div>
           <div className="flex items-center gap-3">
             {step > 0 && (
               <Button variant="outline" onClick={() => setStep(step - 1)}>
@@ -372,7 +403,7 @@ export default function FirstLoginOnboarding() {
             {step < 2 && (
               <Button
                 onClick={() => setStep(step + 1)}
-                disabled={step === 0 ? !canProceedStep0 : !canProceedStep1}
+                disabled={step === 1 ? !canProceedStep1 : false}
               >
                 Weiter <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
