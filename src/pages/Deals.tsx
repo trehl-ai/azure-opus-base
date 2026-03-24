@@ -17,11 +17,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, ArrowRightLeft } from "lucide-react";
+import { CalendarIcon, Plus, ArrowRightLeft, Download } from "lucide-react";
 import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { exportToExcel, todayString } from "@/lib/excelExport";
 import type { RoadshowEignung } from "@/lib/roadshowEignung";
 
 const eur = (v: number) =>
