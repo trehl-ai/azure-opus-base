@@ -1,11 +1,15 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, lazy, Suspense } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useProfileImage } from "@/hooks/useProfileImage";
 import { Menu, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+const FirstLoginOnboarding = lazy(() => import("@/components/onboarding/FirstLoginOnboarding"));
 import {
   DropdownMenu,
   DropdownMenuContent,
