@@ -60,7 +60,7 @@ export default function RolesSettings() {
       <div>
         <h2 className="text-xl font-semibold">Rollen & Rechte</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Übersicht über die verfügbaren Rollen und ihre Zugriffsrechte im CRM.
+          Übersicht über die verfügbaren Rollen und ihre Zugriffsrechte in BOOST.
         </p>
       </div>
 

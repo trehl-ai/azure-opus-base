@@ -374,7 +374,7 @@ export default function EmailAccountsSettings() {
               </p>
               <p className="text-[13px] text-muted-foreground max-w-md">
                 {googleReady || outlookReady
-                  ? "Verbinde dein Google- oder Outlook-Konto, um E-Mails direkt aus dem CRM zu versenden."
+                  ? "Verbinde dein Google- oder Outlook-Konto, um E-Mails direkt aus BOOST zu versenden."
                   : isAdmin
                     ? "Konfiguriere zuerst die Provider-Secrets, um die Verbindung zu ermöglichen."
                     : "Dein Administrator muss zuerst die E-Mail-Provider einrichten."}

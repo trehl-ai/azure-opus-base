@@ -42,7 +42,7 @@ export default function Login() {
       />
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card/90 backdrop-blur-sm p-10 shadow-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-section-title text-primary font-bold">CRM</h1>
+          <h1 className="text-section-title text-primary font-bold">eo ipso BOOST</h1>
           <p className="mt-1 text-body text-muted-foreground">Anmelden</p>
         </div>
 
@@ -99,7 +99,7 @@ export default function Login() {
         </div>
       </div>
       <span className="absolute bottom-4 right-6 z-10 text-sm font-bold text-black">
-        CRM by Tomas Schwirkmann
+        BOOST by Tomas Schwirkmann
       </span>
     </div>
   );

@@ -34,7 +34,7 @@ function getPageName(pathname: string): string {
   for (const [route, name] of Object.entries(routeNames)) {
     if (pathname.startsWith(route)) return name;
   }
-  return "CRM";
+  return "BOOST";
 }
 
 // Custom hook for breakpoints: mobile < 768, tablet 768-1024, desktop > 1024

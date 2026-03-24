@@ -27,7 +27,7 @@ export default function ForgotPassword() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-10 shadow-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-section-title text-primary font-bold">CRM</h1>
+          <h1 className="text-section-title text-primary font-bold">eo ipso BOOST</h1>
           <p className="mt-1 text-body text-muted-foreground">Passwort zurücksetzen</p>
         </div>
 

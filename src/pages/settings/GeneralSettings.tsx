@@ -128,7 +128,7 @@ export default function GeneralSettings() {
   useEffect(() => {
     if (settings.length > 0) {
       const get = (key: string) => settings.find(s => s.key === key)?.value ?? "";
-      setWorkspaceName(get("workspace_name") || "Mein CRM");
+      setWorkspaceName(get("workspace_name") || "eo ipso BOOST");
       setCurrency(get("default_currency") || "EUR");
       setDateFormat(get("date_format") || "DD.MM.YYYY");
       setTimezone(get("timezone") || "Europe/Berlin");
@@ -294,7 +294,7 @@ export default function GeneralSettings() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h2 className="text-xl font-semibold">Allgemein</h2>
-        <p className="text-sm text-muted-foreground mt-1">Grundlegende Workspace- und CRM-Einstellungen.</p>
+        <p className="text-sm text-muted-foreground mt-1">Grundlegende Workspace- und BOOST-Einstellungen.</p>
       </div>
 
       {/* Card 1 – Workspace */}

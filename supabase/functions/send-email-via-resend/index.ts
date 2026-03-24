@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const fromAddress = body.from || "CRM <noreply@ts-connect.cloud>";
+    const fromAddress = body.from || "BOOST <noreply@ts-connect.cloud>";
 
     const { data: messageRow, error: insertError } = await supabaseAdmin
       .from("email_messages")

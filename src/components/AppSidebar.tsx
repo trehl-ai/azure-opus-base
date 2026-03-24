@@ -79,7 +79,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
     )}>
       <div className={cn("pt-6 pb-2", collapsed ? "px-3 text-center" : "px-6")}>
         <span className={cn("font-bold tracking-tight", collapsed ? "text-[16px]" : "text-[22px]")}>
-          {collapsed ? "C" : "CRM"}
+          {collapsed ? "B" : "BOOST"}
         </span>
       </div>
 
