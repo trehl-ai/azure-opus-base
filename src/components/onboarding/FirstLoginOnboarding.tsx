@@ -162,8 +162,26 @@ export default function FirstLoginOnboarding() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const canProceedStep0 = !!imagePreview;
   const canProceedStep1 = form.first_name.trim() && form.last_name.trim() && form.job_title.trim() && form.phone.trim();
+
+  const skipMutation = useMutation({
+    mutationFn: async () => {
+      const { data: publicUserId } = await supabase.rpc("get_public_user_id", {
+        _auth_user_id: (await supabase.auth.getUser()).data.user!.id,
+      });
+      if (!publicUserId) throw new Error("User-ID Zuordnung fehlgeschlagen");
+      const { error } = await supabase
+        .from("users")
+        .update({ onboarding_completed_at: new Date().toISOString() })
+        .eq("id", publicUserId as string);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.info("Du kannst dein Profil jederzeit unter Einstellungen → Signatur einrichten.");
+      window.location.reload();
+    },
+    onError: (err: Error) => toast.error("Fehler: " + err.message),
+  });
 
   const previewData: SignatureData = {
     full_name: `${form.first_name} ${form.last_name}`.trim() || "Dein Name",
