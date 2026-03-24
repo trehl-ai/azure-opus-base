@@ -87,6 +87,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex min-h-screen w-full">
+      {/* Onboarding Modal */}
+      {needsOnboarding && (
+        <Suspense fallback={null}>
+          <FirstLoginOnboarding />
+        </Suspense>
+      )}
+
       {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
         <div
