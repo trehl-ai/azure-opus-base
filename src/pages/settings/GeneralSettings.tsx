@@ -128,7 +128,7 @@ export default function GeneralSettings() {
   useEffect(() => {
     if (settings.length > 0) {
       const get = (key: string) => settings.find(s => s.key === key)?.value ?? "";
-      setWorkspaceName(get("workspace_name") || "Mein CRM");
+      setWorkspaceName(get("workspace_name") || "eo ipso BOOST");
       setCurrency(get("default_currency") || "EUR");
       setDateFormat(get("date_format") || "DD.MM.YYYY");
       setTimezone(get("timezone") || "Europe/Berlin");
