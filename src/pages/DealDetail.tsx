@@ -358,6 +358,11 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
+        {/* Roadshow */}
+        <TabsContent value="roadshow" className="mt-4">
+          <RoadshowChecklist dealId={id!} />
+        </TabsContent>
+
         {/* Project */}
         {deal.status === "won" && (
           <TabsContent value="project" className="mt-4">
