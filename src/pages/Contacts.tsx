@@ -28,6 +28,7 @@ const statusFilterOptions = [
 export default function Contacts() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
   const { canWrite } = usePermission();
   const canWriteContacts = canWrite("contacts");
   const [search, setSearch] = useState("");
@@ -35,6 +36,47 @@ export default function Contacts() {
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      let q = supabase
+        .from("contacts")
+        .select("first_name, last_name, job_title, email, phone, mobile, source, status, created_at, company_contacts(is_primary, company:companies(name))")
+        .is("deleted_at", null);
+      if (search.trim()) q = q.or(`first_name.ilike.%${search.trim()}%,last_name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`);
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (ownerFilter !== "all") q = q.eq("owner_user_id", ownerFilter);
+      const { data, error } = await q.order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const getCompany = (row: any) => {
+        const links = row.company_contacts as any[] | null;
+        if (!links?.length) return "";
+        const primary = links.find((l: any) => l.is_primary);
+        return (primary ?? links[0])?.company?.name ?? "";
+      };
+
+      exportToExcel(data ?? [], [
+        { header: "Vorname", accessor: (r: any) => r.first_name },
+        { header: "Nachname", accessor: (r: any) => r.last_name },
+        { header: "Position", accessor: (r: any) => r.job_title },
+        { header: "E-Mail", accessor: (r: any) => r.email },
+        { header: "Telefon", accessor: (r: any) => r.phone },
+        { header: "Mobil", accessor: (r: any) => r.mobile },
+        { header: "Unternehmen", accessor: getCompany },
+        { header: "Quelle", accessor: (r: any) => r.source },
+        { header: "Status", accessor: (r: any) => r.status },
+        { header: "Erstellt am", accessor: (r: any) => r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : "" },
+      ], `contacts_${todayString()}.xlsx`);
+      toast({ title: `${data?.length ?? 0} Contacts exportiert` });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Export fehlgeschlagen", description: err.message });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data: users } = useUsers();
   const { data, isLoading } = useContacts({ search, status: statusFilter, ownerUserId: ownerFilter, page, pageSize: PAGE_SIZE });
