@@ -97,11 +97,16 @@ export default function Contacts() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-section-title text-foreground">Contacts</h1>
-        {canWriteContacts && (
-          <Button onClick={() => setSheetOpen(true)} className="gap-2 w-full sm:w-auto min-h-[44px]">
-            <Plus className="h-4 w-4" /> Neuer Contact
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={handleExport} disabled={exporting} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+            <Download className="h-4 w-4" /> {exporting ? "Exportiert…" : "Exportieren"}
           </Button>
-        )}
+          {canWriteContacts && (
+            <Button onClick={() => setSheetOpen(true)} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
+              <Plus className="h-4 w-4" /> Neuer Contact
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
