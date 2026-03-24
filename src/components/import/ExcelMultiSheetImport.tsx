@@ -85,6 +85,42 @@ const DEAL_COL_MAP: Record<string, string> = {
   erstkontakt_datum: "erstkontakt_datum",
 };
 
+const ALLOWED_IMPORT_SOURCES = new Set([
+  "manual",
+  "csv_import",
+  "excel_import",
+  "email_intake",
+  "referral",
+  "website",
+]);
+
+const IMPORT_SOURCE_ALIASES: Record<string, string> = {
+  csv: "csv_import",
+  csvimport: "csv_import",
+  excel: "excel_import",
+  xlsx: "excel_import",
+  excelimport: "excel_import",
+  import: "excel_import",
+  email: "email_intake",
+  mail: "email_intake",
+  intake: "email_intake",
+  referral: "referral",
+  empfehlung: "referral",
+  website: "website",
+  web: "website",
+  manual: "manual",
+  manuell: "manual",
+};
+
+function normalizeImportSource(value?: string | null) {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return "excel_import";
+  if (ALLOWED_IMPORT_SOURCES.has(normalized)) return normalized;
+
+  const compact = normalized.replace(/[^a-z]/g, "");
+  return IMPORT_SOURCE_ALIASES[compact] ?? "excel_import";
+}
+
 function mapRow(row: Record<string, string>, colMap: Record<string, string>): Record<string, string> {
   const mapped: Record<string, string> = {};
   for (const [rawCol, val] of Object.entries(row)) {
@@ -220,7 +256,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             city: mapped.city || null,
             industry: mapped.industry || null,
             website: mapped.website || null,
-            source: mapped.source || "excel_import",
+            source: normalizeImportSource(mapped.source),
             notes: mapped.notes || null,
             created_by_user_id: user.id,
           }).select("id").single();
@@ -262,7 +298,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             phone: mapped.phone || null,
             mobile: mapped.mobile || null,
             job_title: mapped.job_title || null,
-            source: mapped.source || "excel_import",
+            source: normalizeImportSource(mapped.source),
             created_by_user_id: user.id,
           }).select("id").single();
           if (error) throw error;
