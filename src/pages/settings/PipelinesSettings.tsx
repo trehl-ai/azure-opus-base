@@ -265,6 +265,13 @@ export default function PipelinesSettings() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
+      // Hard-delete any soft-deleted deals still referencing this pipeline (FK cleanup)
+      await supabase
+        .from("deals")
+        .delete()
+        .eq("pipeline_id", deleteTarget.id)
+        .not("deleted_at", "is", null);
+
       const { error: stagesErr } = await supabase
         .from("pipeline_stages").delete().eq("pipeline_id", deleteTarget.id);
       if (stagesErr) throw stagesErr;
@@ -278,6 +285,7 @@ export default function PipelinesSettings() {
       queryClient.invalidateQueries({ queryKey: ["pipelines-all"] });
       queryClient.invalidateQueries({ queryKey: ["pipeline-stages-all"] });
       queryClient.invalidateQueries({ queryKey: ["deal-counts-by-pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["pipelines"] });
     } catch (e: any) {
       toast.error(`Pipeline konnte nicht gelöscht werden: ${e.message}`);
     } finally {

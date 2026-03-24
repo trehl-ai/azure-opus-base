@@ -123,7 +123,13 @@ export default function DealDetail() {
       const { error } = await supabase.from("deals").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
       if (error) throw error;
     },
-    onSuccess: () => { toast({ title: "Deal gelöscht" }); navigate("/deals"); },
+    onSuccess: () => {
+      toast({ title: "Deal gelöscht" });
+      qc.invalidateQueries({ queryKey: ["deals-board"] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["deal", id] });
+      navigate("/deals");
+    },
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
