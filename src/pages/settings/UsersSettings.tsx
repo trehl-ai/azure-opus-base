@@ -255,9 +255,13 @@ export default function UsersSettings() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                          {initials.toUpperCase()}
-                        </AvatarFallback>
+                        {profileImages[u.id] ? (
+                          <AvatarImage src={profileImages[u.id]} alt="Profil" className="object-cover" />
+                        ) : (
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                            {initials.toUpperCase()}
+                          </AvatarFallback>
+                        )}
                       </Avatar>
                       <div>
                         <p className="text-sm font-medium">{u.first_name} {u.last_name}</p>
