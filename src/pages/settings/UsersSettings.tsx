@@ -238,15 +238,16 @@ export default function UsersSettings() {
               <TableHead>Benutzer</TableHead>
               <TableHead>Rolle</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Letzter Login</TableHead>
               <TableHead>Mitglied seit</TableHead>
               <TableHead className="w-[60px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
             ) : filteredUsers.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Keine Benutzer gefunden</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Keine Benutzer gefunden</TableCell></TableRow>
             ) : filteredUsers.map(u => {
               const initials = (u.first_name?.[0] ?? "") + (u.last_name?.[0] ?? "");
               const isSelf = u.id === currentUser?.id;
