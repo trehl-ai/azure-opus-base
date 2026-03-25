@@ -166,15 +166,9 @@ export default function FirstLoginOnboarding() {
 
   const skipMutation = useMutation({
     mutationFn: async () => {
-      const { data: publicUserId } = await supabase.rpc("get_public_user_id", {
-        _auth_user_id: (await supabase.auth.getUser()).data.user!.id,
-      });
-      if (!publicUserId) throw new Error("User-ID Zuordnung fehlgeschlagen");
-      const { error } = await supabase
-        .from("users")
-        .update({ onboarding_completed_at: new Date().toISOString() })
-        .eq("id", publicUserId as string);
-      if (error) throw error;
+      // Don't set onboarding_completed_at — flow will reappear next login
+      // Just set session flag so it doesn't reopen in this session
+      sessionStorage.setItem("onboarding_dismissed", "true");
     },
     onSuccess: () => {
       toast.info("Du kannst dein Profil jederzeit unter Einstellungen → Signatur einrichten.");
