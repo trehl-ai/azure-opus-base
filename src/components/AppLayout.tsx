@@ -69,7 +69,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { data: profileImageUrl } = useProfileImage(user?.id);
 
-  const needsOnboarding = user && !user.onboarding_completed_at;
+  const needsOnboarding = user && !user.onboarding_completed_at && sessionStorage.getItem("onboarding_dismissed") !== "true";
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
