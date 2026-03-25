@@ -132,7 +132,7 @@ export default function FirstLoginOnboarding() {
 
       const { error: sigError } = await supabase
         .from("user_email_signatures")
-        .insert(payload);
+        .upsert(payload, { onConflict: "user_id" });
       if (sigError) throw sigError;
 
       // Update user names if changed
