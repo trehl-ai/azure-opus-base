@@ -392,6 +392,8 @@ export default function Deals() {
                     {stageDeals.map((deal) => {
                       const company = deal.company as { name: string } | null;
                       const owner = deal.owner as { first_name: string; last_name: string } | null;
+                      const contact = deal.primary_contact as { phone: string | null; mobile: string | null } | null;
+                      const dealPhone = contact?.phone || contact?.mobile || null;
                       return (
                         <DealCard
                           key={deal.id}
@@ -401,6 +403,7 @@ export default function Deals() {
                             priority: deal.priority, owner_first_name: owner?.first_name ?? null,
                             owner_last_name: owner?.last_name ?? null,
                             roadshow_eignung: (roadshowMap?.get(deal.id) as RoadshowEignung) ?? null,
+                            phone: dealPhone,
                           }}
                           onDragStart={handleDragStart}
                         />
