@@ -9,6 +9,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateProjectSheet } from "@/components/projects/CreateProjectSheet";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { MainProjectFilter } from "@/components/projects/MainProjectFilter";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -51,9 +52,10 @@ export default function Projects() {
   const [sortCol, setSortCol] = useState<string>("title");
   const [sortAsc, setSortAsc] = useState(true);
   const [mobileStatus, setMobileStatus] = useState<string>("all");
+  const [mainProjectFilter, setMainProjectFilter] = useState("all");
 
   const { data: projects } = useQuery({
-    queryKey: ["projects", statusFilter, ownerFilter, priorityFilter],
+    queryKey: ["projects", statusFilter, ownerFilter, priorityFilter, mainProjectFilter],
     queryFn: async () => {
       let q = supabase
         .from("projects")
@@ -64,6 +66,7 @@ export default function Projects() {
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
       if (effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
       if (priorityFilter !== "all") q = q.eq("priority", priorityFilter);
+      if (mainProjectFilter !== "all") q = q.eq("main_project_id", mainProjectFilter);
       const { data, error } = await q;
       if (error) throw error;
       return data;
@@ -145,6 +148,8 @@ export default function Projects() {
           {canWriteProjects && <Button onClick={() => setSheetOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto"><Plus className="h-4 w-4" /> Neues Projekt</Button>}
         </div>
       </div>
+
+      <MainProjectFilter value={mainProjectFilter} onChange={setMainProjectFilter} />
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
         {isMobile ? (

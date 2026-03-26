@@ -27,6 +27,7 @@ const settingsNav = [
       { label: "Pipelines", path: "/settings/pipelines" },
       { label: "Task-Status", path: "/settings/task-statuses" },
       { label: "Tags", path: "/settings/tags" },
+      { label: "Hauptprojekte", path: "/settings/main-projects" },
       { label: "Deal-Felder", path: "/settings/deal-fields" },
       { label: "Signatur-Template", path: "/settings/signature-template" },
     ],
