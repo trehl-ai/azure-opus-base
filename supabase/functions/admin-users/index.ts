@@ -105,11 +105,12 @@ Deno.serve(async (req) => {
       const redirectTo = redirectBaseUrl ? `${redirectBaseUrl}/auth/set-password` : undefined;
       console.log("Invite redirectTo:", redirectTo);
 
-      // Check if user already exists in auth.users
+      // Check if user already exists in auth.users (listUsers because getUserByEmail doesn't exist)
       let inviteData: any = null;
-      const { data: existingAuthUser } = await adminClient.auth.admin.getUserByEmail(normalizedEmail);
+      const { data: { users: allAuthUsers } } = await adminClient.auth.admin.listUsers();
+      const existingAuthUser = allAuthUsers?.find((u: any) => u.email === normalizedEmail);
 
-      if (existingAuthUser?.user) {
+      if (existingAuthUser) {
         // User already exists in auth — send recovery link instead of invite
         console.log("User already exists in auth.users, generating recovery link for:", normalizedEmail);
         const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
