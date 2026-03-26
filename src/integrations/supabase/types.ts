@@ -1003,6 +1003,50 @@ export type Database = {
           },
         ]
       }
+      main_project_resources: {
+        Row: {
+          created_at: string
+          display_name: string
+          file_name: string | null
+          file_path: string | null
+          id: string
+          main_project_id: string
+          resource_type: string
+          sort_order: number
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          main_project_id: string
+          resource_type: string
+          sort_order?: number
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          main_project_id?: string
+          resource_type?: string
+          sort_order?: number
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "main_project_resources_main_project_id_fkey"
+            columns: ["main_project_id"]
+            isOneToOne: false
+            referencedRelation: "main_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       main_projects: {
         Row: {
           color: string | null
