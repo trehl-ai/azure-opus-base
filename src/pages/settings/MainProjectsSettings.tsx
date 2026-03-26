@@ -92,8 +92,8 @@ export default function MainProjectsSettings() {
       toast({ variant: "destructive", title: "Nur Bilder erlaubt (JPG/PNG)" });
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "Max. 2 MB" });
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "Maximale Dateigröße: 5 MB" });
       return;
     }
     setUploadingId(projectId);
