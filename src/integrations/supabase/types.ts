@@ -1003,6 +1003,39 @@ export type Database = {
           },
         ]
       }
+      main_projects: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_path: string | null
+          image_url: string | null
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_path?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_path?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       pipeline_stages: {
         Row: {
           created_at: string
@@ -1077,6 +1110,54 @@ export type Database = {
         }
         Relationships: []
       }
+      project_resources: {
+        Row: {
+          created_at: string
+          display_name: string
+          file_name: string | null
+          file_path: string | null
+          id: string
+          project_id: string
+          resource_type: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          project_id: string
+          resource_type: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          project_id?: string
+          resource_type?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_resources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "active_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_resources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           company_id: string | null
@@ -1086,6 +1167,7 @@ export type Database = {
           description: string | null
           end_date: string | null
           id: string
+          main_project_id: string | null
           originating_deal_id: string | null
           owner_user_id: string | null
           primary_contact_id: string | null
@@ -1103,6 +1185,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          main_project_id?: string | null
           originating_deal_id?: string | null
           owner_user_id?: string | null
           primary_contact_id?: string | null
@@ -1120,6 +1203,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          main_project_id?: string | null
           originating_deal_id?: string | null
           owner_user_id?: string | null
           primary_contact_id?: string | null
@@ -1149,6 +1233,13 @@ export type Database = {
             columns: ["created_by_user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_main_project_id_fkey"
+            columns: ["main_project_id"]
+            isOneToOne: false
+            referencedRelation: "main_projects"
             referencedColumns: ["id"]
           },
           {
