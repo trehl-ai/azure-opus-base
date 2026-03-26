@@ -359,9 +359,32 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
         }
 
         try {
+          // Resolve primary contact from company_contacts
+          let primaryContactId: string | null = null;
+          if (companyId) {
+            const { data: cc } = await supabase
+              .from("company_contacts")
+              .select("contact_id")
+              .eq("company_id", companyId)
+              .eq("is_primary", true)
+              .limit(1)
+              .maybeSingle();
+            if (cc) primaryContactId = cc.contact_id;
+            if (!primaryContactId) {
+              const { data: ccAny } = await supabase
+                .from("company_contacts")
+                .select("contact_id")
+                .eq("company_id", companyId)
+                .limit(1)
+                .maybeSingle();
+              if (ccAny) primaryContactId = ccAny.contact_id;
+            }
+          }
+
           const { data, error } = await supabase.from("deals").insert({
             title: mapped.title,
             company_id: companyId,
+            primary_contact_id: primaryContactId,
             pipeline_id: pipelineId,
             pipeline_stage_id: stageId,
             source: "excel_import",
