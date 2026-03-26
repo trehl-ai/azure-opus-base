@@ -22,7 +22,7 @@ const settingsNav = [
     ],
   },
   {
-    label: "BOOST-KONFIGURATION",
+    label: "KONFIGURATION",
     items: [
       { label: "Pipelines", path: "/settings/pipelines" },
       { label: "Task-Status", path: "/settings/task-statuses" },
