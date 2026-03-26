@@ -133,7 +133,8 @@ export default function Projects() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      {/* Title row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h1 className="text-[28px] font-semibold text-foreground">Projects</h1>
         <div className="flex items-center gap-2">
           {!isMobile && (
@@ -150,9 +151,18 @@ export default function Projects() {
         </div>
       </div>
 
-      <MainProjectFilter value={mainProjectFilter} onChange={setMainProjectFilter} />
+      {/* Pills + Resources row */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+        <MainProjectFilter value={mainProjectFilter} onChange={setMainProjectFilter} />
+        {!isMobile && mainProjectFilter !== "all" && (
+          <div className="w-[280px] shrink-0">
+            <MainProjectResources mainProjectId={mainProjectFilter} />
+          </div>
+        )}
+      </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
+      {/* Filters row */}
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-6">
         {isMobile ? (
           <Select value={mobileStatus} onValueChange={setMobileStatus}>
             <SelectTrigger className="w-full min-h-[44px]"><SelectValue placeholder="Alle Status" /></SelectTrigger>
