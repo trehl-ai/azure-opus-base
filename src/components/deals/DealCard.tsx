@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
+import { Phone } from "lucide-react";
 import type { RoadshowEignung } from "@/lib/roadshowEignung";
 
 interface DealCardData {
@@ -13,6 +14,7 @@ interface DealCardData {
   owner_first_name: string | null;
   owner_last_name: string | null;
   roadshow_eignung?: RoadshowEignung | null;
+  phone?: string | null;
 }
 
 const priorityDot: Record<string, string> = {
@@ -52,6 +54,16 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
           )}
         </div>
       </div>
+      {deal.phone && (
+        <a
+          href={`tel:${deal.phone}`}
+          onClick={(e) => e.stopPropagation()}
+          className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors truncate"
+        >
+          <Phone className="h-2.5 w-2.5 shrink-0" />
+          <span className="truncate">{deal.phone}</span>
+        </a>
+      )}
       <div className="mt-1.5 flex items-center justify-between">
         {deal.value_amount ? (
           <span className="text-[11px] font-semibold text-foreground">{formatCurrency(deal.value_amount, deal.currency)}</span>
