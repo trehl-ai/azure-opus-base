@@ -12,6 +12,7 @@ import EmailAccountsSettings from "@/pages/settings/EmailAccountsSettings";
 import PlaceholderSettings from "@/pages/settings/PlaceholderSettings";
 import SignatureSettings from "@/pages/settings/SignatureSettings";
 import SignatureTemplateSettings from "@/pages/settings/SignatureTemplateSettings";
+import MainProjectsSettings from "@/pages/settings/MainProjectsSettings";
 
 export default function SettingsPage() {
   return (
@@ -30,6 +31,7 @@ export default function SettingsPage() {
         <Route path="signature" element={<SignatureSettings />} />
         <Route path="signature-template" element={<SignatureTemplateSettings />} />
         <Route path="deal-fields" element={<PlaceholderSettings title="Deal-Felder" />} />
+        <Route path="main-projects" element={<MainProjectsSettings />} />
       </Route>
     </Routes>
   );

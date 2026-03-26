@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EditProjectSheet } from "@/components/projects/EditProjectSheet";
 import { AddTaskDialog } from "@/components/projects/AddTaskDialog";
+import { ProjectResources } from "@/components/projects/ProjectResources";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -200,28 +201,33 @@ export default function ProjectDetail() {
 
         {/* Overview */}
         <TabsContent value="overview" className="mt-4">
-          <div className={cardClass}>
-            {deal && (
-              <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-sm">
-                Entstanden aus Deal: <Link to={`/deals/${deal.id}`} className="font-medium text-primary hover:underline">{deal.title}</Link>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className={cardClass + " lg:col-span-2"}>
+              {deal && (
+                <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-sm">
+                  Entstanden aus Deal: <Link to={`/deals/${deal.id}`} className="font-medium text-primary hover:underline">{deal.title}</Link>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                <Field label="Projektname" value={project.title} />
+                <Field label="Unternehmen" value={company ? <Link to={`/companies/${company.id}`} className="text-primary hover:underline">{company.name}</Link> : "–"} />
+                <Field label="Hauptkontakt" value={contact ? <Link to={`/contacts/${contact.id}`} className="text-primary hover:underline">{contact.first_name} {contact.last_name}</Link> : "–"} />
+                <div>
+                  <p className="text-[12px] font-medium text-muted-foreground mb-1">Status</p>
+                  <Select value={project.status} onValueChange={(v) => statusMutation.mutate(v)}>
+                    <SelectTrigger className="w-[180px] h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>{Object.entries(statusLabel).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <Field label="Priorität" value={<span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-medium", priorityBadge[project.priority ?? "medium"])}>{project.priority ?? "medium"}</span>} />
+                <Field label="Owner" value={owner ? `${owner.first_name} ${owner.last_name}` : "–"} />
+                <Field label="Startdatum" value={project.start_date ? format(new Date(project.start_date), "dd.MM.yyyy") : "–"} />
+                <Field label="Enddatum" value={project.end_date ? format(new Date(project.end_date), "dd.MM.yyyy") : "–"} />
+                {project.description && <div className="col-span-2"><Field label="Beschreibung" value={project.description} /></div>}
               </div>
-            )}
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-              <Field label="Projektname" value={project.title} />
-              <Field label="Unternehmen" value={company ? <Link to={`/companies/${company.id}`} className="text-primary hover:underline">{company.name}</Link> : "–"} />
-              <Field label="Hauptkontakt" value={contact ? <Link to={`/contacts/${contact.id}`} className="text-primary hover:underline">{contact.first_name} {contact.last_name}</Link> : "–"} />
-              <div>
-                <p className="text-[12px] font-medium text-muted-foreground mb-1">Status</p>
-                <Select value={project.status} onValueChange={(v) => statusMutation.mutate(v)}>
-                  <SelectTrigger className="w-[180px] h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(statusLabel).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <Field label="Priorität" value={<span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-medium", priorityBadge[project.priority ?? "medium"])}>{project.priority ?? "medium"}</span>} />
-              <Field label="Owner" value={owner ? `${owner.first_name} ${owner.last_name}` : "–"} />
-              <Field label="Startdatum" value={project.start_date ? format(new Date(project.start_date), "dd.MM.yyyy") : "–"} />
-              <Field label="Enddatum" value={project.end_date ? format(new Date(project.end_date), "dd.MM.yyyy") : "–"} />
-              {project.description && <div className="col-span-2"><Field label="Beschreibung" value={project.description} /></div>}
+            </div>
+            <div>
+              <ProjectResources projectId={id!} />
             </div>
           </div>
         </TabsContent>

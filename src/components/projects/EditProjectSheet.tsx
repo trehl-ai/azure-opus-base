@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
+import { useMainProjects } from "@/hooks/queries/useMainProjects";
 import { useToast } from "@/hooks/use-toast";
 import { useConflictCheck } from "@/hooks/useConflictCheck";
 import { ConflictWarning } from "@/components/shared/ConflictWarning";
@@ -28,6 +29,7 @@ interface ProjectData {
   description: string | null;
   start_date: string | null;
   end_date: string | null;
+  main_project_id?: string | null;
 }
 
 interface Props {
@@ -40,13 +42,14 @@ const statuses = ["new", "planned", "in_progress", "blocked", "review", "complet
 
 export function EditProjectSheet({ project, open, onOpenChange }: Props) {
   const { data: users } = useUsers();
+  const { data: mainProjects } = useMainProjects();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { captureTimestamp, checkConflict, dismissConflict, hasConflict } = useConflictCheck("projects", project.id);
 
   const [form, setForm] = useState({
     title: "", status: "new", priority: "medium", owner_user_id: "", description: "",
-    company_id: "", primary_contact_id: "",
+    company_id: "", primary_contact_id: "", main_project_id: "",
   });
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
@@ -58,6 +61,7 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
         title: project.title, status: project.status, priority: project.priority ?? "medium",
         owner_user_id: project.owner_user_id ?? "", description: project.description ?? "",
         company_id: project.company_id ?? "", primary_contact_id: project.primary_contact_id ?? "",
+        main_project_id: project.main_project_id ?? "",
       });
       setStartDate(project.start_date ? new Date(project.start_date) : undefined);
       setEndDate(project.end_date ? new Date(project.end_date) : undefined);
@@ -93,7 +97,8 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
         primary_contact_id: form.primary_contact_id || null,
         start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
-      }).eq("id", project.id);
+        main_project_id: form.main_project_id || null,
+      } as any).eq("id", project.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -120,6 +125,19 @@ export function EditProjectSheet({ project, open, onOpenChange }: Props) {
             <Label>Projektname</Label>
             <Input value={form.title} onChange={(e) => u("title", e.target.value)} />
           </div>
+          {/* Main Project */}
+          {mainProjects && mainProjects.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Hauptprojekt</Label>
+              <Select value={form.main_project_id || "none"} onValueChange={(v) => u("main_project_id", v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Keins" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Keins</SelectItem>
+                  {mainProjects.map((mp) => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Unternehmen</Label>
             {selectedCompany || form.company_id ? (
