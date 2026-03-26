@@ -150,7 +150,7 @@ export default function Deals() {
     queryFn: async () => {
       let q = supabase
         .from("deals")
-        .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
+        .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile)")
         .eq("pipeline_id", activePipelineId)
         .is("deleted_at", null);
 
@@ -392,6 +392,8 @@ export default function Deals() {
                     {stageDeals.map((deal) => {
                       const company = deal.company as { name: string } | null;
                       const owner = deal.owner as { first_name: string; last_name: string } | null;
+                      const contact = deal.primary_contact as { phone: string | null; mobile: string | null } | null;
+                      const dealPhone = contact?.phone || contact?.mobile || null;
                       return (
                         <DealCard
                           key={deal.id}
@@ -401,6 +403,7 @@ export default function Deals() {
                             priority: deal.priority, owner_first_name: owner?.first_name ?? null,
                             owner_last_name: owner?.last_name ?? null,
                             roadshow_eignung: (roadshowMap?.get(deal.id) as RoadshowEignung) ?? null,
+                            phone: dealPhone,
                           }}
                           onDragStart={handleDragStart}
                         />
