@@ -105,18 +105,44 @@ Deno.serve(async (req) => {
       const redirectTo = redirectBaseUrl ? `${redirectBaseUrl}/auth/set-password` : undefined;
       console.log("Invite redirectTo:", redirectTo);
 
-      // Invite user via Supabase Auth using service-role admin client
-      const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(normalizedEmail, {
-        data: { first_name, last_name },
-        redirectTo,
-      });
+      // Check if user already exists in auth.users
+      let inviteData: any = null;
+      const { data: existingAuthUser } = await adminClient.auth.admin.getUserByEmail(normalizedEmail);
 
-      if (inviteError) {
-        console.error("Invite error:", inviteError);
-        return new Response(JSON.stringify({ error: inviteError.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (existingAuthUser?.user) {
+        // User already exists in auth — send recovery link instead of invite
+        console.log("User already exists in auth.users, generating recovery link for:", normalizedEmail);
+        const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+          type: "recovery",
+          email: normalizedEmail,
+          options: { redirectTo },
         });
+
+        if (linkError) {
+          console.error("Recovery link error:", linkError);
+          return new Response(JSON.stringify({ error: linkError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        inviteData = linkData;
+        console.log("Recovery link generated successfully for:", normalizedEmail);
+      } else {
+        // New user — use standard invite
+        console.log("New user, sending invite for:", normalizedEmail);
+        const { data: freshInvite, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(normalizedEmail, {
+          data: { first_name, last_name },
+          redirectTo,
+        });
+
+        if (inviteError) {
+          console.error("Invite error:", inviteError);
+          return new Response(JSON.stringify({ error: inviteError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        inviteData = freshInvite;
       }
 
       const invitedAt = new Date().toISOString();
