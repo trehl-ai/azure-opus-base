@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUsers } from "@/hooks/useUsers";
+import { useMainProjects } from "@/hooks/queries/useMainProjects";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -24,12 +25,13 @@ interface Props {
 export function CreateProjectSheet({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { data: users } = useUsers();
+  const { data: mainProjects } = useMainProjects();
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const [form, setForm] = useState({
     title: "", company_id: "", primary_contact_id: "", status: "new",
-    priority: "medium", owner_user_id: "", description: "",
+    priority: "medium", owner_user_id: "", description: "", main_project_id: "",
   });
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
@@ -85,7 +87,8 @@ export function CreateProjectSheet({ open, onOpenChange }: Props) {
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
         description: form.description.trim() || null,
         created_by_user_id: user?.id ?? null,
-      });
+        main_project_id: form.main_project_id || null,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -97,7 +100,7 @@ export function CreateProjectSheet({ open, onOpenChange }: Props) {
   });
 
   const resetAndClose = () => {
-    setForm({ title: "", company_id: "", primary_contact_id: "", status: "new", priority: "medium", owner_user_id: "", description: "" });
+    setForm({ title: "", company_id: "", primary_contact_id: "", status: "new", priority: "medium", owner_user_id: "", description: "", main_project_id: "" });
     setStartDate(undefined); setEndDate(undefined); setCompanySearch(""); setContactSearch(""); setTitleError("");
     onOpenChange(false);
   };
@@ -112,6 +115,19 @@ export function CreateProjectSheet({ open, onOpenChange }: Props) {
             <Input value={form.title} onChange={(e) => u("title", e.target.value)} placeholder="z.B. Website Relaunch" className={titleError ? "border-destructive" : ""} />
             {titleError && <p className="text-[12px] text-destructive">{titleError}</p>}
           </div>
+          {/* Main Project */}
+          {mainProjects && mainProjects.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Hauptprojekt</Label>
+              <Select value={form.main_project_id} onValueChange={(v) => u("main_project_id", v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Keins" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Keins</SelectItem>
+                  {mainProjects.map((mp) => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {/* Company */}
           <div className="space-y-1.5">
             <Label>Unternehmen</Label>
