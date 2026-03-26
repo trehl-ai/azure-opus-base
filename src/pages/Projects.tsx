@@ -10,6 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateProjectSheet } from "@/components/projects/CreateProjectSheet";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { MainProjectFilter } from "@/components/projects/MainProjectFilter";
+import { MainProjectResources } from "@/components/projects/MainProjectResources";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
