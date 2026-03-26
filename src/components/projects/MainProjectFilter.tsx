@@ -14,7 +14,7 @@ export function MainProjectFilter({ value, onChange }: Props) {
   if (!mainProjects || mainProjects.length === 0) return null;
 
   const pillBase =
-    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer select-none";
+    "flex items-center gap-1.5 rounded-full px-3 py-1.5 h-8 text-sm font-medium transition-colors cursor-pointer select-none";
   const pillActive = "bg-primary text-primary-foreground shadow-sm";
   const pillInactive =
     "border border-border bg-background text-muted-foreground hover:bg-muted/60";
