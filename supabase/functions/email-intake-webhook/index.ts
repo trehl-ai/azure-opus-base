@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       sender_email: typeof fromEmail === "string" ? fromEmail : JSON.stringify(fromEmail),
       subject: subject,
       raw_body: rawBody,
-      status: "pending",
+      status: "new",
       received_at: new Date().toISOString(),
       parsed_payload_json: {
         event_type: eventType,
