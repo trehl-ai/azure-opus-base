@@ -190,10 +190,10 @@ export default function ImportJobDetailDialog({ job, open, onOpenChange }: Props
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="fehler" className="gap-1.5">
-                <XCircle className="h-3.5 w-3.5" /> Fehler ({failedRows.length})
+                <XCircle className="h-3.5 w-3.5" /> Fehler ({failedRows.length || (job.failed_rows ?? 0)})
               </TabsTrigger>
               <TabsTrigger value="erfolgreich" className="gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Erfolgreich ({successRows.length})
+                <CheckCircle2 className="h-3.5 w-3.5" /> Erfolgreich ({successRows.length || (job.success_rows ?? 0)})
               </TabsTrigger>
               <TabsTrigger value="duplikate" className="gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" /> Duplikate ({duplicateRows.length})
