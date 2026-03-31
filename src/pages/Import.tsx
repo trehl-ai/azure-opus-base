@@ -788,6 +788,11 @@ export default function Import() {
           </TableBody>
         </Table>
       </div>
+      <ImportJobDetailDialog
+        job={selectedJob}
+        open={!!selectedJob}
+        onOpenChange={(open) => { if (!open) setSelectedJob(null); }}
+      />
     </div>
   );
 }
