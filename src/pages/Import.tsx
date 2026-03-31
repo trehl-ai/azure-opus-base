@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import ExcelMultiSheetImport from "@/components/import/ExcelMultiSheetImport";
+import ImportJobDetailDialog from "@/components/import/ImportJobDetailDialog";
 
 type ImportType = "companies" | "contacts";
 type WizardStep = "upload" | "mapping" | "preview" | "importing" | "result";
