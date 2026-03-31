@@ -138,18 +138,18 @@ export default function ImportJobDetailDialog({ job, open, onOpenChange }: Props
           </DialogTitle>
         </DialogHeader>
 
-        {/* Summary */}
+        {/* Summary — use job-level counts, fall back to row-level if available */}
         <div className="grid grid-cols-4 gap-3">
           <div className="rounded-xl bg-muted/50 p-3 text-center">
             <p className="text-xl font-bold text-foreground">{job.total_rows ?? 0}</p>
             <p className="text-[11px] text-muted-foreground">Gesamt</p>
           </div>
           <div className="rounded-xl bg-success/10 p-3 text-center">
-            <p className="text-xl font-bold text-success">{job.success_rows ?? 0}</p>
+            <p className="text-xl font-bold text-success">{successRows.length || (job.success_rows ?? 0)}</p>
             <p className="text-[11px] text-success">Erfolgreich</p>
           </div>
           <div className="rounded-xl bg-destructive/10 p-3 text-center">
-            <p className="text-xl font-bold text-destructive">{failedRows.length}</p>
+            <p className="text-xl font-bold text-destructive">{failedRows.length || (job.failed_rows ?? 0)}</p>
             <p className="text-[11px] text-destructive">Fehlerhaft</p>
           </div>
           <div className="rounded-xl bg-warning/10 p-3 text-center">
@@ -190,10 +190,10 @@ export default function ImportJobDetailDialog({ job, open, onOpenChange }: Props
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="fehler" className="gap-1.5">
-                <XCircle className="h-3.5 w-3.5" /> Fehler ({failedRows.length})
+                <XCircle className="h-3.5 w-3.5" /> Fehler ({failedRows.length || (job.failed_rows ?? 0)})
               </TabsTrigger>
               <TabsTrigger value="erfolgreich" className="gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Erfolgreich ({successRows.length})
+                <CheckCircle2 className="h-3.5 w-3.5" /> Erfolgreich ({successRows.length || (job.success_rows ?? 0)})
               </TabsTrigger>
               <TabsTrigger value="duplikate" className="gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" /> Duplikate ({duplicateRows.length})
