@@ -116,6 +116,7 @@ export default function Import() {
   const [importResult, setImportResult] = useState<{ success: number; failed: number; duplicate: number } | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
 
   // Past imports
   const { data: pastImports } = useQuery({
