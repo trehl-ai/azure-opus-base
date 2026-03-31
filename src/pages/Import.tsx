@@ -775,7 +775,7 @@ export default function Import() {
             {!pastImports || pastImports.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Noch keine Imports durchgeführt.</TableCell></TableRow>
             ) : pastImports.map((job) => (
-              <TableRow key={job.id}>
+              <TableRow key={job.id} className="cursor-pointer" onClick={() => setSelectedJob(job)}>
                 <TableCell className="font-medium">{job.file_name}</TableCell>
                 <TableCell className="capitalize">{job.import_type}</TableCell>
                 <TableCell><span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-medium", statusBadge[job.status])}>{job.status}</span></TableCell>
