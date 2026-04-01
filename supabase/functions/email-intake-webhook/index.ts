@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json();
     console.log("Webhook received, type:", payload?.type);
+    console.log("Payload keys:", JSON.stringify(Object.keys(payload?.data ?? {})));
 
     const data = payload?.data ?? {};
 
@@ -58,54 +59,47 @@ Deno.serve(async (req) => {
         : data.envelope?.to) ??
       "";
     const subject = data.subject ?? "";
-
-    // 2. Extract email_id
     const emailId = data.email_id ?? data.id ?? "";
+
     console.log("email_id:", emailId);
+    console.log("from:", typeof fromEmail === "string" ? fromEmail : JSON.stringify(fromEmail));
+    console.log("subject:", subject);
 
-    // 3. Fetch full email content from Resend API
-    let bodyText = "";
-    let bodyHtml = "";
+    // 2. Extract body directly from webhook payload (Resend inbound delivers html/text inline)
+    let bodyText = data.text ?? "";
+    let bodyHtml = data.html ?? "";
 
-    if (emailId) {
+    console.log("body_text from webhook, length:", bodyText.length);
+    console.log("body_html from webhook, length:", bodyHtml.length);
+
+    // 3. If webhook didn't include body, try Resend API as fallback
+    if (!bodyText && !bodyHtml && emailId) {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      console.log("RESEND_API_KEY present:", !!resendApiKey);
-      console.log("RESEND_API_KEY length:", resendApiKey?.length ?? 0);
-
       if (resendApiKey) {
         try {
-          console.log(`Fetching from Resend API: https://api.resend.com/emails/${emailId}`);
+          console.log("No body in webhook, trying Resend API fallback...");
           const res = await fetch(
             `https://api.resend.com/emails/${emailId}`,
             {
               method: "GET",
-              headers: {
-                "Authorization": `Bearer ${resendApiKey}`,
-              },
+              headers: { "Authorization": `Bearer ${resendApiKey}` },
             }
           );
-
           console.log("Resend API response status:", res.status);
-
           if (res.ok) {
             const emailData = await res.json();
             bodyText = emailData.text ?? "";
             bodyHtml = emailData.html ?? "";
-            console.log("body_text length:", bodyText.length);
-            console.log("body_html length:", bodyHtml.length);
+            console.log("Fallback body_text length:", bodyText.length);
+            console.log("Fallback body_html length:", bodyHtml.length);
           } else {
             const errorBody = await res.text();
-            console.error(`Resend API error: ${res.status} ${res.statusText}`);
-            console.error("Resend API error body:", errorBody);
+            console.error("Resend API error:", res.status, errorBody);
           }
         } catch (fetchErr) {
           console.error("Resend API fetch failed:", fetchErr);
         }
-      } else {
-        console.error("RESEND_API_KEY is not set in environment!");
       }
-    } else {
-      console.warn("No email_id found in webhook payload");
     }
 
     // 4. Build raw_body: prefer text, fall back to HTML→text
