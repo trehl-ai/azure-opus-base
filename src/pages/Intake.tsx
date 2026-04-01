@@ -244,6 +244,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   });
 
   const [form, setForm] = useState<FormData>({ ...emptyForm });
+  const [extractionSource, setExtractionSource] = useState<ExtractionSource>("manual");
   const [createCompany, setCreateCompany] = useState(true);
   const [createContact, setCreateContact] = useState(true);
   const [createDeal, setCreateDeal] = useState(true);
@@ -257,13 +258,39 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   const { data: pipelines } = usePipelines();
   const { data: stages } = usePipelineStages(selectedPipelineId || undefined);
 
-  // Initialize form — all fields empty, only deal_title = cleaned subject
+  // Initialize form with parser results
   useEffect(() => {
     if (!message) return;
+
+    // Get email body
+    const payload = message.parsed_payload_json as Record<string, unknown> | null;
+    let bodyText = message.raw_body || "";
+    let bodyHtml = "";
+    if (payload) {
+      if (!bodyText) bodyText = (payload.body_text as string) || "";
+      bodyHtml = (payload.body_html as string) || "";
+    }
+
+    // Run parser
+    const parsed = parseEmailBody(bodyText, bodyHtml, message.sender_email ?? undefined);
+
     setForm({
-      ...emptyForm,
+      company_name: parsed.company_name,
+      company_industry: "",
+      company_website: parsed.website,
+      company_city: "",
+      company_address: parsed.address,
+      contact_first_name: parsed.first_name,
+      contact_last_name: parsed.last_name,
+      contact_email: parsed.email,
+      contact_phone: parsed.phone,
+      contact_mobile: parsed.mobile,
+      contact_job_title: parsed.job_title,
       deal_title: cleanSubject(message.subject),
+      deal_value: "",
+      notes: parsed.notes,
     });
+    setExtractionSource(parsed.extraction_source);
     setCreateCompany(true);
     setCreateContact(true);
     setCreateDeal(true);
