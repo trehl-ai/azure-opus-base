@@ -16,11 +16,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake } from "lucide-react";
+import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake, Mail, Forward } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import { parseEmailBody, splitFullName } from "@/lib/intakeParser";
+import { parseEmailBody, splitFullName, type ExtractionSource } from "@/lib/intakeParser";
 
 const statusBadge: Record<string, string> = {
   new: "bg-secondary text-secondary-foreground",
@@ -38,9 +38,22 @@ const statusLabel: Record<string, string> = {
 interface ParsedPayload {
   company_name?: string; company_industry?: string; company_website?: string; company_city?: string;
   company_address?: string;
-  contact_first_name?: string; contact_last_name?: string; contact_email?: string; contact_phone?: string; contact_job_title?: string;
+  contact_first_name?: string; contact_last_name?: string; contact_email?: string; contact_phone?: string; contact_mobile?: string; contact_job_title?: string;
   deal_title?: string; deal_value?: string; notes?: string;
   suggested_pipeline?: string; suggested_stage?: string;
+  extraction_source?: ExtractionSource;
+  forwarder_email?: string;
+}
+
+/* ── Extraction Source Badge ── */
+function ExtractionSourceBadge({ source }: { source?: ExtractionSource }) {
+  if (!source || source === "manual") {
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">Manuell eingeben</span>;
+  }
+  if (source === "signature") {
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-success/10 text-success">Aus Signatur extrahiert</span>;
+  }
+  return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary">Aus Schlüsselwörtern extrahiert</span>;
 }
 
 export default function Intake() {
@@ -149,7 +162,7 @@ Notiz: [Freitext]
 ---`}
             </pre>
           </div>
-          <p className="text-muted-foreground">Freitext wird ebenfalls akzeptiert — Felder können dann manuell befüllt werden.</p>
+          <p className="text-muted-foreground">Weitergeleitete E-Mails mit Signaturen werden automatisch erkannt.</p>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -165,8 +178,8 @@ function SimulateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
   const mutation = useMutation({
     mutationFn: async () => {
-      // Parse the body using rule-based parser
-      const parsed = parseEmailBody(form.raw_body);
+      // Parse the body using the enhanced parser
+      const parsed = parseEmailBody(form.raw_body, undefined, form.sender_email || undefined);
       const { firstName, lastName } = splitFullName(parsed.full_name);
 
       const payload: ParsedPayload = {
@@ -175,13 +188,16 @@ function SimulateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
         company_address: parsed.address || undefined,
         contact_first_name: firstName || undefined,
         contact_last_name: lastName || undefined,
-        contact_email: parsed.email || form.sender_email || undefined,
+        contact_email: parsed.email || undefined,
         contact_phone: parsed.phone || undefined,
+        contact_mobile: parsed.mobile || undefined,
         contact_job_title: parsed.job_title || undefined,
         deal_title: parsed.company_name ? `Deal – ${parsed.company_name}` : (form.subject || undefined),
         notes: parsed.notes || undefined,
         suggested_pipeline: parsed.suggested_pipeline || undefined,
         suggested_stage: parsed.suggested_stage || undefined,
+        extraction_source: parsed.extraction_source,
+        forwarder_email: parsed.forwarder_email || undefined,
       };
 
       const { error } = await supabase.from("intake_messages").insert({
@@ -207,14 +223,14 @@ function SimulateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Intake simulieren</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Gib E-Mail-Daten ein. Die Felder werden automatisch aus dem Body extrahiert.</p>
+          <p className="text-sm text-muted-foreground">Gib E-Mail-Daten ein. Signaturen in weitergeleiteten Mails werden automatisch erkannt.</p>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><Label>Absender-E-Mail</Label><Input value={form.sender_email} onChange={(e) => u("sender_email", e.target.value)} placeholder="max@firma.de" /></div>
-            <div className="space-y-1"><Label>Betreff</Label><Input value={form.subject} onChange={(e) => u("subject", e.target.value)} placeholder="Anfrage Roadshow" /></div>
+            <div className="space-y-1"><Label>Absender-E-Mail (Weiterleiter)</Label><Input value={form.sender_email} onChange={(e) => u("sender_email", e.target.value)} placeholder="gf@eo-ipso.com" /></div>
+            <div className="space-y-1"><Label>Betreff</Label><Input value={form.subject} onChange={(e) => u("subject", e.target.value)} placeholder="Fwd: Zusammenarbeit" /></div>
           </div>
           <div className="space-y-1">
             <Label>E-Mail-Text (Body)</Label>
-            <Textarea value={form.raw_body} onChange={(e) => u("raw_body", e.target.value)} rows={8} placeholder={`Firma: Muster GmbH\nAnsprechpartner: Max Mustermann\nPosition: Geschäftsführer\nE-Mail: max@muster.de\nTelefon: 030 12345\nPipeline: VR Stiftungen\nNotiz: Interesse an Roadshow im Herbst`} />
+            <Textarea value={form.raw_body} onChange={(e) => u("raw_body", e.target.value)} rows={10} placeholder={`-------- Weitergeleitete Nachricht --------\nVon: Max Müller <max@musterfirma.de>\nBetreff: Zusammenarbeit\n\nSehr geehrte Damen und Herren,\nwir sind interessiert an einer Zusammenarbeit.\n\nMit freundlichen Grüßen\n\nMax Müller\nGeschäftsführer\nMusterfirma GmbH\nTel: +49 89 123456\nmax@musterfirma.de\nwww.musterfirma.de`} />
           </div>
           <div className="flex gap-3 pt-2">
             <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Erstellen…" : "Erstellen & Parsen"}</Button>
@@ -261,11 +277,12 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
     if (!message) return;
 
     const existingParsed = (message.parsed_payload_json ?? {}) as ParsedPayload;
+    const bodyHtml = (existingParsed as any)?.body_html ?? "";
 
     // If body exists but parsed data is empty, re-parse
     let parsed = existingParsed;
     if (message.raw_body && !existingParsed.company_name && !existingParsed.contact_first_name) {
-      const bodyParsed = parseEmailBody(message.raw_body);
+      const bodyParsed = parseEmailBody(message.raw_body, bodyHtml, message.sender_email ?? undefined);
       const { firstName, lastName } = splitFullName(bodyParsed.full_name);
       parsed = {
         company_name: bodyParsed.company_name || undefined,
@@ -273,20 +290,20 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
         company_address: bodyParsed.address || undefined,
         contact_first_name: firstName || undefined,
         contact_last_name: lastName || undefined,
-        contact_email: bodyParsed.email || message.sender_email || undefined,
+        contact_email: bodyParsed.email || undefined,
         contact_phone: bodyParsed.phone || undefined,
+        contact_mobile: bodyParsed.mobile || undefined,
         contact_job_title: bodyParsed.job_title || undefined,
         deal_title: bodyParsed.company_name ? `Deal – ${bodyParsed.company_name}` : (message.subject || undefined),
         notes: bodyParsed.notes || undefined,
         suggested_pipeline: bodyParsed.suggested_pipeline || undefined,
         suggested_stage: bodyParsed.suggested_stage || undefined,
+        extraction_source: bodyParsed.extraction_source,
+        forwarder_email: bodyParsed.forwarder_email || message.sender_email || undefined,
       };
     }
 
-    // Fallbacks for unstructured emails
-    if (!parsed.contact_email && message.sender_email) {
-      parsed.contact_email = message.sender_email;
-    }
+    // Do NOT fall back to sender_email as contact_email (the sender is the forwarder)
     if (!parsed.deal_title && message.subject) {
       parsed.deal_title = message.subject;
     }
@@ -301,12 +318,15 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
       contact_last_name: parsed.contact_last_name ?? "",
       contact_email: parsed.contact_email ?? "",
       contact_phone: parsed.contact_phone ?? "",
+      contact_mobile: parsed.contact_mobile ?? "",
       contact_job_title: parsed.contact_job_title ?? "",
       deal_title: parsed.deal_title ?? "",
       deal_value: parsed.deal_value ?? "",
       notes: parsed.notes ?? "",
       suggested_pipeline: parsed.suggested_pipeline ?? "",
       suggested_stage: parsed.suggested_stage ?? "",
+      extraction_source: parsed.extraction_source ?? "manual",
+      forwarder_email: parsed.forwarder_email ?? message?.sender_email ?? "",
     });
     setCreateCompany(true);
     setCreateContact(true);
@@ -341,7 +361,6 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
       const match = stages.find((s) => s.name.toLowerCase().includes(form.suggested_stage!.toLowerCase()));
       if (match) { setSelectedStageId(match.id); return; }
     }
-    // Default to first open stage
     const openStage = stages.find((s) => s.stage_type === "open");
     setSelectedStageId(openStage?.id ?? stages[0].id);
   }, [stages, form.suggested_stage]);
@@ -403,6 +422,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
           const { data, error } = await supabase.from("contacts").insert({
             first_name: form.contact_first_name, last_name: form.contact_last_name,
             email: form.contact_email || null, phone: form.contact_phone || null,
+            mobile: form.contact_mobile || null,
             job_title: form.contact_job_title || null,
             source: "email_intake", created_by_user_id: user?.id ?? null,
           }).select("id").single();
@@ -530,6 +550,19 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
 
             {/* RIGHT: Editable Form */}
             <div className="space-y-5">
+              {/* Extraction source + forwarder info */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <ExtractionSourceBadge source={form.extraction_source} />
+                </div>
+                {form.forwarder_email && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Forward className="h-3 w-3" />
+                    <span>Weitergeleitet von: <span className="font-medium">{form.forwarder_email}</span></span>
+                  </div>
+                )}
+              </div>
+
               {/* Duplicate warnings */}
               {duplicateCompany && createCompany && !isReadOnly && (
                 <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm">
@@ -571,6 +604,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
                   <div className="space-y-1 col-span-2"><Label className="text-xs">Name</Label><Input value={form.company_name ?? ""} onChange={(e) => u("company_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                   <div className="space-y-1"><Label className="text-xs">Website</Label><Input value={form.company_website ?? ""} onChange={(e) => u("company_website", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                   <div className="space-y-1"><Label className="text-xs">Branche</Label><Input value={form.company_industry ?? ""} onChange={(e) => u("company_industry", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1 col-span-2"><Label className="text-xs">Adresse</Label><Input value={form.company_address ?? ""} onChange={(e) => u("company_address", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                 </div>
               </div>
 
@@ -590,7 +624,8 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
                   <div className="space-y-1"><Label className="text-xs">Nachname</Label><Input value={form.contact_last_name ?? ""} onChange={(e) => u("contact_last_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                   <div className="space-y-1"><Label className="text-xs">E-Mail</Label><Input value={form.contact_email ?? ""} onChange={(e) => u("contact_email", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                   <div className="space-y-1"><Label className="text-xs">Telefon</Label><Input value={form.contact_phone ?? ""} onChange={(e) => u("contact_phone", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1 col-span-2"><Label className="text-xs">Position</Label><Input value={form.contact_job_title ?? ""} onChange={(e) => u("contact_job_title", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Mobil</Label><Input value={form.contact_mobile ?? ""} onChange={(e) => u("contact_mobile", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Position</Label><Input value={form.contact_job_title ?? ""} onChange={(e) => u("contact_job_title", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                 </div>
               </div>
 
