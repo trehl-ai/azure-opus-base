@@ -166,6 +166,19 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["subtasks", taskId] }); invalidateAll(); },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Task gelöscht" });
+      invalidateAll();
+      onOpenChange(false);
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
+  });
+
   const project = task?.project as { id: string; title: string } | null;
   const creator = task?.creator as { first_name: string; last_name: string } | null;
 
