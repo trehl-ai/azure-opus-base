@@ -365,6 +365,7 @@ export default function Tasks() {
       </Sheet>
 
       <TaskDetailSheet taskId={selectedTaskId} open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }} />
+      <CreateTaskSheet open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }
