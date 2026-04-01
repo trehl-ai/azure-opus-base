@@ -17,6 +17,7 @@ import { LayoutGrid, List, Plus } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay, endOfWeek, startOfWeek, addWeeks } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
+import { CreateTaskSheet } from "@/components/tasks/CreateTaskSheet";
 
 const priorityDot: Record<string, string> = { low: "bg-muted-foreground", medium: "bg-warning", high: "bg-destructive" };
 const priorityBadge: Record<string, string> = {
