@@ -4,11 +4,13 @@
  * from forwarded emails. No AI, no external API — pure regex/string matching.
  */
 
-export type ExtractionSource = "signature" | "keyword" | "manual";
+export type ExtractionSource = "forwarded" | "signature" | "keyword" | "manual";
 
 export interface IntakeParsedData {
   company_name: string;
   full_name: string;
+  first_name: string;
+  last_name: string;
   job_title: string;
   email: string;
   phone: string;
@@ -43,11 +45,19 @@ const KEYWORD_MAP: KeywordGroup[] = [
   { field: "suggested_stage", keywords: ["stage:", "phase:", "stufe:"] },
 ];
 
-/** Patterns that indicate the start of a signature or forwarded-message block */
-const SIGNATURE_SEPARATORS = [
-  /^--\s*$/,                              // -- alone
-  /^_{3,}\s*$/,                           // ___ underscores
-  /^-{3,}\s*$/,                           // --- dashes
+/** Patterns that indicate the start of a forwarded message block */
+const FORWARD_HEADER_PATTERNS = [
+  /^-{5,}\s*forwarded\s*message\s*-{5,}/i,
+  /^-{5,}\s*weitergeleitete\s*nachricht\s*-{4,}/i,
+  /^begin forwarded message/i,
+  /weitergeleitete nachricht/i,
+  /forwarded message/i,
+  /original message/i,
+  /ursprüngliche nachricht/i,
+];
+
+/** Greeting patterns that indicate start of signature */
+const GREETING_PATTERNS = [
   /^mit freundlichen grüßen/i,
   /^mit besten grüßen/i,
   /^freundliche grüße/i,
@@ -57,27 +67,23 @@ const SIGNATURE_SEPARATORS = [
   /^regards,?\s*$/i,
   /^viele grüße/i,
   /^liebe grüße/i,
+  /^lieben gruß/i,
   /^herzliche grüße/i,
   /^mfg\s*$/i,
-  /^gesendet von[: ]/i,
-  /^sent from[: ]/i,
-  /^von:\s+/i,
-  /^from:\s+/i,
 ];
 
-/** Patterns that indicate a forwarded message header */
-const FORWARD_HEADER_PATTERNS = [
-  /weitergeleitete nachricht/i,
-  /forwarded message/i,
-  /original message/i,
-  /ursprüngliche nachricht/i,
-  /^-{5,}\s*forwarded/i,
-  /^-{5,}\s*weitergeleitete/i,
-  /^begin forwarded message/i,
+/** Signature separator patterns */
+const SIGNATURE_SEPARATORS = [
+  /^--\s*$/,
+  /^_{3,}\s*$/,
+  /^-{3,}\s*$/,
+  ...GREETING_PATTERNS,
+  /^gesendet von[: ]/i,
+  /^sent from[: ]/i,
 ];
 
 /** Company suffixes to detect company lines */
-const COMPANY_SUFFIXES = /\b(gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft)\b/i;
+const COMPANY_SUFFIXES = /\b(gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft|group)\b/i;
 
 /** Job title keywords */
 const JOB_TITLE_KEYWORDS = /\b(geschäftsführer|geschäftsführerin|ceo|cto|cfo|coo|cmo|managing\s*director|director|vorstand|vorsitzender|vorsitzende|leiter|leiterin|manager|managerin|head\s+of|vp|vice\s*president|partner|inhaber|inhaberin|prokurist|prokuristin|referent|referentin|sachbearbeiter|sachbearbeiterin|assistent|assistentin|sekretär|sekretärin|berater|beraterin|consultant|koordinator|koordinatorin|projektleiter|projektleiterin|abteilungsleiter|abteilungsleiterin|präsident|präsidentin|schatzmeister|schatzmeisterin|kurator|kuratorin|stifter|stifterin)\b/i;
@@ -97,7 +103,7 @@ const SOCIAL_URL_RE = /(?:linkedin\.com|xing\.com|twitter\.com|x\.com|facebook\.
 /** Street + house number pattern (German/Austrian) */
 const STREET_RE = /[A-ZÄÖÜ][a-zäöüß]+(?:straße|str\.|weg|gasse|allee|platz|ring|damm|ufer|chaussee|promenade|steig|stieg|berg|feld|hof|grund|park|anger|markt)\s+\d+[a-zA-Z]?/i;
 
-/** PLZ + City pattern (German/Austrian/Swiss — with optional country prefix like A-, D-, CH-) */
+/** PLZ + City pattern */
 const PLZ_CITY_RE = /\b(?:[A-Z]{1,2}[\-\s])?\d{4,5}\s+[A-ZÄÖÜ][a-zäöüß]+(?:\s+[a-zäöüß]+)*\b/;
 
 /**
@@ -105,16 +111,12 @@ const PLZ_CITY_RE = /\b(?:[A-Z]{1,2}[\-\s])?\d{4,5}\s+[A-ZÄÖÜ][a-zäöüß]+(
  */
 function stripHtml(html: string): string {
   return html
-    // Remove style/script blocks
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    // Replace <br>, <p>, <div>, <tr> with newlines
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(?:p|div|tr|li|h[1-6])>/gi, "\n")
     .replace(/<(?:p|div|tr|li|h[1-6])[^>]*>/gi, "")
-    // Remove all remaining tags
     .replace(/<[^>]+>/g, "")
-    // Decode common entities
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
@@ -128,36 +130,124 @@ function stripHtml(html: string): string {
     .replace(/&Ouml;/gi, "Ö")
     .replace(/&Uuml;/gi, "Ü")
     .replace(/&szlig;/gi, "ß")
-    // Collapse multiple newlines
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+
+// ── Forwarded Message Extraction ──
+
+interface ForwardedInfo {
+  name: string;
+  email: string;
+  /** Lines after the forwarded header block (the original message body) */
+  bodyLines: string[];
+}
+
+/**
+ * Parse a forwarded message block to extract sender name + email from the "Von:" line.
+ */
+function extractForwardedInfo(lines: string[]): ForwardedInfo | null {
+  let headerStart = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (FORWARD_HEADER_PATTERNS.some((re) => re.test(trimmed))) {
+      headerStart = i;
+      break;
+    }
+  }
+
+  if (headerStart === -1) return null;
+
+  let name = "";
+  let email = "";
+
+  // Scan lines after the header marker for "Von:" / "From:" line
+  for (let i = headerStart + 1; i < Math.min(headerStart + 10, lines.length); i++) {
+    const trimmed = lines[i].trim();
+    const vonMatch = trimmed.match(/^(?:Von|From)\s*:\s*(.+)/i);
+    if (vonMatch) {
+      const vonLine = vonMatch[1];
+      // Pattern: "Name <email>" or just "email"
+      const angleMatch = vonLine.match(/^(.+?)\s*<([^>]+)>/);
+      if (angleMatch) {
+        name = angleMatch[1].replace(/^["']|["']$/g, "").trim();
+        email = angleMatch[2].trim();
+      } else {
+        const emailMatch = vonLine.match(EMAIL_RE);
+        if (emailMatch) {
+          email = emailMatch[0];
+          name = vonLine.replace(email, "").replace(/[<>]/g, "").trim();
+        }
+      }
+      break;
+    }
+  }
+
+  // Find where the actual body starts (after the header block, usually after an empty line)
+  let bodyStart = headerStart + 1;
+  for (let i = headerStart + 1; i < Math.min(headerStart + 15, lines.length); i++) {
+    const trimmed = lines[i].trim();
+    // Skip header lines (Von:, Date:, Subject:, To:, etc.)
+    if (/^(?:Von|From|Date|Datum|Subject|Betreff|To|An|Cc|Bcc)\s*:/i.test(trimmed)) {
+      bodyStart = i + 1;
+      continue;
+    }
+    // Skip empty lines right after headers
+    if (!trimmed && i === bodyStart) {
+      bodyStart = i + 1;
+      continue;
+    }
+    // Non-header, non-empty line → body starts here
+    if (trimmed && !/^-{3,}/.test(trimmed)) {
+      bodyStart = i;
+      break;
+    }
+  }
+
+  return {
+    name,
+    email,
+    bodyLines: lines.slice(bodyStart),
+  };
+}
+
+/**
+ * Derive a company name suggestion from an email domain.
+ * E.g. "stefan@mavigroup.de" → "Mavigroup"
+ */
+function companyFromDomain(email: string): string {
+  if (!email) return "";
+  const domain = email.split("@")[1];
+  if (!domain) return "";
+  const base = domain.split(".")[0];
+  // Skip generic providers
+  const generic = ["gmail", "yahoo", "outlook", "hotmail", "gmx", "web", "t-online", "aol", "icloud", "posteo", "mailbox", "protonmail", "proton"];
+  if (generic.includes(base.toLowerCase())) return "";
+  // Capitalize first letter
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+// ── Signature Block Extraction ──
 
 interface SignatureBlock {
   startIndex: number;
   lines: string[];
 }
 
-/**
- * Find all signature-like blocks in the text.
- * Returns them in order of appearance (last = deepest/original).
- */
 function findSignatureBlocks(lines: string[]): SignatureBlock[] {
   const blocks: SignatureBlock[] = [];
-  
+
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (!trimmed) continue;
-    
+
     const isSeparator = SIGNATURE_SEPARATORS.some((re) => re.test(trimmed));
     if (isSeparator) {
-      // Collect lines after the separator until the next separator or end
       const blockLines: string[] = [];
       for (let j = i + 1; j < lines.length; j++) {
         const line = lines[j].trim();
-        // Stop if we hit another major separator (forwarded message header)
         if (FORWARD_HEADER_PATTERNS.some((re) => re.test(line))) break;
-        // Stop if we hit another greeting separator (new sig block)
         if (SIGNATURE_SEPARATORS.some((re) => re.test(line)) && blockLines.length > 2) break;
         blockLines.push(line);
       }
@@ -166,7 +256,7 @@ function findSignatureBlocks(lines: string[]): SignatureBlock[] {
       }
     }
   }
-  
+
   return blocks;
 }
 
@@ -181,9 +271,6 @@ interface ExtractedSignatureData {
   address: string;
 }
 
-/**
- * Extract structured data from a signature block's lines.
- */
 function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string): ExtractedSignatureData {
   const result: ExtractedSignatureData = {
     full_name: "",
@@ -195,39 +282,35 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
     website: "",
     address: "",
   };
-  
+
   const nonEmptyLines = blockLines.filter((l) => l.length > 0);
   let phoneCount = 0;
   const addressParts: string[] = [];
-  
+
   for (let i = 0; i < nonEmptyLines.length; i++) {
     const line = nonEmptyLines[i];
     const lower = line.toLowerCase();
-    
-    // Skip very short or decorative lines
+
     if (line.length <= 1 || /^[|/\-=_*]+$/.test(line)) continue;
-    
+
     // Email extraction
     if (!result.email) {
       const emailMatch = line.match(EMAIL_RE);
       if (emailMatch) {
         const foundEmail = emailMatch[0];
-        // Skip if this is the forwarder's email
         if (!forwarderEmail || foundEmail.toLowerCase() !== forwarderEmail.toLowerCase()) {
           result.email = foundEmail;
         }
-        // If this line is JUST an email, continue
         if (line.trim() === foundEmail) continue;
       }
     } else {
-      // Check for additional emails (skip forwarder)
       const emailMatch = line.match(EMAIL_RE);
       if (emailMatch && forwarderEmail && emailMatch[0].toLowerCase() === forwarderEmail.toLowerCase()) {
-        continue; // skip forwarder email lines
+        continue;
       }
     }
-    
-    // Phone extraction (with keyword prefixes)
+
+    // Phone extraction
     if (phoneCount < 2) {
       const hasPhoneKeyword = /(?:tel(?:efon)?|fon|phone|mob(?:il)?\.?|mobile|handy)[.:]\s*/i.test(line);
       const phoneMatch = line.match(PHONE_RE);
@@ -242,7 +325,6 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
         phoneCount++;
         continue;
       }
-      // Phone without keyword prefix (starts with + or contains phone-like pattern)
       if (phoneMatch && /^[\s]*[+0(]/.test(line) && !EMAIL_RE.test(line)) {
         if (phoneCount === 0) {
           result.phone = phoneMatch[0].trim();
@@ -253,35 +335,28 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
         continue;
       }
     }
-    
+
     // Website extraction
     if (!result.website) {
       const urlMatch = line.match(URL_RE);
       if (urlMatch && !SOCIAL_URL_RE.test(urlMatch[0])) {
         result.website = urlMatch[0].replace(/[.,;)]+$/, "");
-        // If the line is just the URL, continue
         if (line.trim() === result.website || line.replace(/^(?:web(?:site)?|url|homepage)[.:]\s*/i, "").trim() === result.website) continue;
       }
     }
-    
-    // Company detection (by suffix)
+
+    // Company detection
     if (!result.company_name && COMPANY_SUFFIXES.test(line)) {
-      // Check if the line ALSO contains a job title keyword (e.g. "Vorsitzender der ... Stiftung")
       if (JOB_TITLE_KEYWORDS.test(line)) {
-        // Extract company name embedded in job title line
-        // e.g. "Vorsitzender der gemeinnützigen Dr. Viktor Frhr. von Fuchs-Stiftung"
-        // Strategy: find the last "der/des/die" before the company suffix, then take everything after it
-        const suffixPattern = /(?:gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft)\b/i;
+        const suffixPattern = /(?:gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft|group)\b/i;
         const suffixMatch = line.match(suffixPattern);
         if (suffixMatch && suffixMatch.index !== undefined) {
           const endPos = suffixMatch.index + suffixMatch[0].length;
-          // Find last "der/des/die" before the suffix
           const beforeSuffix = line.substring(0, endPos);
           const articleMatches = [...beforeSuffix.matchAll(/\b(?:der|des|die)\s+/gi)];
           if (articleMatches.length > 0) {
             const lastArticle = articleMatches[articleMatches.length - 1];
             const afterArticle = beforeSuffix.substring(lastArticle.index! + lastArticle[0].length);
-            // Remove leading lowercase adjectives (e.g. "gemeinnützigen")
             const cleaned = afterArticle.replace(/^[a-zäöüß]+\s+/g, "");
             result.company_name = cleaned.trim();
           }
@@ -291,7 +366,6 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
         }
         continue;
       }
-      // Clean the line: remove pipe-separated parts that are job titles
       let companyLine = line;
       if (line.includes("|")) {
         const parts = line.split("|").map((p) => p.trim());
@@ -301,7 +375,7 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
       result.company_name = companyLine.trim();
       continue;
     }
-    
+
     // Address detection
     if (STREET_RE.test(line)) {
       addressParts.push(line.trim());
@@ -311,21 +385,18 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
       addressParts.push(line.trim());
       continue;
     }
-    // Combined street + PLZ in one line (e.g. "Musterstraße 1, 80333 München")
     if (STREET_RE.test(line) || (addressParts.length > 0 && PLZ_CITY_RE.test(line))) {
       addressParts.push(line.trim());
       continue;
     }
-    
+
     // Job title detection
     if (!result.job_title && JOB_TITLE_KEYWORDS.test(line)) {
-      // Handle "Name | Title" pattern
       if (line.includes("|")) {
         const parts = line.split("|").map((p) => p.trim());
         const titlePart = parts.find((p) => JOB_TITLE_KEYWORDS.test(p));
         if (titlePart) {
           result.job_title = titlePart;
-          // The other part might be the name
           if (!result.full_name) {
             const namePart = parts.find((p) => p !== titlePart && !COMPANY_SUFFIXES.test(p) && !EMAIL_RE.test(p));
             if (namePart) result.full_name = namePart;
@@ -336,10 +407,9 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
       result.job_title = line.trim();
       continue;
     }
-    
-    // Name detection: first meaningful non-keyword line
+
+    // Name detection: first meaningful non-keyword line in first 3 lines
     if (!result.full_name && i < 3) {
-      // Must look like a name: 2-4 words, capitalized, no special patterns
       const words = line.split(/[\s|/]+/).filter(Boolean);
       const looksLikeName = words.length >= 2 && words.length <= 5
         && /^[A-ZÄÖÜ]/.test(words[0])
@@ -348,9 +418,8 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
         && !URL_RE.test(line)
         && !COMPANY_SUFFIXES.test(line)
         && !/^(?:tel|fon|mob|fax|phone)/i.test(line);
-      
+
       if (looksLikeName) {
-        // Handle "Name | Title" or "Name | Company"
         if (line.includes("|")) {
           const parts = line.split("|").map((p) => p.trim());
           result.full_name = parts[0];
@@ -364,134 +433,15 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
       }
     }
   }
-  
-  // Combine address parts
+
   if (addressParts.length > 0) {
     result.address = addressParts.join(", ");
   }
-  
-  return result;
-}
-
-/**
- * Parse an email body string and extract structured fields.
- * 
- * Strategy:
- * 1. Try signature block extraction (for forwarded emails)
- * 2. Fall back to keyword-based line matching
- * 
- * @param body - Plain text email body
- * @param bodyHtml - Optional HTML body (will be stripped to text if body is empty)
- * @param forwarderEmail - Email of the person who forwarded (to exclude from contact data)
- */
-export function parseEmailBody(
-  body: string,
-  bodyHtml?: string,
-  forwarderEmail?: string,
-): IntakeParsedData {
-  const result: IntakeParsedData = {
-    company_name: "",
-    full_name: "",
-    job_title: "",
-    email: "",
-    phone: "",
-    mobile: "",
-    address: "",
-    website: "",
-    notes: "",
-    suggested_pipeline: "",
-    suggested_stage: "",
-    extraction_source: "manual",
-    forwarder_email: forwarderEmail ?? "",
-  };
-
-  // Determine the text to parse
-  let text = body?.trim() ?? "";
-  if (!text && bodyHtml) {
-    text = stripHtml(bodyHtml);
-  }
-  if (!text) return result;
-
-  const lines = text.split(/\r?\n/);
-
-  // ── Step 1: Try keyword-based extraction first ──
-  const keywordResult = parseByKeywords(lines);
-  const keywordFieldCount = countFilledFields(keywordResult);
-
-  // ── Step 2: Try signature-based extraction ──
-  const sigBlocks = findSignatureBlocks(lines);
-  let bestSigResult: ExtractedSignatureData | null = null;
-  let bestSigScore = 0;
-
-  // Prefer the LAST (deepest) signature block with the most data
-  for (let i = sigBlocks.length - 1; i >= 0; i--) {
-    const extracted = extractFromSignatureBlock(sigBlocks[i].lines, forwarderEmail);
-    const score = scoreExtraction(extracted);
-    if (score > bestSigScore) {
-      bestSigScore = score;
-      bestSigResult = extracted;
-    }
-  }
-
-  // ── Step 3: Decide which source to use ──
-  if (bestSigResult && bestSigScore >= 2) {
-    // Signature extraction has useful data
-    result.full_name = bestSigResult.full_name;
-    result.job_title = bestSigResult.job_title;
-    result.company_name = bestSigResult.company_name;
-    result.email = bestSigResult.email;
-    result.phone = bestSigResult.phone;
-    result.mobile = bestSigResult.mobile;
-    result.website = bestSigResult.website;
-    result.address = bestSigResult.address;
-    result.extraction_source = "signature";
-    
-    // Merge any keyword data that signature didn't find
-    if (!result.company_name && keywordResult.company_name) result.company_name = keywordResult.company_name;
-    if (!result.full_name && keywordResult.full_name) result.full_name = keywordResult.full_name;
-    if (!result.job_title && keywordResult.job_title) result.job_title = keywordResult.job_title;
-    if (!result.email && keywordResult.email) result.email = keywordResult.email;
-    if (!result.phone && keywordResult.phone) result.phone = keywordResult.phone;
-    if (!result.website && keywordResult.website) result.website = keywordResult.website;
-    if (!result.address && keywordResult.address) result.address = keywordResult.address;
-    result.notes = keywordResult.notes;
-    result.suggested_pipeline = keywordResult.suggested_pipeline;
-    result.suggested_stage = keywordResult.suggested_stage;
-  } else if (keywordFieldCount > 0) {
-    // Fall back to keyword extraction
-    result.company_name = keywordResult.company_name;
-    result.full_name = keywordResult.full_name;
-    result.job_title = keywordResult.job_title;
-    result.email = keywordResult.email;
-    result.phone = keywordResult.phone;
-    result.address = keywordResult.address;
-    result.website = keywordResult.website;
-    result.notes = keywordResult.notes;
-    result.suggested_pipeline = keywordResult.suggested_pipeline;
-    result.suggested_stage = keywordResult.suggested_stage;
-    result.extraction_source = "keyword";
-  }
-  // else: extraction_source stays "manual"
-
-  // Filter out forwarder email if it slipped through
-  if (forwarderEmail && result.email.toLowerCase() === forwarderEmail.toLowerCase()) {
-    result.email = "";
-  }
 
   return result;
 }
 
-/** Count how many key fields have values */
-function countFilledFields(data: { company_name: string; full_name: string; email: string; phone: string }): number {
-  let count = 0;
-  if (data.company_name) count++;
-  if (data.full_name) count++;
-  if (data.email) count++;
-  if (data.phone) count++;
-  return count;
-}
-
-/** Score how good a signature extraction is (higher = better) */
+/** Score how good a signature extraction is */
 function scoreExtraction(data: ExtractedSignatureData): number {
   let score = 0;
   if (data.full_name) score += 2;
@@ -502,6 +452,16 @@ function scoreExtraction(data: ExtractedSignatureData): number {
   if (data.website) score += 1;
   if (data.address) score += 1;
   return score;
+}
+
+/** Count how many key fields have values */
+function countFilledFields(data: { company_name: string; full_name: string; email: string; phone: string }): number {
+  let count = 0;
+  if (data.company_name) count++;
+  if (data.full_name) count++;
+  if (data.email) count++;
+  if (data.phone) count++;
+  return count;
 }
 
 /** Original keyword-based parsing */
@@ -525,7 +485,7 @@ function parseByKeywords(lines: string[]) {
     const lower = trimmed.toLowerCase();
 
     for (const group of KEYWORD_MAP) {
-      if (group.field === "mobile" || group.field === "extraction_source" || group.field === "forwarder_email") continue;
+      if (group.field === "mobile" || group.field === "extraction_source" || group.field === "forwarder_email" || group.field === "first_name" || group.field === "last_name") continue;
       for (const keyword of group.keywords) {
         if (lower.startsWith(keyword)) {
           const value = trimmed.substring(keyword.length).trim();
@@ -545,7 +505,6 @@ function parseByKeywords(lines: string[]) {
 
 /**
  * Split a full name into first_name and last_name.
- * Handles "Vorname Nachname" and "Nachname, Vorname".
  */
 export function splitFullName(fullName: string): { firstName: string; lastName: string } {
   if (!fullName.trim()) return { firstName: "", lastName: "" };
@@ -556,10 +515,169 @@ export function splitFullName(fullName: string): { firstName: string; lastName: 
     return { firstName: parts[1] || "", lastName: parts[0] || "" };
   }
 
-  const parts = fullName.trim().split(/\s+/);
+  // Handle academic titles
+  const cleaned = fullName.replace(/^(?:Prof\.\s*|Dr\.\s*|Dipl\.\s*[-\w]*\s*)+/i, "").trim();
+  const parts = cleaned.split(/\s+/);
   if (parts.length === 1) return { firstName: parts[0], lastName: "" };
 
   const firstName = parts.slice(0, -1).join(" ");
   const lastName = parts[parts.length - 1];
   return { firstName, lastName };
+}
+
+/**
+ * Clean a subject line by removing forwarding/reply prefixes.
+ */
+export function cleanSubject(subject: string | null): string {
+  if (!subject) return "";
+  return subject.replace(/^(Fwd?|Fw|WG|AW|Re|Aw|RE):\s*/gi, "").trim();
+}
+
+/**
+ * Parse an email body string and extract structured fields.
+ *
+ * Strategy:
+ * 1. Detect forwarded message → extract Von: line for contact data
+ * 2. Search for signature block after greeting
+ * 3. Fall back to keyword-based line matching
+ * 4. Derive company from email domain as fallback
+ */
+export function parseEmailBody(
+  body: string,
+  bodyHtml?: string,
+  forwarderEmail?: string,
+): IntakeParsedData {
+  const result: IntakeParsedData = {
+    company_name: "",
+    full_name: "",
+    first_name: "",
+    last_name: "",
+    job_title: "",
+    email: "",
+    phone: "",
+    mobile: "",
+    address: "",
+    website: "",
+    notes: "",
+    suggested_pipeline: "",
+    suggested_stage: "",
+    extraction_source: "manual",
+    forwarder_email: forwarderEmail ?? "",
+  };
+
+  // Determine the text to parse
+  let text = body?.trim() ?? "";
+  if (!text && bodyHtml) {
+    text = stripHtml(bodyHtml);
+  }
+  if (!text) return result;
+
+  const lines = text.split(/\r?\n/);
+
+  // ── Step 1: Try forwarded message extraction ──
+  const forwarded = extractForwardedInfo(lines);
+  let sigSearchLines = forwarded ? forwarded.bodyLines : lines;
+
+  if (forwarded && forwarded.email) {
+    result.email = forwarded.email;
+    result.forwarder_email = forwarderEmail ?? "";
+    if (forwarded.name) {
+      result.full_name = forwarded.name;
+      const { firstName, lastName } = splitFullName(forwarded.name);
+      result.first_name = firstName;
+      result.last_name = lastName;
+    }
+    result.extraction_source = "forwarded";
+
+    // Derive company from domain
+    const domainCompany = companyFromDomain(forwarded.email);
+    if (domainCompany) {
+      result.company_name = domainCompany;
+    }
+  }
+
+  // ── Step 2: Try signature extraction from the body (or forwarded body) ──
+  const sigBlocks = findSignatureBlocks(sigSearchLines);
+  let bestSigResult: ExtractedSignatureData | null = null;
+  let bestSigScore = 0;
+
+  for (let i = sigBlocks.length - 1; i >= 0; i--) {
+    const extracted = extractFromSignatureBlock(sigBlocks[i].lines, forwarderEmail);
+    const score = scoreExtraction(extracted);
+    if (score > bestSigScore) {
+      bestSigScore = score;
+      bestSigResult = extracted;
+    }
+  }
+
+  if (bestSigResult && bestSigScore >= 2) {
+    // Signature data overrides/enriches forwarded data
+    if (bestSigResult.full_name) {
+      result.full_name = bestSigResult.full_name;
+      const { firstName, lastName } = splitFullName(bestSigResult.full_name);
+      result.first_name = firstName;
+      result.last_name = lastName;
+    }
+    if (bestSigResult.job_title) result.job_title = bestSigResult.job_title;
+    if (bestSigResult.company_name) result.company_name = bestSigResult.company_name;
+    if (bestSigResult.email && (!result.email || result.extraction_source === "forwarded")) {
+      // Prefer signature email if it's different from forwarder
+      if (!forwarderEmail || bestSigResult.email.toLowerCase() !== forwarderEmail.toLowerCase()) {
+        result.email = bestSigResult.email;
+      }
+    }
+    if (bestSigResult.phone) result.phone = bestSigResult.phone;
+    if (bestSigResult.mobile) result.mobile = bestSigResult.mobile;
+    if (bestSigResult.website) result.website = bestSigResult.website;
+    if (bestSigResult.address) result.address = bestSigResult.address;
+
+    if (result.extraction_source === "manual") {
+      result.extraction_source = "signature";
+    }
+  }
+
+  // ── Step 3: Try keyword-based extraction as additional source ──
+  const keywordResult = parseByKeywords(lines);
+  const keywordFieldCount = countFilledFields(keywordResult);
+
+  if (keywordFieldCount > 0) {
+    if (!result.company_name && keywordResult.company_name) result.company_name = keywordResult.company_name;
+    if (!result.full_name && keywordResult.full_name) {
+      result.full_name = keywordResult.full_name;
+      const { firstName, lastName } = splitFullName(keywordResult.full_name);
+      result.first_name = firstName;
+      result.last_name = lastName;
+    }
+    if (!result.job_title && keywordResult.job_title) result.job_title = keywordResult.job_title;
+    if (!result.email && keywordResult.email) result.email = keywordResult.email;
+    if (!result.phone && keywordResult.phone) result.phone = keywordResult.phone;
+    if (!result.website && keywordResult.website) result.website = keywordResult.website;
+    if (!result.address && keywordResult.address) result.address = keywordResult.address;
+    result.notes = keywordResult.notes || result.notes;
+    result.suggested_pipeline = keywordResult.suggested_pipeline || result.suggested_pipeline;
+    result.suggested_stage = keywordResult.suggested_stage || result.suggested_stage;
+
+    if (result.extraction_source === "manual") {
+      result.extraction_source = "keyword";
+    }
+  }
+
+  // ── Step 4: Domain-based company fallback ──
+  if (!result.company_name && result.email) {
+    result.company_name = companyFromDomain(result.email);
+  }
+
+  // Ensure first/last name are set
+  if (result.full_name && !result.first_name) {
+    const { firstName, lastName } = splitFullName(result.full_name);
+    result.first_name = firstName;
+    result.last_name = lastName;
+  }
+
+  // Filter out forwarder email if it slipped through
+  if (forwarderEmail && result.email.toLowerCase() === forwarderEmail.toLowerCase()) {
+    result.email = "";
+  }
+
+  return result;
 }
