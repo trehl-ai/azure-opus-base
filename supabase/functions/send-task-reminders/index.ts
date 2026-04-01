@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: "eo ipso Boost <noreply@notify.eoipso-boost.de>",
+          from: "eo ipso Boost <noreply@ts-connect.cloud>",
           to: [user.email],
           subject: `Erinnerung: ${task.title} ist morgen fällig`,
           html,
