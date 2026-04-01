@@ -226,7 +226,7 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
     
     // Phone extraction (with keyword prefixes)
     if (phoneCount < 2) {
-      const hasPhoneKeyword = /(?:tel(?:efon)?|fon|phone|mob(?:il)?|mobile|handy)[.:]\s*/i.test(line);
+      const hasPhoneKeyword = /(?:tel(?:efon)?|fon|phone|mob(?:il)?\.?|mobile|handy)[.:]\s*/i.test(line);
       const phoneMatch = line.match(PHONE_RE);
       if (hasPhoneKeyword && phoneMatch) {
         if (phoneCount === 0 && /(?:mob(?:il)?|mobile|handy)/i.test(line)) {
