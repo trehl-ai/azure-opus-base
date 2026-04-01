@@ -71,6 +71,9 @@ const FORWARD_HEADER_PATTERNS = [
   /forwarded message/i,
   /original message/i,
   /ursprüngliche nachricht/i,
+  /^-{5,}\s*forwarded/i,
+  /^-{5,}\s*weitergeleitete/i,
+  /^begin forwarded message/i,
 ];
 
 /** Company suffixes to detect company lines */
