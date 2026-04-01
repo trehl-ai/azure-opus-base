@@ -39,9 +39,6 @@ interface ParsedPayload {
   company_address?: string;
   contact_first_name?: string; contact_last_name?: string; contact_email?: string; contact_phone?: string; contact_mobile?: string; contact_job_title?: string;
   deal_title?: string; deal_value?: string; notes?: string;
-  suggested_pipeline?: string; suggested_stage?: string;
-  extraction_source?: ExtractionSource;
-  forwarder_email?: string;
 }
 
 /* ── Mail Body Display ── */
