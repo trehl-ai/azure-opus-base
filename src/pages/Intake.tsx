@@ -45,6 +45,41 @@ interface ParsedPayload {
   forwarder_email?: string;
 }
 
+/* ── Mail Body Display ── */
+function MailBodyDisplay({ rawBody, parsedPayload }: { rawBody: string | null; parsedPayload: Record<string, unknown> | null }) {
+  // Try raw_body first, then fall back to parsed_payload_json fields
+  let bodyText = rawBody || "";
+  if (!bodyText && parsedPayload) {
+    bodyText = (parsedPayload.body_text as string) || "";
+    if (!bodyText && parsedPayload.body_html) {
+      // Strip HTML tags for display
+      bodyText = (parsedPayload.body_html as string)
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/(?:p|div|tr|li|h[1-6])>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+  }
+
+  if (!bodyText) {
+    return <p className="text-muted-foreground text-xs italic">Kein Text vorhanden.</p>;
+  }
+
+  return (
+    <pre className="whitespace-pre-wrap text-xs font-mono max-h-[500px] overflow-y-auto leading-relaxed select-text">
+      {bodyText}
+    </pre>
+  );
+}
+
 /* ── Extraction Source Badge ── */
 function ExtractionSourceBadge({ source }: { source?: ExtractionSource }) {
   if (!source || source === "manual") {
