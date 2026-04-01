@@ -263,6 +263,22 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
     
     // Company detection (by suffix)
     if (!result.company_name && COMPANY_SUFFIXES.test(line)) {
+      // Check if the line ALSO contains a job title keyword (e.g. "Vorsitzender der ... Stiftung")
+      if (JOB_TITLE_KEYWORDS.test(line)) {
+        // Extract company name from the line — look for the company suffix and grab surrounding words
+        const companyMatch = line.match(/(?:[A-ZÄÖÜa-zäöüß.\-]+\s+)*[A-ZÄÖÜa-zäöüß.\-]*(?:gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft)\b/i);
+        if (companyMatch) {
+          // Try to find a cleaner company name: from "der/des" or capitalized word before suffix
+          const fullMatch = companyMatch[0].trim();
+          // Look for patterns like "der XYZ Stiftung" or "des XYZ Vereins"
+          const derMatch = line.match(/(?:der|des|die)\s+((?:[A-ZÄÖÜa-zäöüß.\-]+\s+)*[A-ZÄÖÜa-zäöüß.\-]*(?:gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|stiftung|verein|verband|genossenschaft))\b/i);
+          result.company_name = derMatch ? derMatch[1].trim() : fullMatch;
+        }
+        if (!result.job_title) {
+          result.job_title = line.trim();
+        }
+        continue;
+      }
       // Clean the line: remove pipe-separated parts that are job titles
       let companyLine = line;
       if (line.includes("|")) {
