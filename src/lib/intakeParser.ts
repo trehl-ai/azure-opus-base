@@ -265,20 +265,22 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
     if (!result.company_name && COMPANY_SUFFIXES.test(line)) {
       // Check if the line ALSO contains a job title keyword (e.g. "Vorsitzender der ... Stiftung")
       if (JOB_TITLE_KEYWORDS.test(line)) {
-        // Extract company name: find the proper noun cluster before the company suffix
-        // Strategy: look for capitalized words (possibly with "." and "von/v.") before the suffix
+        // Extract company name embedded in job title line
+        // e.g. "Vorsitzender der gemeinnützigen Dr. Viktor Frhr. von Fuchs-Stiftung"
+        // Strategy: find the last "der/des/die" before the company suffix, then take everything after it
         const suffixPattern = /(?:gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft)\b/i;
         const suffixMatch = line.match(suffixPattern);
         if (suffixMatch && suffixMatch.index !== undefined) {
-          // Walk backwards from the suffix to find the start of the company name
-          // Look for capitalized proper nouns, ignoring lowercase adjectives
-          const beforeSuffix = line.substring(0, suffixMatch.index + suffixMatch[0].length);
-          // Match: sequence of words starting from first capital letter (allowing Dr., von, Frhr., v.)
-          const nameMatch = beforeSuffix.match(/(?:[A-ZÄÖÜ][a-zäöüß.]*\.?\s+)*(?:von\s+|v\.\s+|Frhr\.\s+|Dr\.\s+)*(?:[A-ZÄÖÜ][a-zäöüß.]*\.?\s+)*[A-ZÄÖÜa-zäöüß.\-]*(?:gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|stiftung|verein|verband|genossenschaft)\b/i);
-          if (nameMatch) {
-            result.company_name = nameMatch[0].trim();
-          } else {
-            result.company_name = suffixMatch[0].trim();
+          const endPos = suffixMatch.index + suffixMatch[0].length;
+          // Find last "der/des/die" before the suffix
+          const beforeSuffix = line.substring(0, endPos);
+          const articleMatches = [...beforeSuffix.matchAll(/\b(?:der|des|die)\s+/gi)];
+          if (articleMatches.length > 0) {
+            const lastArticle = articleMatches[articleMatches.length - 1];
+            const afterArticle = beforeSuffix.substring(lastArticle.index! + lastArticle[0].length);
+            // Remove leading lowercase adjectives (e.g. "gemeinnützigen")
+            const cleaned = afterArticle.replace(/^[a-zäöüß]+\s+/g, "");
+            result.company_name = cleaned.trim();
           }
         }
         if (!result.job_title) {
