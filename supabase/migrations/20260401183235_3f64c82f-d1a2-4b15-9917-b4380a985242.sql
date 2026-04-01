@@ -1,0 +1,1 @@
+ALTER TABLE public.user_email_signatures ADD CONSTRAINT user_email_signatures_user_id_unique UNIQUE (user_id);

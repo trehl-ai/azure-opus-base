@@ -181,18 +181,10 @@ export default function SignatureSettings() {
         updated_at: new Date().toISOString(),
       };
 
-      if (existingSignature) {
-        const { error } = await supabase
-          .from("user_email_signatures")
-          .update(payload)
-          .eq("id", existingSignature.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_email_signatures")
-          .insert(payload);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from("user_email_signatures")
+        .upsert(payload, { onConflict: "user_id" });
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Signatur gespeichert");
