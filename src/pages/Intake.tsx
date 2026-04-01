@@ -520,8 +520,8 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
                   <div><span className="font-medium">Betreff:</span> {message.subject ?? "–"}</div>
                   <div><span className="font-medium">Empfangen:</span> {message.received_at ? format(new Date(message.received_at), "dd.MM.yyyy HH:mm") : "–"}</div>
                 </div>
-                <div className="border-t border-border pt-2 whitespace-pre-wrap text-sm max-h-[500px] overflow-y-auto font-mono text-xs">
-                  {message.raw_body ?? "Kein Text."}
+                <div className="border-t border-border pt-2">
+                  <MailBodyDisplay rawBody={message.raw_body} parsedPayload={message.parsed_payload_json as Record<string, unknown> | null} />
                 </div>
               </div>
 
