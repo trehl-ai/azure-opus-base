@@ -77,7 +77,7 @@ const FORWARD_HEADER_PATTERNS = [
 const COMPANY_SUFFIXES = /\b(gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft)\b/i;
 
 /** Job title keywords */
-const JOB_TITLE_KEYWORDS = /\b(geschäftsführer|ceo|cto|cfo|coo|cmo|managing\s*director|director|vorstand|leiter|leiterin|manager|managerin|head\s+of|vp|vice\s*president|partner|inhaber|inhaberin|prokurist|prokuristin|referent|referentin|sachbearbeiter|sachbearbeiterin|assistent|assistentin|sekretär|sekretärin|berater|beraterin|consultant|koordinator|koordinatorin|projektleiter|projektleiterin|abteilungsleiter|abteilungsleiterin)\b/i;
+const JOB_TITLE_KEYWORDS = /\b(geschäftsführer|geschäftsführerin|ceo|cto|cfo|coo|cmo|managing\s*director|director|vorstand|vorsitzender|vorsitzende|leiter|leiterin|manager|managerin|head\s+of|vp|vice\s*president|partner|inhaber|inhaberin|prokurist|prokuristin|referent|referentin|sachbearbeiter|sachbearbeiterin|assistent|assistentin|sekretär|sekretärin|berater|beraterin|consultant|koordinator|koordinatorin|projektleiter|projektleiterin|abteilungsleiter|abteilungsleiterin|präsident|präsidentin|schatzmeister|schatzmeisterin|kurator|kuratorin|stifter|stifterin)\b/i;
 
 /** Email pattern */
 const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/;
