@@ -16,11 +16,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake, Mail, Forward } from "lucide-react";
+import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import { parseEmailBody, splitFullName, type ExtractionSource } from "@/lib/intakeParser";
 
 const statusBadge: Record<string, string> = {
   new: "bg-secondary text-secondary-foreground",
@@ -35,37 +34,46 @@ const statusLabel: Record<string, string> = {
   approved: "Genehmigt", imported: "Importiert", rejected: "Abgelehnt",
 };
 
-interface ParsedPayload {
-  company_name?: string; company_industry?: string; company_website?: string; company_city?: string;
-  company_address?: string;
-  contact_first_name?: string; contact_last_name?: string; contact_email?: string; contact_phone?: string; contact_mobile?: string; contact_job_title?: string;
-  deal_title?: string; deal_value?: string; notes?: string;
-  suggested_pipeline?: string; suggested_stage?: string;
-  extraction_source?: ExtractionSource;
-  forwarder_email?: string;
+interface FormData {
+  company_name: string; company_industry: string; company_website: string; company_city: string; company_address: string;
+  contact_first_name: string; contact_last_name: string; contact_email: string; contact_phone: string; contact_mobile: string; contact_job_title: string;
+  deal_title: string; deal_value: string; notes: string;
+}
+
+const emptyForm: FormData = {
+  company_name: "", company_industry: "", company_website: "", company_city: "", company_address: "",
+  contact_first_name: "", contact_last_name: "", contact_email: "", contact_phone: "", contact_mobile: "", contact_job_title: "",
+  deal_title: "", deal_value: "", notes: "",
+};
+
+function cleanSubject(subject: string | null): string {
+  if (!subject) return "";
+  return subject.replace(/^(Fwd?|Fw|WG|AW|Re|Aw):\s*/gi, "").trim();
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /* ── Mail Body Display ── */
 function MailBodyDisplay({ rawBody, parsedPayload }: { rawBody: string | null; parsedPayload: Record<string, unknown> | null }) {
-  // Try raw_body first, then fall back to parsed_payload_json fields
   let bodyText = rawBody || "";
   if (!bodyText && parsedPayload) {
     bodyText = (parsedPayload.body_text as string) || "";
     if (!bodyText && parsedPayload.body_html) {
-      // Strip HTML tags for display
-      bodyText = (parsedPayload.body_html as string)
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/<br\s*\/?>/gi, "\n")
-        .replace(/<\/(?:p|div|tr|li|h[1-6])>/gi, "\n")
-        .replace(/<[^>]+>/g, "")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/&amp;/gi, "&")
-        .replace(/&lt;/gi, "<")
-        .replace(/&gt;/gi, ">")
-        .replace(/&quot;/gi, '"')
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
+      bodyText = stripHtml(parsedPayload.body_html as string);
     }
   }
 
@@ -74,25 +82,13 @@ function MailBodyDisplay({ rawBody, parsedPayload }: { rawBody: string | null; p
   }
 
   return (
-    <pre className="whitespace-pre-wrap text-xs font-mono max-h-[500px] overflow-y-auto leading-relaxed select-text">
+    <pre className="whitespace-pre-wrap text-sm leading-relaxed select-text max-h-[60vh] overflow-y-auto">
       {bodyText}
     </pre>
   );
 }
 
-/* ── Extraction Source Badge ── */
-function ExtractionSourceBadge({ source }: { source?: ExtractionSource }) {
-  if (!source || source === "manual") {
-    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">Manuell eingeben</span>;
-  }
-  if (source === "signature") {
-    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-success/10 text-success">Aus Signatur extrahiert</span>;
-  }
-  return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary">Aus Schlüsselwörtern extrahiert</span>;
-}
-
 export default function Intake() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -145,10 +141,7 @@ export default function Intake() {
         <h1 className="text-[28px] font-semibold text-foreground">E-Mail Intake</h1>
         <Button onClick={() => setSimulateOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Intake simulieren</Button>
       </div>
-
-      {/* Hint box for senders */}
       <SenderHintBox />
-
       <Tabs defaultValue="pending">
         <TabsList>
           <TabsTrigger value="pending">Zu prüfen ({pending.length})</TabsTrigger>
@@ -159,7 +152,6 @@ export default function Intake() {
         <TabsContent value="approved" className="mt-4">{renderTable(approved)}</TabsContent>
         <TabsContent value="rejected" className="mt-4">{renderTable(rejected)}</TabsContent>
       </Tabs>
-
       <SimulateDialog open={simulateOpen} onOpenChange={setSimulateOpen} />
       <ReviewSheet messageId={reviewId} open={!!reviewId} onOpenChange={(o) => { if (!o) setReviewId(null); }} />
     </div>
@@ -181,23 +173,7 @@ function SenderHintBox() {
       <CollapsibleContent>
         <div className="rounded-b-xl border border-t-0 border-border bg-muted/30 px-4 py-4 text-sm text-foreground space-y-3">
           <p>Bitte sende deine Anfrage an: <span className="font-semibold text-primary">sales@ts-connect.cloud</span></p>
-          <div>
-            <p className="font-medium mb-1">Empfohlenes Format:</p>
-            <pre className="rounded-lg bg-muted border border-border p-3 text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-{`---
-Firma: [Firmenname]
-Ansprechpartner: [Vorname Nachname]
-Position: [Jobtitel]
-E-Mail: [E-Mail]
-Telefon: [Nummer]
-Adresse: [Straße, PLZ Ort]
-Website: [URL]
-Pipeline: [z.B. VR Stiftungen]
-Notiz: [Freitext]
----`}
-            </pre>
-          </div>
-          <p className="text-muted-foreground">Weitergeleitete E-Mails mit Signaturen werden automatisch erkannt.</p>
+          <p className="text-muted-foreground">E-Mails werden automatisch erfasst. Felder können manuell ausgefüllt werden.</p>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -213,39 +189,16 @@ function SimulateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
   const mutation = useMutation({
     mutationFn: async () => {
-      // Parse the body using the enhanced parser
-      const parsed = parseEmailBody(form.raw_body, undefined, form.sender_email || undefined);
-      const { firstName, lastName } = splitFullName(parsed.full_name);
-
-      const payload: ParsedPayload = {
-        company_name: parsed.company_name || undefined,
-        company_website: parsed.website || undefined,
-        company_address: parsed.address || undefined,
-        contact_first_name: firstName || undefined,
-        contact_last_name: lastName || undefined,
-        contact_email: parsed.email || undefined,
-        contact_phone: parsed.phone || undefined,
-        contact_mobile: parsed.mobile || undefined,
-        contact_job_title: parsed.job_title || undefined,
-        deal_title: parsed.company_name ? `Deal – ${parsed.company_name}` : (form.subject || undefined),
-        notes: parsed.notes || undefined,
-        suggested_pipeline: parsed.suggested_pipeline || undefined,
-        suggested_stage: parsed.suggested_stage || undefined,
-        extraction_source: parsed.extraction_source,
-        forwarder_email: parsed.forwarder_email || undefined,
-      };
-
       const { error } = await supabase.from("intake_messages").insert({
         sender_email: form.sender_email || null,
         subject: form.subject || null,
         raw_body: form.raw_body || null,
-        parsed_payload_json: payload as unknown as Json,
-        status: "review_required",
+        status: "new",
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Intake-Nachricht erstellt und geparst" });
+      toast({ title: "Intake-Nachricht erstellt" });
       qc.invalidateQueries({ queryKey: ["intake-messages"] });
       setForm({ sender_email: "", subject: "", raw_body: "" });
       onOpenChange(false);
@@ -258,17 +211,16 @@ function SimulateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Intake simulieren</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Gib E-Mail-Daten ein. Signaturen in weitergeleiteten Mails werden automatisch erkannt.</p>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><Label>Absender-E-Mail (Weiterleiter)</Label><Input value={form.sender_email} onChange={(e) => u("sender_email", e.target.value)} placeholder="gf@eo-ipso.com" /></div>
-            <div className="space-y-1"><Label>Betreff</Label><Input value={form.subject} onChange={(e) => u("subject", e.target.value)} placeholder="Fwd: Zusammenarbeit" /></div>
+            <div className="space-y-1"><Label>Absender-E-Mail</Label><Input value={form.sender_email} onChange={(e) => u("sender_email", e.target.value)} placeholder="max@firma.de" /></div>
+            <div className="space-y-1"><Label>Betreff</Label><Input value={form.subject} onChange={(e) => u("subject", e.target.value)} placeholder="Anfrage Zusammenarbeit" /></div>
           </div>
           <div className="space-y-1">
             <Label>E-Mail-Text (Body)</Label>
-            <Textarea value={form.raw_body} onChange={(e) => u("raw_body", e.target.value)} rows={10} placeholder={`-------- Weitergeleitete Nachricht --------\nVon: Max Müller <max@musterfirma.de>\nBetreff: Zusammenarbeit\n\nSehr geehrte Damen und Herren,\nwir sind interessiert an einer Zusammenarbeit.\n\nMit freundlichen Grüßen\n\nMax Müller\nGeschäftsführer\nMusterfirma GmbH\nTel: +49 89 123456\nmax@musterfirma.de\nwww.musterfirma.de`} />
+            <Textarea value={form.raw_body} onChange={(e) => u("raw_body", e.target.value)} rows={10} placeholder="Vollständiger E-Mail-Text..." />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Erstellen…" : "Erstellen & Parsen"}</Button>
+            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Erstellen…" : "Erstellen"}</Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           </div>
         </div>
@@ -293,7 +245,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
     enabled: !!messageId && open,
   });
 
-  const [form, setForm] = useState<ParsedPayload>({});
+  const [form, setForm] = useState<FormData>({ ...emptyForm });
   const [createCompany, setCreateCompany] = useState(true);
   const [createContact, setCreateContact] = useState(true);
   const [createDeal, setCreateDeal] = useState(true);
@@ -307,61 +259,12 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   const { data: pipelines } = usePipelines();
   const { data: stages } = usePipelineStages(selectedPipelineId || undefined);
 
-  // Initialize form from parsed data when message loads
+  // Initialize form — all fields empty, only deal_title = cleaned subject
   useEffect(() => {
     if (!message) return;
-
-    const existingParsed = (message.parsed_payload_json ?? {}) as ParsedPayload;
-    const bodyHtml = (existingParsed as any)?.body_html ?? "";
-
-    // If body exists but parsed data is empty, re-parse
-    let parsed = existingParsed;
-    if (message.raw_body && !existingParsed.company_name && !existingParsed.contact_first_name) {
-      const bodyParsed = parseEmailBody(message.raw_body, bodyHtml, message.sender_email ?? undefined);
-      const { firstName, lastName } = splitFullName(bodyParsed.full_name);
-      parsed = {
-        company_name: bodyParsed.company_name || undefined,
-        company_website: bodyParsed.website || undefined,
-        company_address: bodyParsed.address || undefined,
-        contact_first_name: firstName || undefined,
-        contact_last_name: lastName || undefined,
-        contact_email: bodyParsed.email || undefined,
-        contact_phone: bodyParsed.phone || undefined,
-        contact_mobile: bodyParsed.mobile || undefined,
-        contact_job_title: bodyParsed.job_title || undefined,
-        deal_title: bodyParsed.company_name ? `Deal – ${bodyParsed.company_name}` : (message.subject || undefined),
-        notes: bodyParsed.notes || undefined,
-        suggested_pipeline: bodyParsed.suggested_pipeline || undefined,
-        suggested_stage: bodyParsed.suggested_stage || undefined,
-        extraction_source: bodyParsed.extraction_source,
-        forwarder_email: bodyParsed.forwarder_email || message.sender_email || undefined,
-      };
-    }
-
-    // Do NOT fall back to sender_email as contact_email (the sender is the forwarder)
-    if (!parsed.deal_title && message.subject) {
-      parsed.deal_title = message.subject;
-    }
-
     setForm({
-      company_name: parsed.company_name ?? "",
-      company_industry: parsed.company_industry ?? "",
-      company_website: parsed.company_website ?? "",
-      company_city: parsed.company_city ?? "",
-      company_address: parsed.company_address ?? "",
-      contact_first_name: parsed.contact_first_name ?? "",
-      contact_last_name: parsed.contact_last_name ?? "",
-      contact_email: parsed.contact_email ?? "",
-      contact_phone: parsed.contact_phone ?? "",
-      contact_mobile: parsed.contact_mobile ?? "",
-      contact_job_title: parsed.contact_job_title ?? "",
-      deal_title: parsed.deal_title ?? "",
-      deal_value: parsed.deal_value ?? "",
-      notes: parsed.notes ?? "",
-      suggested_pipeline: parsed.suggested_pipeline ?? "",
-      suggested_stage: parsed.suggested_stage ?? "",
-      extraction_source: parsed.extraction_source ?? "manual",
-      forwarder_email: parsed.forwarder_email ?? message?.sender_email ?? "",
+      ...emptyForm,
+      deal_title: cleanSubject(message.subject),
     });
     setCreateCompany(true);
     setCreateContact(true);
@@ -374,37 +277,11 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
     setSelectedStageId("");
   }, [message]);
 
-  // Auto-select pipeline by suggested_pipeline name
-  useEffect(() => {
-    if (!pipelines || !form.suggested_pipeline || selectedPipelineId) return;
-    const match = pipelines.find((p) => p.name.toLowerCase().includes(form.suggested_pipeline!.toLowerCase()));
-    if (match) setSelectedPipelineId(match.id);
-  }, [pipelines, form.suggested_pipeline, selectedPipelineId]);
-
-  // Auto-select default pipeline if none matched
-  useEffect(() => {
-    if (!pipelines || selectedPipelineId) return;
-    const def = pipelines.find((p) => p.is_default);
-    if (def) setSelectedPipelineId(def.id);
-    else if (pipelines.length > 0) setSelectedPipelineId(pipelines[0].id);
-  }, [pipelines, selectedPipelineId]);
-
-  // Auto-select stage
-  useEffect(() => {
-    if (!stages || stages.length === 0) { setSelectedStageId(""); return; }
-    if (form.suggested_stage) {
-      const match = stages.find((s) => s.name.toLowerCase().includes(form.suggested_stage!.toLowerCase()));
-      if (match) { setSelectedStageId(match.id); return; }
-    }
-    const openStage = stages.find((s) => s.stage_type === "open");
-    setSelectedStageId(openStage?.id ?? stages[0].id);
-  }, [stages, form.suggested_stage]);
-
   // Duplicate check company
   useEffect(() => {
     if (!open || !form.company_name) { setDuplicateCompany(null); return; }
     const timer = setTimeout(async () => {
-      const { data } = await supabase.from("companies").select("id, name").ilike("name", form.company_name!).is("deleted_at", null).limit(1);
+      const { data } = await supabase.from("companies").select("id, name").ilike("name", form.company_name).is("deleted_at", null).limit(1);
       setDuplicateCompany(data?.[0] ?? null);
     }, 300);
     return () => clearTimeout(timer);
@@ -414,13 +291,13 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   useEffect(() => {
     if (!open || !form.contact_email) { setDuplicateContact(null); return; }
     const timer = setTimeout(async () => {
-      const { data } = await supabase.from("contacts").select("id, first_name, last_name").ilike("email", form.contact_email!).is("deleted_at", null).limit(1);
+      const { data } = await supabase.from("contacts").select("id, first_name, last_name").ilike("email", form.contact_email).is("deleted_at", null).limit(1);
       setDuplicateContact(data?.[0] ? { id: data[0].id, name: `${data[0].first_name} ${data[0].last_name}` } : null);
     }, 300);
     return () => clearTimeout(timer);
   }, [form.contact_email, open]);
 
-  const u = (f: keyof ParsedPayload, v: string) => setForm((p) => ({ ...p, [f]: v }));
+  const u = (f: keyof FormData, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
   // Approve & Import
   const approveMutation = useMutation({
@@ -430,7 +307,6 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
       let dealId: string | null = null;
       const createdEntities: string[] = [];
 
-      // 1. Company
       if (createCompany && form.company_name) {
         if (duplicateCompany && useExistingCompany) {
           companyId = duplicateCompany.id;
@@ -448,7 +324,6 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
         }
       }
 
-      // 2. Contact
       if (createContact && form.contact_first_name && form.contact_last_name) {
         if (duplicateContact && useExistingContact) {
           contactId = duplicateContact.id;
@@ -457,28 +332,21 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
           const { data, error } = await supabase.from("contacts").insert({
             first_name: form.contact_first_name, last_name: form.contact_last_name,
             email: form.contact_email || null, phone: form.contact_phone || null,
-            mobile: form.contact_mobile || null,
-            job_title: form.contact_job_title || null,
+            mobile: form.contact_mobile || null, job_title: form.contact_job_title || null,
             source: "email_intake", created_by_user_id: user?.id ?? null,
           }).select("id").single();
           if (error) throw error;
           contactId = data.id;
           createdEntities.push(`Contact "${form.contact_first_name} ${form.contact_last_name}"`);
         }
-
-        // Link contact to company
         if (companyId && contactId) {
-          await supabase.from("company_contacts").insert({
-            company_id: companyId, contact_id: contactId, is_primary: true,
-          });
+          await supabase.from("company_contacts").insert({ company_id: companyId, contact_id: contactId, is_primary: true });
         }
       }
 
-      // 3. Deal
       if (createDeal && form.deal_title && selectedPipelineId && selectedStageId) {
         const { data, error } = await supabase.from("deals").insert({
-          title: form.deal_title,
-          value_amount: form.deal_value ? parseFloat(form.deal_value) : 0,
+          title: form.deal_title, value_amount: form.deal_value ? parseFloat(form.deal_value) : 0,
           company_id: companyId, primary_contact_id: contactId,
           pipeline_id: selectedPipelineId, pipeline_stage_id: selectedStageId,
           source: "email_intake", created_by_user_id: user?.id ?? null,
@@ -489,7 +357,6 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
         createdEntities.push(`Deal "${form.deal_title}"`);
       }
 
-      // 4. Update intake message
       const { error } = await supabase.from("intake_messages").update({
         status: "imported",
         reviewed_by_user_id: user?.id ?? null,
@@ -500,14 +367,10 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
         parsed_payload_json: form as unknown as Json,
       }).eq("id", messageId!);
       if (error) throw error;
-
       return createdEntities;
     },
     onSuccess: (entities) => {
-      const msg = entities.length > 0
-        ? `${entities.join(", ")} wurden angelegt.`
-        : "Intake genehmigt (keine Datensätze angelegt).";
-      toast({ title: "Erfolgreich importiert", description: msg });
+      toast({ title: "Erfolgreich importiert", description: entities.length > 0 ? `${entities.join(", ")} angelegt.` : "Keine Datensätze angelegt." });
       qc.invalidateQueries({ queryKey: ["intake-messages"] });
       qc.invalidateQueries({ queryKey: ["companies"] });
       qc.invalidateQueries({ queryKey: ["contacts"] });
@@ -520,9 +383,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   const rejectMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("intake_messages").update({
-        status: "rejected",
-        reviewed_by_user_id: user?.id ?? null,
-        reviewed_at: new Date().toISOString(),
+        status: "rejected", reviewed_by_user_id: user?.id ?? null, reviewed_at: new Date().toISOString(),
       }).eq("id", messageId!);
       if (error) throw error;
     },
@@ -549,61 +410,40 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Info className="h-4 w-4 text-primary" /> Original-E-Mail
               </h3>
-              <div className="rounded-xl bg-muted/50 border border-border p-4 text-sm text-foreground space-y-2">
+              <div className="rounded-xl bg-muted/50 border border-border p-4 text-sm text-foreground space-y-3">
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <div><span className="font-medium">Von:</span> {message.sender_email ?? "–"}</div>
                   <div><span className="font-medium">Betreff:</span> {message.subject ?? "–"}</div>
                   <div><span className="font-medium">Empfangen:</span> {message.received_at ? format(new Date(message.received_at), "dd.MM.yyyy HH:mm") : "–"}</div>
                 </div>
-                <div className="border-t border-border pt-2">
+                <div className="border-t border-border pt-3">
                   <MailBodyDisplay rawBody={message.raw_body} parsedPayload={message.parsed_payload_json as Record<string, unknown> | null} />
                 </div>
               </div>
 
-              {/* Status badge for read-only */}
               {isReadOnly && (
                 <div className={cn("rounded-lg px-4 py-3 text-sm font-medium text-center", message.status === "imported" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
                   {message.status === "imported" ? "Importiert" : "Abgelehnt"} am {message.reviewed_at ? format(new Date(message.reviewed_at), "dd.MM.yyyy HH:mm") : "–"}
                 </div>
               )}
 
-              {/* Created entity links for imported */}
               {message.status === "imported" && (
                 <div className="space-y-1 text-sm">
-                  {message.created_company_id && (
-                    <Link to={`/companies/${message.created_company_id}`} className="block text-primary hover:underline">→ Company öffnen</Link>
-                  )}
-                  {message.created_contact_id && (
-                    <Link to={`/contacts/${message.created_contact_id}`} className="block text-primary hover:underline">→ Contact öffnen</Link>
-                  )}
-                  {message.created_deal_id && (
-                    <Link to={`/deals/${message.created_deal_id}`} className="block text-primary hover:underline">→ Deal öffnen</Link>
-                  )}
+                  {message.created_company_id && <Link to={`/companies/${message.created_company_id}`} className="block text-primary hover:underline">→ Company öffnen</Link>}
+                  {message.created_contact_id && <Link to={`/contacts/${message.created_contact_id}`} className="block text-primary hover:underline">→ Contact öffnen</Link>}
+                  {message.created_deal_id && <Link to={`/deals/${message.created_deal_id}`} className="block text-primary hover:underline">→ Deal öffnen</Link>}
                 </div>
               )}
             </div>
 
-            {/* RIGHT: Editable Form */}
+            {/* RIGHT: Manual Form */}
             <div className="space-y-5">
-              {/* Extraction source + forwarder info */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ExtractionSourceBadge source={form.extraction_source} />
-                </div>
-                {form.forwarder_email && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Forward className="h-3 w-3" />
-                    <span>Weitergeleitet von: <span className="font-medium">{form.forwarder_email}</span></span>
-                  </div>
-                )}
-              </div>
-
               {/* Duplicate warnings */}
               {duplicateCompany && createCompany && !isReadOnly && (
                 <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm">
                   <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <div className="space-y-1">
-                    <div>Mögliche Firmendublette: <Link to={`/companies/${duplicateCompany.id}`} className="font-medium text-primary hover:underline">{duplicateCompany.name}</Link></div>
+                    <div>Mögliche Dublette: <Link to={`/companies/${duplicateCompany.id}`} className="font-medium text-primary hover:underline">{duplicateCompany.name}</Link></div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox checked={useExistingCompany} onCheckedChange={(c) => setUseExistingCompany(!!c)} />
                       <span className="text-xs">Bestehende verwenden</span>
@@ -615,7 +455,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
                 <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm">
                   <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <div className="space-y-1">
-                    <div>Mögliche Kontaktdublette: <Link to={`/contacts/${duplicateContact.id}`} className="font-medium text-primary hover:underline">{duplicateContact.name}</Link></div>
+                    <div>Mögliche Dublette: <Link to={`/contacts/${duplicateContact.id}`} className="font-medium text-primary hover:underline">{duplicateContact.name}</Link></div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox checked={useExistingContact} onCheckedChange={(c) => setUseExistingContact(!!c)} />
                       <span className="text-xs">Bestehenden verwenden</span>
@@ -624,59 +464,44 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
                 </div>
               )}
 
-              {/* COMPANY Section */}
+              {/* COMPANY */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Building2 className="h-4 w-4 text-muted-foreground" /> Company</h3>
-                  {!isReadOnly && (
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
-                      <Checkbox checked={createCompany} onCheckedChange={(c) => setCreateCompany(!!c)} />
-                      Anlegen
-                    </label>
-                  )}
+                  {!isReadOnly && <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground"><Checkbox checked={createCompany} onCheckedChange={(c) => setCreateCompany(!!c)} />Anlegen</label>}
                 </div>
                 <div className={cn("grid grid-cols-2 gap-2.5", !createCompany && "opacity-40 pointer-events-none")}>
-                  <div className="space-y-1 col-span-2"><Label className="text-xs">Name</Label><Input value={form.company_name ?? ""} onChange={(e) => u("company_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Website</Label><Input value={form.company_website ?? ""} onChange={(e) => u("company_website", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Branche</Label><Input value={form.company_industry ?? ""} onChange={(e) => u("company_industry", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1 col-span-2"><Label className="text-xs">Adresse</Label><Input value={form.company_address ?? ""} onChange={(e) => u("company_address", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1 col-span-2"><Label className="text-xs">Name</Label><Input value={form.company_name} onChange={(e) => u("company_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Website</Label><Input value={form.company_website} onChange={(e) => u("company_website", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Branche</Label><Input value={form.company_industry} onChange={(e) => u("company_industry", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1 col-span-2"><Label className="text-xs">Adresse</Label><Input value={form.company_address} onChange={(e) => u("company_address", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                 </div>
               </div>
 
-              {/* CONTACT Section */}
+              {/* CONTACT */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5"><User className="h-4 w-4 text-muted-foreground" /> Contact</h3>
-                  {!isReadOnly && (
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
-                      <Checkbox checked={createContact} onCheckedChange={(c) => setCreateContact(!!c)} />
-                      Anlegen
-                    </label>
-                  )}
+                  {!isReadOnly && <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground"><Checkbox checked={createContact} onCheckedChange={(c) => setCreateContact(!!c)} />Anlegen</label>}
                 </div>
                 <div className={cn("grid grid-cols-2 gap-2.5", !createContact && "opacity-40 pointer-events-none")}>
-                  <div className="space-y-1"><Label className="text-xs">Vorname</Label><Input value={form.contact_first_name ?? ""} onChange={(e) => u("contact_first_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Nachname</Label><Input value={form.contact_last_name ?? ""} onChange={(e) => u("contact_last_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1"><Label className="text-xs">E-Mail</Label><Input value={form.contact_email ?? ""} onChange={(e) => u("contact_email", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Telefon</Label><Input value={form.contact_phone ?? ""} onChange={(e) => u("contact_phone", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Mobil</Label><Input value={form.contact_mobile ?? ""} onChange={(e) => u("contact_mobile", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Position</Label><Input value={form.contact_job_title ?? ""} onChange={(e) => u("contact_job_title", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Vorname</Label><Input value={form.contact_first_name} onChange={(e) => u("contact_first_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Nachname</Label><Input value={form.contact_last_name} onChange={(e) => u("contact_last_name", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">E-Mail</Label><Input value={form.contact_email} onChange={(e) => u("contact_email", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Telefon</Label><Input value={form.contact_phone} onChange={(e) => u("contact_phone", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Mobil</Label><Input value={form.contact_mobile} onChange={(e) => u("contact_mobile", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Position</Label><Input value={form.contact_job_title} onChange={(e) => u("contact_job_title", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                 </div>
               </div>
 
-              {/* DEAL Section */}
+              {/* DEAL */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Handshake className="h-4 w-4 text-muted-foreground" /> Deal</h3>
-                  {!isReadOnly && (
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
-                      <Checkbox checked={createDeal} onCheckedChange={(c) => setCreateDeal(!!c)} />
-                      Anlegen
-                    </label>
-                  )}
+                  {!isReadOnly && <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground"><Checkbox checked={createDeal} onCheckedChange={(c) => setCreateDeal(!!c)} />Anlegen</label>}
                 </div>
                 <div className={cn("grid grid-cols-2 gap-2.5", !createDeal && "opacity-40 pointer-events-none")}>
-                  <div className="space-y-1 col-span-2"><Label className="text-xs">Titel</Label><Input value={form.deal_title ?? ""} onChange={(e) => u("deal_title", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1 col-span-2"><Label className="text-xs">Titel</Label><Input value={form.deal_title} onChange={(e) => u("deal_title", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
                   <div className="space-y-1">
                     <Label className="text-xs">Pipeline</Label>
                     {isReadOnly ? (
@@ -684,11 +509,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
                     ) : (
                       <Select value={selectedPipelineId} onValueChange={(v) => { setSelectedPipelineId(v); setSelectedStageId(""); }}>
                         <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Pipeline wählen" /></SelectTrigger>
-                        <SelectContent>
-                          {pipelines?.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectContent>{pipelines?.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                       </Select>
                     )}
                   </div>
@@ -699,16 +520,12 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
                     ) : (
                       <Select value={selectedStageId} onValueChange={setSelectedStageId}>
                         <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Stage wählen" /></SelectTrigger>
-                        <SelectContent>
-                          {stages?.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectContent>{stages?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                       </Select>
                     )}
                   </div>
-                  <div className="space-y-1"><Label className="text-xs">Wert (€)</Label><Input type="number" value={form.deal_value ?? ""} onChange={(e) => u("deal_value", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
-                  <div className="space-y-1 col-span-2"><Label className="text-xs">Notizen</Label><Textarea value={form.notes ?? ""} onChange={(e) => u("notes", e.target.value)} rows={2} readOnly={isReadOnly} className="text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs">Wert (€)</Label><Input type="number" value={form.deal_value} onChange={(e) => u("deal_value", e.target.value)} readOnly={isReadOnly} className="h-8 text-sm" /></div>
+                  <div className="space-y-1 col-span-2"><Label className="text-xs">Notizen</Label><Textarea value={form.notes} onChange={(e) => u("notes", e.target.value)} rows={2} readOnly={isReadOnly} className="text-sm" /></div>
                 </div>
               </div>
 
