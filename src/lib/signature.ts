@@ -153,9 +153,19 @@ function esc(str: string): string {
 // ---------------------------------------------------------------------------
 
 export async function loadUserSignature(): Promise<{ data: SignatureData; config: SignatureTemplateConfig; html: string } | null> {
+  // Get current user's public id
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return null;
+
+  const { data: publicUserId } = await supabase.rpc("get_public_user_id", {
+    _auth_user_id: authUser.id,
+  });
+  if (!publicUserId) return null;
+
   const { data: sig, error } = await supabase
     .from("user_email_signatures")
     .select("*")
+    .eq("user_id", publicUserId)
     .eq("is_active", true)
     .maybeSingle();
 

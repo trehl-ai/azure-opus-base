@@ -44,9 +44,11 @@ export default function SignatureSettings() {
   const { data: existingSignature, isLoading } = useQuery({
     queryKey: ["user-signature"],
     queryFn: async () => {
+      if (!user) return null;
       const { data, error } = await supabase
         .from("user_email_signatures")
         .select("*")
+        .eq("user_id", user.id)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -179,18 +181,10 @@ export default function SignatureSettings() {
         updated_at: new Date().toISOString(),
       };
 
-      if (existingSignature) {
-        const { error } = await supabase
-          .from("user_email_signatures")
-          .update(payload)
-          .eq("id", existingSignature.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_email_signatures")
-          .insert(payload);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from("user_email_signatures")
+        .upsert(payload, { onConflict: "user_id" });
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Signatur gespeichert");
