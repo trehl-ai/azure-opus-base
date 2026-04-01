@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Send, Plus, ExternalLink } from "lucide-react";
+import { CalendarIcon, Send, Plus, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TaskAttachments } from "./TaskAttachments";
 import { TaskLinks } from "./TaskLinks";
