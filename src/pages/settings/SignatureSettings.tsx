@@ -44,9 +44,11 @@ export default function SignatureSettings() {
   const { data: existingSignature, isLoading } = useQuery({
     queryKey: ["user-signature"],
     queryFn: async () => {
+      if (!user) return null;
       const { data, error } = await supabase
         .from("user_email_signatures")
         .select("*")
+        .eq("user_id", user.id)
         .maybeSingle();
       if (error) throw error;
       return data;
