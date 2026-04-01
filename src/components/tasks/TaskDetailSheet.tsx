@@ -49,6 +49,7 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const { data: task } = useQuery({
     queryKey: ["task-detail", taskId],
