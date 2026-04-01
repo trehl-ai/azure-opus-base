@@ -55,6 +55,7 @@ export default function Tasks() {
   const [filterDue, setFilterDue] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [mobileStatusFilter, setMobileStatusFilter] = useState<string>("all");
+  const [createOpen, setCreateOpen] = useState(false);
   const [statusChangeSheet, setStatusChangeSheet] = useState<{ open: boolean; taskId: string; currentStatus: string }>({
     open: false, taskId: "", currentStatus: "",
   });
