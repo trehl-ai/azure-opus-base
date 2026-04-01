@@ -322,9 +322,31 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
                 <Button size="icon" onClick={() => commentMutation.mutate()} disabled={commentMutation.isPending || !commentText.trim()}><Send className="h-4 w-4" /></Button>
               </div>
             </div>
+
+            {/* Delete */}
+            <div className="pt-4 border-t border-border">
+              <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setDeleteConfirmOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Task löschen
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Task wirklich löschen?</AlertDialogTitle>
+            <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteMutation.isPending ? "Löschen…" : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
