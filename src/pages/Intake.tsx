@@ -16,10 +16,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake } from "lucide-react";
+import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { parseEmailBody, cleanSubject, splitFullName, type ExtractionSource } from "@/lib/intakeParser";
 
 const statusBadge: Record<string, string> = {
   new: "bg-secondary text-secondary-foreground",
