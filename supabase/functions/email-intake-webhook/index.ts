@@ -6,9 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-/**
- * Strip HTML to plain text — lightweight server-side version.
- */
 function stripHtmlToText(html: string): string {
   return html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
@@ -34,6 +31,27 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
+async function fetchEmailFromResend(emailId: string, apiKey: string): Promise<{ text: string; html: string } | null> {
+  try {
+    const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) {
+      console.error(`Resend API error: ${res.status} ${res.statusText}`);
+      return null;
+    }
+    const data = await res.json();
+    return {
+      text: data.text ?? "",
+      html: data.html ?? "",
+    };
+  } catch (err) {
+    console.error("Failed to fetch email from Resend API:", err);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -53,10 +71,7 @@ Deno.serve(async (req) => {
     const data = payload?.data ?? payload?.event?.data ?? payload;
 
     const fromEmail =
-      data.from ??
-      data.sender ??
-      data.envelope?.from ??
-      "";
+      data.from ?? data.sender ?? data.envelope?.from ?? "";
     const toEmail =
       (Array.isArray(data.to) ? data.to.join(", ") : data.to) ??
       (Array.isArray(data.envelope?.to)
@@ -64,8 +79,28 @@ Deno.serve(async (req) => {
         : data.envelope?.to) ??
       "";
     const subject = data.subject ?? "";
-    const bodyHtml = data.html ?? "";
-    const bodyText = data.text ?? "";
+
+    // Extract email_id to fetch full content from Resend API
+    const emailId = data.email_id ?? data.id ?? "";
+
+    let bodyText = data.text ?? "";
+    let bodyHtml = data.html ?? "";
+
+    // If we have an email_id but no body content, fetch from Resend API
+    if (emailId && (!bodyText && !bodyHtml)) {
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (resendApiKey) {
+        console.log(`Fetching full email content from Resend API for: ${emailId}`);
+        const fullEmail = await fetchEmailFromResend(emailId, resendApiKey);
+        if (fullEmail) {
+          bodyText = fullEmail.text;
+          bodyHtml = fullEmail.html;
+          console.log(`Resend API: text=${bodyText.length} chars, html=${bodyHtml.length} chars`);
+        }
+      } else {
+        console.warn("RESEND_API_KEY not set, cannot fetch full email content");
+      }
+    }
 
     // Build raw_body: prefer text, fall back to HTML→text conversion
     let rawBody = bodyText || "";
@@ -88,6 +123,7 @@ Deno.serve(async (req) => {
         to_email: toEmail,
         body_html: bodyHtml,
         body_text: bodyText,
+        email_id: emailId,
         raw_payload: payload,
       },
     });
