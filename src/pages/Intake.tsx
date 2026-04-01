@@ -47,10 +47,7 @@ const emptyForm: FormData = {
   deal_title: "", deal_value: "", notes: "",
 };
 
-function cleanSubject(subject: string | null): string {
-  if (!subject) return "";
-  return subject.replace(/^(Fwd?|Fw|WG|AW|Re|Aw):\s*/gi, "").trim();
-}
+// cleanSubject is now imported from intakeParser.ts
 
 function stripHtml(html: string): string {
   return html
