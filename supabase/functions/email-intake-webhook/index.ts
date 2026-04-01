@@ -31,27 +31,6 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
-async function fetchEmailFromResend(emailId: string, apiKey: string): Promise<{ text: string; html: string } | null> {
-  try {
-    const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!res.ok) {
-      console.error(`Resend API error: ${res.status} ${res.statusText}`);
-      return null;
-    }
-    const data = await res.json();
-    return {
-      text: data.text ?? "",
-      html: data.html ?? "",
-    };
-  } catch (err) {
-    console.error("Failed to fetch email from Resend API:", err);
-    return null;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -66,12 +45,12 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
+    console.log("Webhook received, type:", payload?.type);
 
-    const eventType = payload?.type ?? payload?.event?.type ?? "";
-    const data = payload?.data ?? payload?.event?.data ?? payload;
+    const data = payload?.data ?? {};
 
-    const fromEmail =
-      data.from ?? data.sender ?? data.envelope?.from ?? "";
+    // 1. Extract metadata from webhook
+    const fromEmail = data.from ?? data.sender ?? data.envelope?.from ?? "";
     const toEmail =
       (Array.isArray(data.to) ? data.to.join(", ") : data.to) ??
       (Array.isArray(data.envelope?.to)
@@ -80,46 +59,75 @@ Deno.serve(async (req) => {
       "";
     const subject = data.subject ?? "";
 
-    // Extract email_id to fetch full content from Resend API
+    // 2. Extract email_id
     const emailId = data.email_id ?? data.id ?? "";
+    console.log("email_id:", emailId);
 
-    let bodyText = data.text ?? "";
-    let bodyHtml = data.html ?? "";
+    // 3. Fetch full email content from Resend API
+    let bodyText = "";
+    let bodyHtml = "";
 
-    // If we have an email_id but no body content, fetch from Resend API
-    if (emailId && (!bodyText && !bodyHtml)) {
+    if (emailId) {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      console.log("RESEND_API_KEY present:", !!resendApiKey);
+      console.log("RESEND_API_KEY length:", resendApiKey?.length ?? 0);
+
       if (resendApiKey) {
-        console.log(`Fetching full email content from Resend API for: ${emailId}`);
-        const fullEmail = await fetchEmailFromResend(emailId, resendApiKey);
-        if (fullEmail) {
-          bodyText = fullEmail.text;
-          bodyHtml = fullEmail.html;
-          console.log(`Resend API: text=${bodyText.length} chars, html=${bodyHtml.length} chars`);
+        try {
+          console.log(`Fetching from Resend API: https://api.resend.com/emails/${emailId}`);
+          const res = await fetch(
+            `https://api.resend.com/emails/${emailId}`,
+            {
+              method: "GET",
+              headers: {
+                "Authorization": `Bearer ${resendApiKey}`,
+              },
+            }
+          );
+
+          console.log("Resend API response status:", res.status);
+
+          if (res.ok) {
+            const emailData = await res.json();
+            bodyText = emailData.text ?? "";
+            bodyHtml = emailData.html ?? "";
+            console.log("body_text length:", bodyText.length);
+            console.log("body_html length:", bodyHtml.length);
+          } else {
+            const errorBody = await res.text();
+            console.error(`Resend API error: ${res.status} ${res.statusText}`);
+            console.error("Resend API error body:", errorBody);
+          }
+        } catch (fetchErr) {
+          console.error("Resend API fetch failed:", fetchErr);
         }
       } else {
-        console.warn("RESEND_API_KEY not set, cannot fetch full email content");
+        console.error("RESEND_API_KEY is not set in environment!");
       }
+    } else {
+      console.warn("No email_id found in webhook payload");
     }
 
-    // Build raw_body: prefer text, fall back to HTML→text conversion
-    let rawBody = bodyText || "";
+    // 4. Build raw_body: prefer text, fall back to HTML→text
+    let rawBody = bodyText;
     if (!rawBody && bodyHtml) {
       rawBody = stripHtmlToText(bodyHtml);
+      console.log("Converted HTML to text, length:", rawBody.length);
     }
 
+    // 5. Store in database
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const { error } = await supabase.from("intake_messages").insert({
       sender_email: typeof fromEmail === "string" ? fromEmail : JSON.stringify(fromEmail),
-      subject: subject,
-      raw_body: rawBody,
+      subject,
+      raw_body: rawBody || null,
       status: "new",
       received_at: new Date().toISOString(),
       parsed_payload_json: {
-        event_type: eventType,
+        event_type: payload?.type ?? "",
         to_email: toEmail,
         body_html: bodyHtml,
         body_text: bodyText,
@@ -139,6 +147,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log("Intake message stored successfully");
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
