@@ -463,7 +463,18 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
 
             {/* RIGHT: Manual Form */}
             <div className="space-y-5">
-              {/* Duplicate warnings */}
+              {/* Extraction source badge */}
+              {extractionSource !== "manual" && !isReadOnly && (
+                <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="text-foreground font-medium">
+                    {extractionSource === "forwarded" ? "Aus Weiterleitung extrahiert" :
+                     extractionSource === "signature" ? "Aus Signatur extrahiert" :
+                     "Aus Schlüsselwörtern extrahiert"}
+                  </span>
+                  <span className="text-muted-foreground">— alle Felder editierbar</span>
+                </div>
+              )}
               {duplicateCompany && createCompany && !isReadOnly && (
                 <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm">
                   <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
