@@ -6,6 +6,34 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Strip HTML to plain text — lightweight server-side version.
+ */
+function stripHtmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<(?:p|div|tr|li|h[1-6])[^>]*>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&auml;/gi, "ä")
+    .replace(/&ouml;/gi, "ö")
+    .replace(/&uuml;/gi, "ü")
+    .replace(/&Auml;/gi, "Ä")
+    .replace(/&Ouml;/gi, "Ö")
+    .replace(/&Uuml;/gi, "Ü")
+    .replace(/&szlig;/gi, "ß")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,11 +49,9 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json();
 
-    // Resend sends different event structures; handle both flat and nested
     const eventType = payload?.type ?? payload?.event?.type ?? "";
     const data = payload?.data ?? payload?.event?.data ?? payload;
 
-    // Extract fields from Resend inbound payload
     const fromEmail =
       data.from ??
       data.sender ??
@@ -41,8 +67,11 @@ Deno.serve(async (req) => {
     const bodyHtml = data.html ?? "";
     const bodyText = data.text ?? "";
 
-    // Build raw_body: prefer text, fall back to html
-    const rawBody = bodyText || bodyHtml || "";
+    // Build raw_body: prefer text, fall back to HTML→text conversion
+    let rawBody = bodyText || "";
+    if (!rawBody && bodyHtml) {
+      rawBody = stripHtmlToText(bodyHtml);
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
