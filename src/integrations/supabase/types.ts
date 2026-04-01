@@ -1521,6 +1521,7 @@ export type Database = {
           parent_task_id: string | null
           priority: string | null
           project_id: string
+          reminder_sent: boolean
           sort_order: number | null
           start_date: string | null
           status: string
@@ -1538,6 +1539,7 @@ export type Database = {
           parent_task_id?: string | null
           priority?: string | null
           project_id: string
+          reminder_sent?: boolean
           sort_order?: number | null
           start_date?: string | null
           status?: string
@@ -1555,6 +1557,7 @@ export type Database = {
           parent_task_id?: string | null
           priority?: string | null
           project_id?: string
+          reminder_sent?: boolean
           sort_order?: number | null
           start_date?: string | null
           status?: string
