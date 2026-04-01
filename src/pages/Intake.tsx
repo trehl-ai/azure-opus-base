@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -16,10 +16,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake } from "lucide-react";
+import { Plus, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Info, Building2, User, Handshake, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { parseEmailBody, cleanSubject, splitFullName, type ExtractionSource } from "@/lib/intakeParser";
 
 const statusBadge: Record<string, string> = {
   new: "bg-secondary text-secondary-foreground",
@@ -46,10 +47,7 @@ const emptyForm: FormData = {
   deal_title: "", deal_value: "", notes: "",
 };
 
-function cleanSubject(subject: string | null): string {
-  if (!subject) return "";
-  return subject.replace(/^(Fwd?|Fw|WG|AW|Re|Aw):\s*/gi, "").trim();
-}
+// cleanSubject is now imported from intakeParser.ts
 
 function stripHtml(html: string): string {
   return html
@@ -246,6 +244,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   });
 
   const [form, setForm] = useState<FormData>({ ...emptyForm });
+  const [extractionSource, setExtractionSource] = useState<ExtractionSource>("manual");
   const [createCompany, setCreateCompany] = useState(true);
   const [createContact, setCreateContact] = useState(true);
   const [createDeal, setCreateDeal] = useState(true);
@@ -259,13 +258,39 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   const { data: pipelines } = usePipelines();
   const { data: stages } = usePipelineStages(selectedPipelineId || undefined);
 
-  // Initialize form — all fields empty, only deal_title = cleaned subject
+  // Initialize form with parser results
   useEffect(() => {
     if (!message) return;
+
+    // Get email body
+    const payload = message.parsed_payload_json as Record<string, unknown> | null;
+    let bodyText = message.raw_body || "";
+    let bodyHtml = "";
+    if (payload) {
+      if (!bodyText) bodyText = (payload.body_text as string) || "";
+      bodyHtml = (payload.body_html as string) || "";
+    }
+
+    // Run parser
+    const parsed = parseEmailBody(bodyText, bodyHtml, message.sender_email ?? undefined);
+
     setForm({
-      ...emptyForm,
+      company_name: parsed.company_name,
+      company_industry: "",
+      company_website: parsed.website,
+      company_city: "",
+      company_address: parsed.address,
+      contact_first_name: parsed.first_name,
+      contact_last_name: parsed.last_name,
+      contact_email: parsed.email,
+      contact_phone: parsed.phone,
+      contact_mobile: parsed.mobile,
+      contact_job_title: parsed.job_title,
       deal_title: cleanSubject(message.subject),
+      deal_value: "",
+      notes: parsed.notes,
     });
+    setExtractionSource(parsed.extraction_source);
     setCreateCompany(true);
     setCreateContact(true);
     setCreateDeal(true);
@@ -438,7 +463,18 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
 
             {/* RIGHT: Manual Form */}
             <div className="space-y-5">
-              {/* Duplicate warnings */}
+              {/* Extraction source badge */}
+              {extractionSource !== "manual" && !isReadOnly && (
+                <div className="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="text-foreground font-medium">
+                    {extractionSource === "forwarded" ? "Aus Weiterleitung extrahiert" :
+                     extractionSource === "signature" ? "Aus Signatur extrahiert" :
+                     "Aus Schlüsselwörtern extrahiert"}
+                  </span>
+                  <span className="text-muted-foreground">— alle Felder editierbar</span>
+                </div>
+              )}
               {duplicateCompany && createCompany && !isReadOnly && (
                 <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm">
                   <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
