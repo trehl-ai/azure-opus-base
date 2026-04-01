@@ -77,9 +77,9 @@ Deno.serve(async (req) => {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (resendApiKey) {
         try {
-          console.log("No body in webhook, trying Resend API fallback...");
+          console.log("No body in webhook, trying Resend Receiving API...");
           const res = await fetch(
-            `https://api.resend.com/emails/${emailId}`,
+            `https://api.resend.com/emails/receiving/${emailId}`,
             {
               method: "GET",
               headers: { "Authorization": `Bearer ${resendApiKey}` },
