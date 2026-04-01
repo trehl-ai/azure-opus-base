@@ -144,14 +144,19 @@ export default function Tasks() {
     <div className="flex flex-col h-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-[28px] font-semibold text-foreground">Tasks</h1>
-        {!isMobile && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {canWriteTasks && (
+            <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1">
+              <Plus className="h-4 w-4" /> Neuer Task
+            </Button>
+          )}
+          {!isMobile && (
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button onClick={() => setView("board")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "board" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><LayoutGrid className="h-4 w-4" /></button>
               <button onClick={() => setView("list")} className={cn("px-3 py-2 text-sm min-h-[44px]", view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted")}><List className="h-4 w-4" /></button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Filters */}
