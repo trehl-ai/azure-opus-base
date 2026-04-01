@@ -74,10 +74,10 @@ const FORWARD_HEADER_PATTERNS = [
 ];
 
 /** Company suffixes to detect company lines */
-const COMPANY_SUFFIXES = /\b(gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh)\b/i;
+const COMPANY_SUFFIXES = /\b(gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft)\b/i;
 
 /** Job title keywords */
-const JOB_TITLE_KEYWORDS = /\b(geschäftsführer|ceo|cto|cfo|coo|cmo|managing\s*director|director|vorstand|leiter|leiterin|manager|managerin|head\s+of|vp|vice\s*president|partner|inhaber|inhaberin|prokurist|prokuristin|referent|referentin|sachbearbeiter|sachbearbeiterin|assistent|assistentin|sekretär|sekretärin|berater|beraterin|consultant|koordinator|koordinatorin|projektleiter|projektleiterin|abteilungsleiter|abteilungsleiterin)\b/i;
+const JOB_TITLE_KEYWORDS = /\b(geschäftsführer|geschäftsführerin|ceo|cto|cfo|coo|cmo|managing\s*director|director|vorstand|vorsitzender|vorsitzende|leiter|leiterin|manager|managerin|head\s+of|vp|vice\s*president|partner|inhaber|inhaberin|prokurist|prokuristin|referent|referentin|sachbearbeiter|sachbearbeiterin|assistent|assistentin|sekretär|sekretärin|berater|beraterin|consultant|koordinator|koordinatorin|projektleiter|projektleiterin|abteilungsleiter|abteilungsleiterin|präsident|präsidentin|schatzmeister|schatzmeisterin|kurator|kuratorin|stifter|stifterin)\b/i;
 
 /** Email pattern */
 const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/;
@@ -91,11 +91,11 @@ const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"]+/i;
 /** Social URL patterns to exclude */
 const SOCIAL_URL_RE = /(?:linkedin\.com|xing\.com|twitter\.com|x\.com|facebook\.com|instagram\.com)/i;
 
-/** Street + house number pattern (German) */
-const STREET_RE = /[A-ZÄÖÜ][a-zäöüß]+(?:straße|str\.|weg|gasse|allee|platz|ring|damm|ufer|chaussee)\s+\d+/i;
+/** Street + house number pattern (German/Austrian) */
+const STREET_RE = /[A-ZÄÖÜ][a-zäöüß]+(?:straße|str\.|weg|gasse|allee|platz|ring|damm|ufer|chaussee|promenade|steig|stieg|berg|feld|hof|grund|park|anger|markt)\s+\d+[a-zA-Z]?/i;
 
-/** PLZ + City pattern (German) */
-const PLZ_CITY_RE = /\b\d{4,5}\s+[A-ZÄÖÜ][a-zäöüß]+(?:\s+[a-zäöüß]+)*\b/;
+/** PLZ + City pattern (German/Austrian/Swiss — with optional country prefix like A-, D-, CH-) */
+const PLZ_CITY_RE = /\b(?:[A-Z]{1,2}[\-\s])?\d{4,5}\s+[A-ZÄÖÜ][a-zäöüß]+(?:\s+[a-zäöüß]+)*\b/;
 
 /**
  * Strip HTML tags and decode basic entities to get plain text.
@@ -226,10 +226,10 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
     
     // Phone extraction (with keyword prefixes)
     if (phoneCount < 2) {
-      const hasPhoneKeyword = /(?:tel(?:efon)?|fon|phone|mob(?:il)?|mobile|handy)[.:]\s*/i.test(line);
+      const hasPhoneKeyword = /(?:tel(?:efon)?|fon|phone|mob(?:il)?\.?|mobile|handy)[.:]\s*/i.test(line);
       const phoneMatch = line.match(PHONE_RE);
       if (hasPhoneKeyword && phoneMatch) {
-        if (phoneCount === 0 && /(?:mob(?:il)?|mobile|handy)/i.test(line)) {
+        if (phoneCount === 0 && /(?:mob(?:il)?\.?|mobile|handy)/i.test(line)) {
           result.mobile = phoneMatch[0].trim();
         } else if (phoneCount === 0) {
           result.phone = phoneMatch[0].trim();
@@ -263,6 +263,31 @@ function extractFromSignatureBlock(blockLines: string[], forwarderEmail?: string
     
     // Company detection (by suffix)
     if (!result.company_name && COMPANY_SUFFIXES.test(line)) {
+      // Check if the line ALSO contains a job title keyword (e.g. "Vorsitzender der ... Stiftung")
+      if (JOB_TITLE_KEYWORDS.test(line)) {
+        // Extract company name embedded in job title line
+        // e.g. "Vorsitzender der gemeinnützigen Dr. Viktor Frhr. von Fuchs-Stiftung"
+        // Strategy: find the last "der/des/die" before the company suffix, then take everything after it
+        const suffixPattern = /(?:gmbh|ag|kg|kgaa|se|gbr|e\.?\s*v\.?|ohg|ug|ltd\.?|inc\.?|corp\.?|co\.?\s*kg|gmbh\s*&\s*co|mbh|stiftung|verein|verband|genossenschaft)\b/i;
+        const suffixMatch = line.match(suffixPattern);
+        if (suffixMatch && suffixMatch.index !== undefined) {
+          const endPos = suffixMatch.index + suffixMatch[0].length;
+          // Find last "der/des/die" before the suffix
+          const beforeSuffix = line.substring(0, endPos);
+          const articleMatches = [...beforeSuffix.matchAll(/\b(?:der|des|die)\s+/gi)];
+          if (articleMatches.length > 0) {
+            const lastArticle = articleMatches[articleMatches.length - 1];
+            const afterArticle = beforeSuffix.substring(lastArticle.index! + lastArticle[0].length);
+            // Remove leading lowercase adjectives (e.g. "gemeinnützigen")
+            const cleaned = afterArticle.replace(/^[a-zäöüß]+\s+/g, "");
+            result.company_name = cleaned.trim();
+          }
+        }
+        if (!result.job_title) {
+          result.job_title = line.trim();
+        }
+        continue;
+      }
       // Clean the line: remove pipe-separated parts that are job titles
       let companyLine = line;
       if (line.includes("|")) {
