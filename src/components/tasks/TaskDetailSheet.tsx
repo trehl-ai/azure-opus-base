@@ -6,6 +6,7 @@ import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
 import { useTaskStatuses } from "@/hooks/queries/useTaskStatuses";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Send, Plus, ExternalLink } from "lucide-react";
+import { CalendarIcon, Send, Plus, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TaskAttachments } from "./TaskAttachments";
 import { TaskLinks } from "./TaskLinks";
@@ -48,6 +49,7 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const { data: task } = useQuery({
     queryKey: ["task-detail", taskId],
@@ -162,6 +164,19 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["subtasks", taskId] }); invalidateAll(); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Task gelöscht" });
+      invalidateAll();
+      onOpenChange(false);
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
   const project = task?.project as { id: string; title: string } | null;
@@ -307,9 +322,31 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
                 <Button size="icon" onClick={() => commentMutation.mutate()} disabled={commentMutation.isPending || !commentText.trim()}><Send className="h-4 w-4" /></Button>
               </div>
             </div>
+
+            {/* Delete */}
+            <div className="pt-4 border-t border-border">
+              <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setDeleteConfirmOpen(true)}>
+                <Trash2 className="h-4 w-4" /> Task löschen
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Task wirklich löschen?</AlertDialogTitle>
+            <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteMutation.isPending ? "Löschen…" : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
