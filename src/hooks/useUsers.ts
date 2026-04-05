@@ -5,11 +5,7 @@ export function useUsers() {
   return useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, first_name, last_name, email, role, is_active")
-        .eq("is_active", true)
-        .order("first_name");
+      const { data, error } = await supabase.rpc("list_team_members");
       if (error) throw error;
       return data;
     },
