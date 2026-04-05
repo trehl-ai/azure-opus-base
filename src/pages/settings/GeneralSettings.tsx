@@ -74,11 +74,7 @@ export default function GeneralSettings() {
   const { data: users = [] } = useQuery({
     queryKey: ["users-active"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, first_name, last_name")
-        .eq("is_active", true)
-        .order("first_name");
+      const { data, error } = await supabase.rpc("list_team_members");
       if (error) throw error;
       return data;
     },

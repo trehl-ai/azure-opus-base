@@ -2363,6 +2363,17 @@ export type Database = {
       create_project_from_deal: { Args: { p_deal_id: string }; Returns: string }
       get_public_user_id: { Args: { _auth_user_id: string }; Returns: string }
       get_user_role: { Args: { _user_id: string }; Returns: string }
+      list_team_members: {
+        Args: never
+        Returns: {
+          email: string
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          role: string
+        }[]
+      }
       set_deal_lost: {
         Args: { p_deal_id: string; p_lost_stage_id?: string; p_reason: string }
         Returns: undefined
