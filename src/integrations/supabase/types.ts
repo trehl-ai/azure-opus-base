@@ -2362,6 +2362,7 @@ export type Database = {
     Functions: {
       create_project_from_deal: { Args: { p_deal_id: string }; Returns: string }
       get_public_user_id: { Args: { _auth_user_id: string }; Returns: string }
+      get_user_profile_image: { Args: { p_user_id: string }; Returns: string }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       list_team_members: {
         Args: never
