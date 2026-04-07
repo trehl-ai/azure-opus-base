@@ -16,7 +16,7 @@ export function useMoveDeal() {
         updates.status = "won";
         updates.won_at = new Date().toISOString();
       }
-      const { error } = await supabase.from("deals").update(updates).eq("id", dealId);
+      const { error } = await supabase.from("deals").update(updates as any).eq("id", dealId);
       if (error) throw error;
       if (isWon) {
         await new Promise((r) => setTimeout(r, 500));
@@ -94,7 +94,7 @@ export function useWonDeal(id: string) {
         won_at: new Date().toISOString(),
       };
       if (wonStageId) updates.pipeline_stage_id = wonStageId;
-      const { error } = await supabase.from("deals").update(updates).eq("id", id);
+      const { error } = await supabase.from("deals").update(updates as any).eq("id", id);
       if (error) throw error;
       await new Promise((r) => setTimeout(r, 500));
       const { data: project } = await supabase

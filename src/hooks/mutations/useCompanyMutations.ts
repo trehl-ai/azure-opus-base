@@ -45,7 +45,7 @@ export function useUpdateCompany(id: string) {
 
   return useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      const { error } = await supabase.from("companies").update(data).eq("id", id);
+      const { error } = await supabase.from("companies").update(data as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

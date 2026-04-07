@@ -13,7 +13,7 @@ export function useMoveProject() {
     mutationFn: async ({ projectId, status }: { projectId: string; status: string }) => {
       const updates: Record<string, unknown> = { status };
       if (status === "completed") updates.end_date = format(new Date(), "yyyy-MM-dd");
-      const { error } = await supabase.from("projects").update(updates).eq("id", projectId);
+      const { error } = await supabase.from("projects").update(updates as any).eq("id", projectId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects.all }),
