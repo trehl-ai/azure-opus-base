@@ -46,6 +46,7 @@ const COMPANY_COL_MAP: Record<string, string> = {
   notes: "notes", notizen: "notes", bemerkungen: "notes",
   industry: "industry", branche: "industry",
   website: "website", webseite: "website",
+  owner_user_id: "owner_user_id",
 };
 
 const CONTACT_COL_MAP: Record<string, string> = {
@@ -57,6 +58,7 @@ const CONTACT_COL_MAP: Record<string, string> = {
   phone: "phone", telefon: "phone", tel: "phone",
   source: "source", quelle: "source",
   mobile: "mobile", mobil: "mobile", handy: "mobile",
+  owner_user_id: "owner_user_id",
 };
 
 const DEAL_COL_MAP: Record<string, string> = {
@@ -258,6 +260,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             website: mapped.website || null,
             source: normalizeImportSource(mapped.source),
             notes: mapped.notes || null,
+            owner_user_id: mapped.owner_user_id || null,
             created_by_user_id: user.id,
           }).select("id").single();
           if (error) throw error;
@@ -299,6 +302,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             mobile: mapped.mobile || null,
             job_title: mapped.job_title || null,
             source: normalizeImportSource(mapped.source),
+            owner_user_id: mapped.owner_user_id || null,
             created_by_user_id: user.id,
           }).select("id").single();
           if (error) throw error;

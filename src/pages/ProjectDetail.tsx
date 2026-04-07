@@ -117,7 +117,7 @@ export default function ProjectDetail() {
       const updates: Record<string, unknown> = { status };
       if (status === "done") updates.completed_at = new Date().toISOString();
       else updates.completed_at = null;
-      const { error } = await supabase.from("tasks").update(updates).eq("id", taskId);
+      const { error } = await supabase.from("tasks").update(updates as any).eq("id", taskId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-tasks", id] }); qc.invalidateQueries({ queryKey: ["project-task-counts"] }); },
