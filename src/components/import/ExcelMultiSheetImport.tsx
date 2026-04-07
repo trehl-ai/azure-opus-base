@@ -260,6 +260,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             website: mapped.website || null,
             source: normalizeImportSource(mapped.source),
             notes: mapped.notes || null,
+            owner_user_id: mapped.owner_user_id || null,
             created_by_user_id: user.id,
           }).select("id").single();
           if (error) throw error;
@@ -301,6 +302,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             mobile: mapped.mobile || null,
             job_title: mapped.job_title || null,
             source: normalizeImportSource(mapped.source),
+            owner_user_id: mapped.owner_user_id || null,
             created_by_user_id: user.id,
           }).select("id").single();
           if (error) throw error;
