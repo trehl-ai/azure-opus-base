@@ -46,6 +46,7 @@ const COMPANY_COL_MAP: Record<string, string> = {
   notes: "notes", notizen: "notes", bemerkungen: "notes",
   industry: "industry", branche: "industry",
   website: "website", webseite: "website",
+  owner_user_id: "owner_user_id",
 };
 
 const CONTACT_COL_MAP: Record<string, string> = {
@@ -57,6 +58,7 @@ const CONTACT_COL_MAP: Record<string, string> = {
   phone: "phone", telefon: "phone", tel: "phone",
   source: "source", quelle: "source",
   mobile: "mobile", mobil: "mobile", handy: "mobile",
+  owner_user_id: "owner_user_id",
 };
 
 const DEAL_COL_MAP: Record<string, string> = {
