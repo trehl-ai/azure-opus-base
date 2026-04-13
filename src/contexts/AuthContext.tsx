@@ -70,7 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const dbUser = await fetchOrCreateDbUser(nextSession.user);
+      let dbUser: DbUser | null = null;
+      try {
+        dbUser = await fetchOrCreateDbUser(nextSession.user);
+      } catch (err) {
+        console.error("Failed to fetch/create DB user, proceeding with session only:", err);
+      }
 
       if (!isMounted) return;
 
