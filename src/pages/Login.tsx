@@ -12,6 +12,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -32,6 +33,38 @@ export default function Login() {
     }
 
     setLoading(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Google-Anmeldung fehlgeschlagen",
+          description: result.error.message || "Unbekannter Fehler",
+        });
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (result.redirected) {
+        return;
+      }
+
+      navigate("/", { replace: true });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Google-Anmeldung fehlgeschlagen",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+      });
+    }
+    setGoogleLoading(false);
   };
 
   return (
