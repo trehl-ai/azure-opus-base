@@ -69,6 +69,7 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/auth/set-password" element={<SetPassword />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* Protected routes with AppLayout */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
