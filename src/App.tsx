@@ -26,6 +26,7 @@ import Intake from "./pages/Intake.tsx";
 import SettingsPage from "./pages/Settings.tsx";
 import Compose from "./pages/Compose.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
+import AuthCallback from "./pages/AuthCallback.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient({
