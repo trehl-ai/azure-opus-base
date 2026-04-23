@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
 import { useConflictCheck } from "@/hooks/useConflictCheck";
-import { usePipelines } from "@/hooks/queries/usePipelines";
+import { usePipelines } from "@/hooks/usePipelines";
 import { ConflictWarning } from "@/components/shared/ConflictWarning";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { captureTimestamp, checkConflict, dismissConflict, hasConflict } = useConflictCheck("deals", deal.id);
-  const { data: pipelines } = usePipelines();
+  const { pipelines } = usePipelines();
 
   const [form, setForm] = useState({
     title: "", value_amount: "", currency: "EUR", probability_percent: "",

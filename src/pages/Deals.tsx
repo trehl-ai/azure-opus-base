@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
+import { usePipelines } from "@/hooks/usePipelines";
 import { useToast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermission";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -118,32 +119,7 @@ export default function Deals() {
   });
 
   // Pipelines (live from DB, only those with at least 1 active deal)
-  const { data: pipelines } = useQuery({
-    queryKey: ["pipelines", "with-deal-counts"],
-    queryFn: async () => {
-      const { data: allPipelines, error: pErr } = await supabase
-        .from("pipelines")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (pErr) throw pErr;
-
-      const { data: dealRows, error: dErr } = await supabase
-        .from("deals")
-        .select("pipeline_id")
-        .is("deleted_at", null);
-      if (dErr) throw dErr;
-
-      const counts = new Map<string, number>();
-      (dealRows ?? []).forEach((d: any) => {
-        counts.set(d.pipeline_id, (counts.get(d.pipeline_id) ?? 0) + 1);
-      });
-
-      return (allPipelines ?? [])
-        .filter((p) => (counts.get(p.id) ?? 0) > 0)
-        .map((p) => ({ ...p, deal_count: counts.get(p.id) ?? 0 }));
-    },
-  });
+  const { pipelines } = usePipelines({ onlyWithDeals: true });
 
   const [selectedPipelineId, setSelectedPipelineId] = useState("");
   const activePipelineId = selectedPipelineId || pipelines?.find((p) => p.is_default)?.id || pipelines?.[0]?.id || "";

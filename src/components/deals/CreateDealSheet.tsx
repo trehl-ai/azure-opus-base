@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUsers } from "@/hooks/useUsers";
+import { usePipelines } from "@/hooks/usePipelines";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -62,16 +63,8 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId }: Props)
     enabled: open && !!form.primary_contact_id,
   });
 
-  // Pipelines
-  const { data: pipelines } = useQuery({
-    queryKey: ["pipelines"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("pipelines").select("*").eq("is_active", true).order("name");
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
-  });
+  // Pipelines (live from DB via shared hook)
+  const { pipelines } = usePipelines();
 
   // Auto-select default pipeline
   const selectedPipelineId = form.pipeline_id || pipelines?.find((p) => p.is_default)?.id || pipelines?.[0]?.id || "";

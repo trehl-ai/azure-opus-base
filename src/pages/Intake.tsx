@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { usePipelines, usePipelineStages } from "@/hooks/queries/usePipelines";
+import { usePipelines } from "@/hooks/usePipelines";
+import { usePipelineStages } from "@/hooks/queries/usePipelines";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -255,7 +256,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
   const [useExistingCompany, setUseExistingCompany] = useState(false);
   const [useExistingContact, setUseExistingContact] = useState(false);
 
-  const { data: pipelines } = usePipelines();
+  const { pipelines } = usePipelines();
   const { data: stages } = usePipelineStages(selectedPipelineId || undefined);
 
   // Initialize form with parser results
