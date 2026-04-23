@@ -171,7 +171,7 @@ function SenderHintBox() {
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="rounded-b-xl border border-t-0 border-border bg-muted/30 px-4 py-4 text-sm text-foreground space-y-3">
-          <p>Bitte sende deine Anfrage an: <span className="font-semibold text-primary">sales@ts-connect.cloud</span></p>
+          <p>Bitte sende deine Anfrage an: <span className="font-semibold text-primary">sales@trehl-ai.com</span></p>
           <p className="text-muted-foreground">E-Mails werden automatisch erfasst. Felder können manuell ausgefüllt werden.</p>
         </div>
       </CollapsibleContent>
