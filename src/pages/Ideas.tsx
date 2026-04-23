@@ -17,18 +17,6 @@ type ContactHit = {
   score: number;
 };
 
-function extractKeywords(text: string): string[] {
-  return Array.from(
-    new Set(
-      text
-        .toLowerCase()
-        .split(/\s+/)
-        .map((w) => w.replace(/[^\p{L}\p{N}\-]/gu, ""))
-        .filter((w) => w.length >= 4),
-    ),
-  ).slice(0, 5);
-}
-
 function scoreColor(score: number): { text: string; bar: string } {
   if (score >= 70) return { text: "text-success", bar: "bg-success" };
   if (score >= 50) return { text: "text-warning", bar: "bg-warning" };
@@ -70,79 +58,38 @@ export default function Ideas() {
 
   const handleSearch = async () => {
     setError(null);
-    const keywords = extractKeywords(query);
-    if (keywords.length === 0) {
-      setError("Bitte gib mindestens ein Stichwort mit 4+ Buchstaben ein.");
+    if (query.trim().length < 3) {
+      setError("Bitte mindestens 3 Zeichen eingeben.");
       return;
     }
 
     setLoading(true);
     setHasSearched(true);
     try {
-      const escapeLike = (s: string) => s.replace(/[%_,()]/g, "");
-      const orParts: string[] = [];
-      keywords.forEach((kw) => {
-        const safe = escapeLike(kw);
-        orParts.push(`notes.ilike.%${safe}%`);
-        orParts.push(`job_title.ilike.%${safe}%`);
-        orParts.push(`first_name.ilike.%${safe}%`);
-        orParts.push(`last_name.ilike.%${safe}%`);
+      const { data, error: fnError } = await supabase.functions.invoke("match-ideas", {
+        body: { query: query.trim() },
       });
+      if (fnError) throw fnError;
 
-      const { data: contacts, error: cErr } = await supabase
-        .from("contacts")
-        .select("id, first_name, last_name, job_title, notes")
-        .is("deleted_at", null)
-        .or(orParts.join(","))
-        .limit(50);
+      const rows = (data?.results ?? []) as Array<{
+        id: string;
+        first_name: string;
+        last_name: string;
+        subtitle: string;
+        similarity: number;
+      }>;
 
-      if (cErr) throw cErr;
-      const ids = (contacts ?? []).map((c) => c.id);
+      const hits: ContactHit[] = rows.map((r) => ({
+        id: r.id,
+        first_name: r.first_name,
+        last_name: r.last_name,
+        job_title: null,
+        notes: null,
+        company_name: r.subtitle || null,
+        score: Math.round(r.similarity * 100),
+      }));
 
-      if (ids.length === 0) {
-        setResults([]);
-        return;
-      }
-
-      const { data: ccRows } = await supabase
-        .from("company_contacts")
-        .select("contact_id, is_primary, companies:company_id(name)")
-        .in("contact_id", ids);
-
-      const companyByContact = new Map<string, string>();
-      (ccRows ?? []).forEach((row: any) => {
-        const name = row.companies?.name;
-        if (!name) return;
-        const existing = companyByContact.get(row.contact_id);
-        if (!existing || row.is_primary) companyByContact.set(row.contact_id, name);
-      });
-
-      // Score: Anteil der Keywords die in notes/job_title/first/last erscheinen
-      const total = keywords.length;
-      const hits: ContactHit[] = (contacts ?? []).map((c) => {
-        const haystack = [
-          c.notes ?? "",
-          c.job_title ?? "",
-          c.first_name ?? "",
-          c.last_name ?? "",
-        ]
-          .join(" ")
-          .toLowerCase();
-        const matched = keywords.filter((kw) => haystack.includes(kw)).length;
-        const score = Math.round((matched / total) * 100);
-        return {
-          id: c.id,
-          first_name: c.first_name,
-          last_name: c.last_name,
-          job_title: c.job_title,
-          notes: c.notes,
-          company_name: companyByContact.get(c.id) ?? null,
-          score,
-        };
-      });
-
-      hits.sort((a, b) => b.score - a.score);
-      setResults(hits.slice(0, 5));
+      setResults(hits);
     } catch (e: any) {
       console.error("[Ideas] search failed", e);
       setError(e?.message ?? "Suche fehlgeschlagen.");
