@@ -117,13 +117,31 @@ export default function Deals() {
     open: false, dealId: "", dealTitle: "", stageId: "",
   });
 
-  // Pipelines
+  // Pipelines (live from DB, only those with at least 1 active deal)
   const { data: pipelines } = useQuery({
-    queryKey: ["pipelines"],
+    queryKey: ["pipelines", "with-deal-counts"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("pipelines").select("*").eq("is_active", true).order("name");
-      if (error) throw error;
-      return data;
+      const { data: allPipelines, error: pErr } = await supabase
+        .from("pipelines")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (pErr) throw pErr;
+
+      const { data: dealRows, error: dErr } = await supabase
+        .from("deals")
+        .select("pipeline_id")
+        .is("deleted_at", null);
+      if (dErr) throw dErr;
+
+      const counts = new Map<string, number>();
+      (dealRows ?? []).forEach((d: any) => {
+        counts.set(d.pipeline_id, (counts.get(d.pipeline_id) ?? 0) + 1);
+      });
+
+      return (allPipelines ?? [])
+        .filter((p) => (counts.get(p.id) ?? 0) > 0)
+        .map((p) => ({ ...p, deal_count: counts.get(p.id) ?? 0 }));
     },
   });
 
