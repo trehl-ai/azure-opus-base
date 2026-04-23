@@ -1,3 +1,6 @@
+// ⚠️ CLAUDE CODE ONLY — Lovable darf diese Datei nicht editieren
+// Edge Function: supabase/functions/match-ideas — match_contacts RPC via Gemini Embedding
+// Bei Lovable-Revert: git checkout main -- src/pages/Ideas.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Search, Plus, Info } from "lucide-react";
