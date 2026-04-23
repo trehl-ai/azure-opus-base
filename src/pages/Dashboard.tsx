@@ -281,3 +281,121 @@ function FallbackCard({ message, span }: { message: string; span?: number }) {
     </div>
   );
 }
+
+/* ---------- Call Activities Widget (hardcoded) ---------- */
+
+function CallActivitiesWidget() {
+  const Y_MAX = 70;
+  const weeks = [
+    { label: "KW 13–14", sub: "26.03. – 01.04.", wiedervorlage: 0, lost: 13 },
+    { label: "KW 15–16", sub: "02.04. – 11.04.", wiedervorlage: 62, lost: 0 },
+    { label: "KW 17–18", sub: "12.04. – 23.04.", wiedervorlage: 11, lost: 12 },
+  ];
+  const BRAND = "hsl(var(--brand))";
+  const RED = "#dc2626";
+
+  return (
+    <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+      <div className="mb-5">
+        <h2 className="text-[20px] font-bold text-foreground">98 Schulkontakte in 3 Wochen</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">
+          Werteraum - Schulen Pipeline · Wiedervorlage &amp; Lost
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px] gap-6">
+        {/* Chart */}
+        <div>
+          <div className="flex gap-3">
+            {/* Y-axis labels */}
+            <div className="flex flex-col justify-between text-[10px] text-muted-foreground tabular-nums h-[220px] pr-1 text-right">
+              {[70, 60, 50, 40, 30, 20, 10, 0].map((v) => (
+                <span key={v}>{v}</span>
+              ))}
+            </div>
+            {/* Bars area */}
+            <div className="flex-1 relative">
+              {/* Grid lines */}
+              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="border-t border-border/50 h-0" />
+                ))}
+              </div>
+              {/* Bars */}
+              <div className="relative h-[220px] flex items-end justify-around gap-4 px-2">
+                {weeks.map((w) => {
+                  const total = w.wiedervorlage + w.lost;
+                  const totalPct = (total / Y_MAX) * 100;
+                  const wvShare = total > 0 ? (w.wiedervorlage / total) * 100 : 0;
+                  const lostShare = total > 0 ? (w.lost / total) * 100 : 0;
+                  return (
+                    <div key={w.label} className="relative flex-1 max-w-[80px] h-full flex flex-col justify-end items-center">
+                      <div
+                        className="w-full rounded-t-md overflow-hidden flex flex-col"
+                        style={{ height: `${totalPct}%` }}
+                      >
+                        {w.wiedervorlage > 0 && (
+                          <div
+                            className="w-full flex items-center justify-center text-[11px] font-semibold text-white"
+                            style={{ height: `${wvShare}%`, background: BRAND }}
+                          >
+                            {w.wiedervorlage}
+                          </div>
+                        )}
+                        {w.lost > 0 && (
+                          <div
+                            className="w-full flex items-center justify-center text-[11px] font-semibold text-white"
+                            style={{ height: `${lostShare}%`, background: RED }}
+                          >
+                            {w.lost}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* X-axis labels */}
+              <div className="flex justify-around gap-4 px-2 mt-2">
+                {weeks.map((w) => (
+                  <div key={w.label} className="flex-1 max-w-[80px] text-center">
+                    <p className="text-[12px] font-medium text-foreground">{w.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{w.sub}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-6 mt-5">
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm" style={{ background: BRAND }} />
+              <span className="text-[12px] text-foreground">Wiedervorlage</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm" style={{ background: RED }} />
+              <span className="text-[12px] text-foreground">Lost / Kein Interesse</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI tiles */}
+        <div className="flex flex-col gap-3">
+          <div className="rounded-[12px] border border-border bg-canvas p-4">
+            <p className="text-[28px] font-bold text-foreground leading-none tabular-nums">98</p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">Kontakte gesamt</p>
+          </div>
+          <div className="rounded-[12px] border border-border bg-canvas p-4">
+            <p className="text-[28px] font-bold leading-none tabular-nums text-brand">73</p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">Wiedervorlage</p>
+          </div>
+          <div className="rounded-[12px] border border-border bg-canvas p-4">
+            <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: RED }}>25</p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">Kein Interesse</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
