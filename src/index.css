@@ -56,6 +56,15 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 228 33% 91%;
     --sidebar-ring: 237 87% 59%;
+
+    /* EO IPSO brand tokens (Live Marketing dashboard) */
+    --brand: 158 47% 20%;            /* #1a4a3a warm dark green */
+    --brand-foreground: 40 33% 97%;  /* off-white */
+    --brand-soft: 158 35% 94%;
+    --gold: 38 56% 51%;              /* #c9963a amber */
+    --gold-foreground: 0 0% 100%;
+    --gold-soft: 38 60% 94%;
+    --canvas: 40 25% 97%;            /* #f8f7f4 off-white */
   }
 
   .dark {
