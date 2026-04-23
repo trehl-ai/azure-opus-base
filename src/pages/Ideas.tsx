@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles, Search, Phone, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type ContactHit = {
@@ -35,11 +37,36 @@ function scoreColor(score: number): { text: string; bar: string } {
 
 export default function Ideas() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [results, setResults] = useState<ContactHit[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const handleFollowUp = async (contactId: string) => {
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 3);
+
+    const { error: insertError } = await supabase.from("deal_activities").insert({
+      contact_id: contactId,
+      activity_type: "follow_up",
+      title: "Follow-up aus Ideen-Matcher",
+      description: query,
+      status: "open",
+      due_date: dueDate.toISOString(),
+      owner_user_id: user?.id ?? null,
+      created_by_user_id: user?.id ?? null,
+    });
+
+    if (insertError) {
+      console.error("[Ideas] Follow-up failed", insertError);
+      toast({ variant: "destructive", title: "Fehler beim Anlegen", description: insertError.message });
+      return;
+    }
+    toast({ title: "Follow-up angelegt", description: "Fällig in 3 Tagen" });
+  };
 
   const handleSearch = async () => {
     setError(null);
@@ -198,7 +225,7 @@ export default function Ideas() {
                 <MatchTile
                   key={c.id}
                   contact={c}
-                  onFollowUp={() => console.log("[Ideas] Follow-up", c.id)}
+                  onFollowUp={() => handleFollowUp(c.id)}
                   onCreateDeal={() => navigate(`/deals?contact=${c.id}`)}
                 />
               ))}

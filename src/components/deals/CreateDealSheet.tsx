@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,9 +19,10 @@ import { cn } from "@/lib/utils";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultContactId?: string;
 }
 
-export function CreateDealSheet({ open, onOpenChange }: Props) {
+export function CreateDealSheet({ open, onOpenChange, defaultContactId }: Props) {
   const { user } = useAuth();
   const { data: users } = useUsers();
   const { toast } = useToast();
@@ -38,6 +39,28 @@ export function CreateDealSheet({ open, onOpenChange }: Props) {
   const [titleError, setTitleError] = useState("");
 
   const u = (f: string, v: string) => { setForm((p) => ({ ...p, [f]: v })); if (f === "title") setTitleError(""); };
+
+  // Pre-fill contact when sheet opens with defaultContactId
+  useEffect(() => {
+    if (open && defaultContactId) {
+      setForm((p) => ({ ...p, primary_contact_id: defaultContactId }));
+    }
+  }, [open, defaultContactId]);
+
+  // Fetch preselected contact by id (fallback for selectedContact render)
+  const { data: preselectedContact } = useQuery({
+    queryKey: ["contact-preselect", form.primary_contact_id],
+    queryFn: async () => {
+      if (!form.primary_contact_id) return null;
+      const { data } = await supabase
+        .from("contacts")
+        .select("id, first_name, last_name, email")
+        .eq("id", form.primary_contact_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: open && !!form.primary_contact_id,
+  });
 
   // Pipelines
   const { data: pipelines } = useQuery({
@@ -99,7 +122,9 @@ export function CreateDealSheet({ open, onOpenChange }: Props) {
   });
 
   const selectedCompany = companies?.find((c) => c.id === form.company_id);
-  const selectedContact = contacts?.find((c) => c.id === form.primary_contact_id);
+  const selectedContact =
+    contacts?.find((c) => c.id === form.primary_contact_id) ??
+    (preselectedContact?.id === form.primary_contact_id ? preselectedContact : undefined);
 
   const mutation = useMutation({
     mutationFn: async () => {

@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +32,8 @@ export default function Deals() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const contactParam = searchParams.get("contact");
   const { data: users } = useUsers();
   const { user } = useAuth();
   const { canWrite, role } = usePermission();
@@ -40,6 +42,19 @@ export default function Deals() {
   const onlineUsers = usePresence("/deals");
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Auto-open sheet when navigated with ?contact=<id>
+  useEffect(() => {
+    if (contactParam) setSheetOpen(true);
+  }, [contactParam]);
+
+  const handleSheetChange = (o: boolean) => {
+    setSheetOpen(o);
+    if (!o && contactParam) {
+      searchParams.delete("contact");
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
   const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
   const [showAll, setShowAll] = useState(!showOwnerToggle);
   const [dateFrom, setDateFrom] = useState<Date>();
@@ -417,7 +432,7 @@ export default function Deals() {
         </div>
       )}
 
-      <CreateDealSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <CreateDealSheet open={sheetOpen} onOpenChange={handleSheetChange} defaultContactId={contactParam ?? undefined} />
       <LostReasonDialog
         dealId={lostDialog.dealId} dealTitle={lostDialog.dealTitle} stageId={lostDialog.stageId}
         open={lostDialog.open} onOpenChange={(open) => setLostDialog((p) => ({ ...p, open }))}
