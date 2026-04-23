@@ -27,6 +27,7 @@ import SettingsPage from "./pages/Settings.tsx";
 import Compose from "./pages/Compose.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import AuthCallback from "./pages/AuthCallback.tsx";
+import Ideas from "./pages/Ideas.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient({
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="/projects" element={<P><Projects /></P>} />
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
+              <Route path="/ideas" element={<P><Ideas /></P>} />
               <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
               <Route path="/compose" element={<P><Compose /></P>} />
               <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
