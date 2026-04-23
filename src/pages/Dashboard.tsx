@@ -193,6 +193,9 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Anruf-Aktivitäten */}
+      <CallActivitiesWidget />
+
       {/* Quick Actions */}
       <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
         <h2 className="text-[16px] font-semibold text-foreground mb-4">Schnellaktionen</h2>
