@@ -187,7 +187,7 @@ export default function Ideas() {
       <div className="rounded-[12px] border border-brand/20 bg-brand/5 px-4 py-3 flex items-start gap-2">
         <Info className="h-4 w-4 text-brand mt-0.5 shrink-0" />
         <p className="text-[13px] text-foreground">
-          💡 <span className="font-semibold">Semantische Suche aktiv</span> — 1.975 Kontakte mit KI-Embeddings indexiert
+          🔍 <span className="font-semibold">Keyword-Suche aktiv</span> — semantisches Vektor-Matching in Vorbereitung
         </p>
       </div>
 
