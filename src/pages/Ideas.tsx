@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Search, Plus, Zap, Info } from "lucide-react";
+import { Sparkles, Search, Plus, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-const WERTERAUM_TAG = "WerteRaum Potential";
-const MIN_KEYWORD_LEN = 4;
-const MAX_KEYWORDS = 5;
 const MAX_RESULTS = 15;
 
 type ContactHit = {
@@ -15,35 +12,14 @@ type ContactHit = {
   first_name: string;
   last_name: string;
   job_title: string | null;
+  company: string | null;
   notes: string | null;
-  company_name: string | null;
-  matchCount: number;
-  hasNotesMatch: boolean;
-  isWerteraum: boolean;
+  werteraum_potential: boolean;
+  plsc_kampagne: boolean;
+  smm_2025: boolean;
+  markenfestival: boolean;
+  similarity: number;
 };
-
-function extractKeywords(input: string): string[] {
-  const stop = new Set([
-    "und", "oder", "aber", "wenn", "dann", "weil", "auch", "nicht", "noch",
-    "eine", "einen", "einer", "eines", "der", "die", "das", "den", "dem",
-    "mit", "ohne", "für", "fuer", "gegen", "vom", "von", "bei", "auf", "aus",
-    "this", "that", "with", "from", "have", "been", "they", "their", "there",
-  ]);
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of input.toLowerCase().split(/[^a-zäöüß0-9]+/i)) {
-    const w = raw.trim();
-    if (w.length < MIN_KEYWORD_LEN || stop.has(w) || seen.has(w)) continue;
-    seen.add(w);
-    out.push(w);
-    if (out.length >= MAX_KEYWORDS) break;
-  }
-  return out;
-}
-
-function escapeIlike(v: string): string {
-  return v.replace(/[\\%_,()]/g, " ").trim();
-}
 
 export default function Ideas() {
   const navigate = useNavigate();
@@ -52,124 +28,36 @@ export default function Ideas() {
   const [hasSearched, setHasSearched] = useState(false);
   const [results, setResults] = useState<ContactHit[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [usedKeywords, setUsedKeywords] = useState<string[]>([]);
 
   const handleSearch = async () => {
     setError(null);
+    if (!query.trim()) return;
     if (query.trim().length < 3) {
       setError("Bitte mindestens 3 Zeichen eingeben.");
-      return;
-    }
-    const keywords = extractKeywords(query);
-    if (keywords.length === 0) {
-      setError("Bitte verwende aussagekräftigere Stichwörter (mind. 4 Buchstaben).");
       return;
     }
 
     setLoading(true);
     setHasSearched(true);
-    setUsedKeywords(keywords);
-    try {
-      // Build OR-Filter über mehrere Felder
-      const orParts = keywords.flatMap((kw) => {
-        const safe = escapeIlike(kw);
-        if (!safe) return [];
-        return [
-          `notes.ilike.%${safe}%`,
-          `job_title.ilike.%${safe}%`,
-          `first_name.ilike.%${safe}%`,
-          `last_name.ilike.%${safe}%`,
-        ];
-      });
+    setResults([]);
 
-      const { data: contacts, error: cErr } = await supabase
-        .from("contacts")
-        .select("id, first_name, last_name, job_title, notes")
-        .is("deleted_at", null)
-        .or(orParts.join(","))
-        .limit(50);
+    const { data, error: fnError } = await supabase.functions.invoke("match-ideas", {
+      body: {
+        query: query.trim(),
+        match_threshold: 0.65,
+        match_count: MAX_RESULTS,
+      },
+    });
 
-      if (cErr) throw cErr;
-      const list = contacts ?? [];
-      if (list.length === 0) {
-        setResults([]);
-        return;
-      }
-
-      const ids = list.map((c) => c.id);
-
-      // Companies via join table (best-effort, fail soft)
-      const companyMap = new Map<string, string>();
-      const { data: ccRows } = await supabase
-        .from("company_contacts")
-        .select("contact_id, is_primary, companies:company_id(name)")
-        .in("contact_id", ids);
-      for (const row of ccRows ?? []) {
-        const name = (row as any)?.companies?.name as string | undefined;
-        if (!name) continue;
-        const cid = (row as any).contact_id as string;
-        if (!companyMap.has(cid) || (row as any).is_primary) {
-          companyMap.set(cid, name);
-        }
-      }
-
-      // WerteRaum-Tag Lookup
-      const werteraumIds = new Set<string>();
-      const { data: tagRow } = await supabase
-        .from("tags")
-        .select("id")
-        .eq("name", WERTERAUM_TAG)
-        .maybeSingle();
-      const tagId = (tagRow as any)?.id as string | undefined;
-      if (tagId) {
-        const { data: etRows } = await supabase
-          .from("entity_tags")
-          .select("entity_id")
-          .eq("entity_type", "contact")
-          .eq("tag_id", tagId)
-          .in("entity_id", ids);
-        for (const r of etRows ?? []) werteraumIds.add((r as any).entity_id as string);
-      }
-
-      const lcKeywords = keywords.map((k) => k.toLowerCase());
-      const hits: ContactHit[] = list.map((c: any) => {
-        const haystack = [c.notes, c.job_title, c.first_name, c.last_name]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        const notesLc = (c.notes ?? "").toLowerCase();
-        let matchCount = 0;
-        let hasNotesMatch = false;
-        for (const kw of lcKeywords) {
-          if (haystack.includes(kw)) matchCount += 1;
-          if (notesLc.includes(kw)) hasNotesMatch = true;
-        }
-        return {
-          id: c.id,
-          first_name: c.first_name,
-          last_name: c.last_name,
-          job_title: c.job_title,
-          notes: c.notes,
-          company_name: companyMap.get(c.id) ?? null,
-          matchCount,
-          hasNotesMatch,
-          isWerteraum: werteraumIds.has(c.id),
-        };
-      });
-
-      hits.sort((a, b) => {
-        if (a.isWerteraum !== b.isWerteraum) return a.isWerteraum ? -1 : 1;
-        if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
-        return a.last_name.localeCompare(b.last_name);
-      });
-
-      setResults(hits.slice(0, MAX_RESULTS));
-    } catch (e: any) {
-      console.error("[Ideas] search failed", e);
-      setError(e?.message ?? "Suche fehlgeschlagen.");
-    } finally {
+    if (fnError) {
+      console.error("match-ideas error:", fnError);
+      setError(fnError.message ?? "Suche fehlgeschlagen.");
       setLoading(false);
+      return;
     }
+
+    setResults((data?.results ?? []) as ContactHit[]);
+    setLoading(false);
   };
 
   return (
@@ -187,7 +75,7 @@ export default function Ideas() {
       <div className="rounded-[12px] border border-brand/20 bg-brand/5 px-4 py-3 flex items-start gap-2">
         <Info className="h-4 w-4 text-brand mt-0.5 shrink-0" />
         <p className="text-[13px] text-foreground">
-          🔍 <span className="font-semibold">Keyword-Suche aktiv</span> — semantisches Vektor-Matching in Vorbereitung
+          💡 <span className="font-semibold">Semantische Suche aktiv</span> — 1.975 Kontakte mit KI-Embeddings indexiert
         </p>
       </div>
 
@@ -241,7 +129,7 @@ export default function Ideas() {
         {!loading && hasSearched && results.length === 0 && !error && (
           <div className="rounded-[12px] border border-dashed border-border bg-muted/40 p-8 text-center">
             <p className="text-[14px] text-muted-foreground">
-              Keine passenden Kontakte gefunden. Versuche andere Stichwörter.
+              Keine passenden Kontakte gefunden. Versuche eine andere Beschreibung.
             </p>
           </div>
         )}
@@ -249,20 +137,19 @@ export default function Ideas() {
         {!loading && results.length > 0 && (
           <>
             <h2 className="text-[18px] font-semibold text-foreground">
-              {results.length} {results.length === 1 ? "Treffer" : "Treffer"}
+              {results.length} Treffer
             </h2>
             <div className="grid grid-cols-1 gap-3">
               {results.map((c) => (
                 <MatchTile
                   key={c.id}
                   contact={c}
-                  keywords={usedKeywords}
                   onOpen={() => navigate(`/contacts/${c.id}`)}
                 />
               ))}
             </div>
             <p className="text-[12px] text-muted-foreground italic pt-2">
-              Ergebnisse basieren auf Themen-Matching in Notizen, Position und Unternehmen.
+              Ergebnisse basieren auf semantischem Embedding-Vergleich (Gemini · 3072d).
             </p>
           </>
         )}
@@ -271,40 +158,27 @@ export default function Ideas() {
   );
 }
 
-function snippet(text: string | null, keywords: string[], max = 120): string | null {
+function snippet(text: string | null, max = 140): string | null {
   if (!text) return null;
-  const lc = text.toLowerCase();
-  let idx = -1;
-  for (const kw of keywords) {
-    const i = lc.indexOf(kw.toLowerCase());
-    if (i !== -1 && (idx === -1 || i < idx)) idx = i;
-  }
-  if (idx === -1) {
-    return text.length > max ? text.slice(0, max).trim() + "…" : text;
-  }
-  const start = Math.max(0, idx - 30);
-  const end = Math.min(text.length, start + max);
-  const prefix = start > 0 ? "…" : "";
-  const suffix = end < text.length ? "…" : "";
-  return prefix + text.slice(start, end).trim() + suffix;
+  const clean = text.trim();
+  return clean.length > max ? clean.slice(0, max).trim() + "…" : clean;
 }
 
 function MatchTile({
   contact,
-  keywords,
   onOpen,
 }: {
   contact: ContactHit;
-  keywords: string[];
   onOpen: () => void;
 }) {
   const fullName = `${contact.first_name} ${contact.last_name}`.trim();
-  const subtitle = [contact.job_title, contact.company_name].filter(Boolean).join(" · ");
-  const note = snippet(contact.notes, keywords);
+  const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
+  const note = snippet(contact.notes);
+  const matchPct = Math.round(contact.similarity * 100);
 
   return (
     <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 hover:border-brand transition-colors">
-      {/* Header: Name + Themen-Match Badge */}
+      {/* Header: Name + Similarity */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[16px] font-bold text-foreground truncate">{fullName}</p>
@@ -312,12 +186,9 @@ function MatchTile({
             <p className="mt-0.5 text-[13px] text-muted-foreground truncate">{subtitle}</p>
           )}
         </div>
-        {contact.hasNotesMatch && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 text-success border border-success/30 px-2 py-0.5 text-[11px] font-semibold shrink-0">
-            <Zap className="h-3 w-3" />
-            Themen-Match
-          </span>
-        )}
+        <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 text-brand border border-brand/30 px-2 py-0.5 text-[11px] font-semibold tabular-nums shrink-0">
+          {matchPct}% Match
+        </span>
       </div>
 
       {/* Notes Snippet */}
@@ -325,19 +196,31 @@ function MatchTile({
         <p className="mt-3 text-[13px] text-foreground/80 line-clamp-2">{note}</p>
       )}
 
-      {/* Badges */}
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {contact.isWerteraum && (
-          <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-[11px] font-semibold">
-            🎯 WerteRaum
-          </span>
-        )}
-        {contact.matchCount > 0 && (
-          <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[11px] font-medium">
-            {contact.matchCount} {contact.matchCount === 1 ? "Keyword" : "Keywords"}
-          </span>
-        )}
-      </div>
+      {/* Flag Badges */}
+      {(contact.werteraum_potential || contact.plsc_kampagne || contact.smm_2025 || contact.markenfestival) && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {contact.werteraum_potential && (
+            <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-[11px] font-semibold">
+              🎯 WerteRaum
+            </span>
+          )}
+          {contact.plsc_kampagne && (
+            <span className="inline-flex items-center rounded-full bg-gold/20 text-gold px-2 py-0.5 text-[11px] font-semibold">
+              📋 PLSC
+            </span>
+          )}
+          {contact.smm_2025 && (
+            <span className="inline-flex items-center rounded-full bg-brand/15 text-brand px-2 py-0.5 text-[11px] font-semibold">
+              🎤 SMM 2025
+            </span>
+          )}
+          {contact.markenfestival && (
+            <span className="inline-flex items-center rounded-full bg-brand/15 text-brand px-2 py-0.5 text-[11px] font-semibold">
+              🎪 Markenfestival
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Action */}
       <div className="mt-4 flex items-center gap-2">
