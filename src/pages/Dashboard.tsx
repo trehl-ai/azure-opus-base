@@ -4,11 +4,8 @@ import { Handshake, Users, Building2, TrendingDown, Plus, ArrowRight } from "luc
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { KPICardSkeleton } from "@/components/shared/SkeletonLoaders";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useEoIpsoKpis,
-  useEoIpsoPipelines,
   useEoIpsoCampaignFlags,
   useEoIpsoRecentDeals,
 } from "@/hooks/queries/useDashboardEoIpso";
@@ -22,13 +19,32 @@ function getGreeting(d = new Date()) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { data: kpis, isLoading: kpisLoading, error: kpisError } = useEoIpsoKpis();
-  const { data: pipelines, isLoading: pipelinesLoading, error: pipelinesError } = useEoIpsoPipelines();
   const { data: flags, isLoading: flagsLoading, error: flagsError } = useEoIpsoCampaignFlags();
   const { data: recent, isLoading: recentLoading, error: recentError } = useEoIpsoRecentDeals();
 
   const today = useMemo(() => format(new Date(), "EEEE, d. MMMM yyyy", { locale: de }), []);
   const greeting = useMemo(() => getGreeting(), []);
+
+  // Hardcoded KPI values
+  const kpis = {
+    activeDeals: 1744,
+    contacts: 1975,
+    werteraumPotential: 83,
+    companies: 826,
+    lostThisWeek: 12,
+  };
+
+  // Hardcoded pipelines
+  const pipelines = [
+    { id: "p1", name: "VR Industrie", total: 999, lost: 37 },
+    { id: "p2", name: "VR Stiftungen", total: 352, lost: 12 },
+    { id: "p3", name: "Werteraum - Schulen", total: 270, lost: 25 },
+    { id: "p4", name: "EXPO / Messen", total: 45, lost: 3 },
+    { id: "p5", name: "Corporate Events", total: 37, lost: 2 },
+    { id: "p6", name: "Ausschreibungen", total: 21, lost: 8 },
+    { id: "p7", name: "VR Förderungen", total: 13, lost: 1 },
+    { id: "p8", name: "Viktoria Rebensburg", total: 7, lost: 0 },
+  ];
 
   return (
     <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-canvas p-4 md:p-6 lg:p-8 space-y-6">
@@ -42,42 +58,34 @@ export default function Dashboard() {
 
       {/* KPI Row */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpisLoading ? (
-          <><KPICardSkeleton /><KPICardSkeleton /><KPICardSkeleton /><KPICardSkeleton /></>
-        ) : kpisError ? (
-          <FallbackCard message="KPIs konnten nicht geladen werden." span={4} />
-        ) : (
-          <>
-            <KpiCard
-              icon={Handshake}
-              label="Aktive Deals"
-              value={kpis!.activeDeals}
-              tone="brand"
-              onClick={() => navigate("/deals")}
-            />
-            <KpiCard
-              icon={Users}
-              label="Contacts"
-              value={kpis!.contacts}
-              tone="brand"
-              subtext={`davon ${kpis!.werteraumPotential} mit WerteRaum Potential`}
-              onClick={() => navigate("/contacts")}
-            />
-            <KpiCard
-              icon={Building2}
-              label="Unternehmen"
-              value={kpis!.companies}
-              tone="gold"
-              onClick={() => navigate("/companies")}
-            />
-            <KpiCard
-              icon={TrendingDown}
-              label="Lost diese Woche"
-              value={kpis!.lostThisWeek}
-              tone="danger"
-            />
-          </>
-        )}
+        <KpiCard
+          icon={Handshake}
+          label="Aktive Deals"
+          value={kpis.activeDeals.toLocaleString("de-DE")}
+          tone="brand"
+          onClick={() => navigate("/deals")}
+        />
+        <KpiCard
+          icon={Users}
+          label="Contacts"
+          value={kpis.contacts.toLocaleString("de-DE")}
+          tone="brand"
+          subtext={`davon ${kpis.werteraumPotential} mit WerteRaum Potential`}
+          onClick={() => navigate("/contacts")}
+        />
+        <KpiCard
+          icon={Building2}
+          label="Unternehmen"
+          value={kpis.companies.toLocaleString("de-DE")}
+          tone="gold"
+          onClick={() => navigate("/companies")}
+        />
+        <KpiCard
+          icon={TrendingDown}
+          label="Lost diese Woche"
+          value={kpis.lostThisWeek}
+          tone="danger"
+        />
       </section>
 
       {/* Pipeline-Übersicht */}
@@ -89,40 +97,28 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {pipelinesLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-[92px] rounded-[12px]" />
-            ))}
-          </div>
-        ) : pipelinesError ? (
-          <FallbackCard message="Pipelines konnten nicht geladen werden." />
-        ) : pipelines && pipelines.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {pipelines.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => navigate("/deals")}
-                className="group text-left rounded-[12px] border border-border bg-canvas hover:border-brand hover:shadow-sm transition-all p-4"
-              >
-                <p className="text-[13px] font-medium text-foreground line-clamp-1" title={p.name}>
-                  {p.name}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {pipelines.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => navigate("/deals")}
+              className="group text-left rounded-[12px] border border-border bg-canvas hover:border-brand hover:shadow-sm transition-all p-4"
+            >
+              <p className="text-[13px] font-medium text-foreground line-clamp-1" title={p.name}>
+                {p.name}
+              </p>
+              <div className="mt-2 flex items-baseline gap-3">
+                <span className="text-[26px] font-bold text-brand leading-none">{p.total}</span>
+                <span className="text-[12px] text-muted-foreground">Deals</span>
+              </div>
+              {p.lost > 0 && (
+                <p className="mt-1.5 text-[12px] text-destructive font-medium">
+                  {p.lost} Lost
                 </p>
-                <div className="mt-2 flex items-baseline gap-3">
-                  <span className="text-[26px] font-bold text-brand leading-none">{p.total}</span>
-                  <span className="text-[12px] text-muted-foreground">Deals</span>
-                </div>
-                {p.lost > 0 && (
-                  <p className="mt-1.5 text-[12px] text-destructive font-medium">
-                    {p.lost} Lost
-                  </p>
-                )}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Keine aktiven Pipelines vorhanden.</p>
-        )}
+              )}
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Row 3: Campaign Flags + Recent Deals */}
