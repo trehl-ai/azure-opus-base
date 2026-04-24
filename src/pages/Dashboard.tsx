@@ -4,11 +4,8 @@ import { Handshake, Users, Building2, TrendingDown, Plus, ArrowRight } from "luc
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { KPICardSkeleton } from "@/components/shared/SkeletonLoaders";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useEoIpsoKpis,
-  useEoIpsoPipelines,
   useEoIpsoCampaignFlags,
   useEoIpsoRecentDeals,
 } from "@/hooks/queries/useDashboardEoIpso";
