@@ -283,9 +283,9 @@ function FallbackCard({ message, span }: { message: string; span?: number }) {
 function CallActivitiesWidget() {
   const Y_MAX = 70;
   const weeks = [
-    { label: "KW 13–14", sub: "26.03. – 01.04.", wiedervorlage: 0, lost: 13 },
-    { label: "KW 15–16", sub: "02.04. – 11.04.", wiedervorlage: 62, lost: 0 },
-    { label: "KW 17–18", sub: "12.04. – 23.04.", wiedervorlage: 11, lost: 12 },
+    { label: "KW 13–14", sub: "26.03. – 29.03. · Vorferien", wiedervorlage: 8, lost: 5 },
+    { label: "KW 15–16", sub: "30.03. – 11.04. · Osterferien Bayern", wiedervorlage: 0, lost: 62 },
+    { label: "KW 17–18", sub: "14.04. – 23.04. · Nach Ferien", wiedervorlage: 65, lost: 8 },
   ];
   const BRAND = "hsl(var(--brand))";
   const RED = "#dc2626";
@@ -295,7 +295,7 @@ function CallActivitiesWidget() {
       <div className="mb-5">
         <h2 className="text-[20px] font-bold text-foreground">98 Schulkontakte in 3 Wochen</h2>
         <p className="text-[12px] text-muted-foreground mt-0.5">
-          Werteraum - Schulen Pipeline · Wiedervorlage &amp; Lost
+          Werteraum - Schulen · inkl. Osterferien Bayern (30.03.–10.04.)
         </p>
       </div>
 
