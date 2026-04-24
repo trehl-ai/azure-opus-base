@@ -293,7 +293,7 @@ function CallActivitiesWidget() {
   return (
     <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
       <div className="mb-5">
-        <h2 className="text-[20px] font-bold text-foreground">98 Schulkontakte in 3 Wochen</h2>
+        <h2 className="text-[20px] font-bold text-foreground">148 Schulkontakte in 3 Wochen</h2>
         <p className="text-[12px] text-muted-foreground mt-0.5">
           Werteraum - Schulen · inkl. Osterferien Bayern (30.03.–10.04.)
         </p>
@@ -379,7 +379,7 @@ function CallActivitiesWidget() {
         {/* KPI tiles */}
         <div className="flex flex-col gap-3">
           <div className="rounded-[12px] border border-border bg-canvas p-4">
-            <p className="text-[28px] font-bold text-foreground leading-none tabular-nums">98</p>
+            <p className="text-[28px] font-bold text-foreground leading-none tabular-nums">148</p>
             <p className="text-[12px] text-muted-foreground mt-1.5">Kontakte gesamt</p>
           </div>
           <div className="rounded-[12px] border border-border bg-canvas p-4">
@@ -387,7 +387,7 @@ function CallActivitiesWidget() {
             <p className="text-[12px] text-muted-foreground mt-1.5">Wiedervorlage</p>
           </div>
           <div className="rounded-[12px] border border-border bg-canvas p-4">
-            <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: RED }}>25</p>
+            <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: RED }}>75</p>
             <p className="text-[12px] text-muted-foreground mt-1.5">Kein Interesse</p>
           </div>
         </div>
