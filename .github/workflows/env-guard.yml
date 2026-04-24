@@ -1,8 +1,8 @@
-name: .env Supabase Instance Guard                                                                                            
-                                                                                                                                
+ name: .env Supabase Instance Guard                                                                                            
+                                                            
   on:                                                                                                                           
-    push:                                                                                                                       
-      branches: [main]                                      
+    push:                                                   
+      branches: [main]
 
   jobs:
     guard:
@@ -13,30 +13,29 @@ name: .env Supabase Instance Guard
    
         - name: Verify Supabase instance in .env                                                                                
           run: |                                            
-            EXPECTED="ttgvhqygmgtnjgwunuwz"                                                                                     
-            FORBIDDEN="qgvedroebvmwhnjmeyip"
-                                                                                                                                
-            if [ ! -f .env ]; then                          
-              echo "::warning::.env nicht im Repo — Lovable managed ggf. extern, skip."                                         
-              exit 0                                                                                                            
-            fi                                                                                                                  
-                                                                                                                                
-            if ! grep -q "^VITE_SUPABASE_URL=" .env; then   
-              echo "::warning::VITE_SUPABASE_URL nicht in .env gesetzt — Lovable managed ggf. extern, skip."                    
+            EXPECTED="ttgvhqygmgtnjgwunuwz"
+            FORBIDDEN="qgvedroebvmwhnjmeyip"                                                                                    
+   
+            if [ ! -f .env ]; then                                                                                              
+              echo "::warning::.env nicht im Repo — Lovable managed ggf. extern, skip."
               exit 0                                                                                                            
             fi
                                                                                                                                 
-            if grep -q "$FORBIDDEN" .env; then              
-              echo "::error::FEHLER: Falsche Supabase-Instanz in .env — erwartet $EXPECTED"                                     
+            if ! grep -q "^VITE_SUPABASE_URL=" .env; then                                                                       
+              echo "::warning::VITE_SUPABASE_URL nicht in .env gesetzt — Lovable managed ggf. extern, skip."
+              exit 0                                                                                                            
+            fi                                              
+                                                                                                                                
+            if grep -q "$FORBIDDEN" .env; then                                                                                  
+              echo "::error::FEHLER: Falsche Supabase-Instanz in .env — erwartet $EXPECTED"
               echo "Gefunden: $FORBIDDEN (alte Lovable-Cloud-DB)"                                                               
-              echo "Vermutliche Ursache: Lovable UI 'Switch Supabase Project'"
+              echo "Vermutliche Ursache: Lovable UI 'Switch Supabase Project'"                                                  
               exit 1                                                                                                            
             fi                                                                                                                  
                                                                                                                                 
             if ! grep -q "$EXPECTED" .env; then                                                                                 
               echo "::error::VITE_SUPABASE_URL zeigt nicht auf $EXPECTED"
               exit 1                                                                                                            
-            fi
+            fi                                              
                                                                                                                                 
-            echo "✓ .env points to correct instance: $EXPECTED"
-
+            echo "✓ .env points to correct instance: $EXPECTED" 
