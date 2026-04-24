@@ -119,7 +119,7 @@ export default function Deals() {
   });
 
   // Pipelines (live from DB, only those with at least 1 active deal)
-  const { pipelines } = usePipelines({ onlyWithDeals: true });
+  const { pipelines } = usePipelines({ onlyWithDeals: false });
 
   const [selectedPipelineId, setSelectedPipelineId] = useState("");
   const activePipelineId = selectedPipelineId || pipelines?.find((p) => p.is_default)?.id || pipelines?.[0]?.id || "";
