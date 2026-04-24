@@ -20,9 +20,37 @@ export function usePipelines({ onlyWithDeals = false }: UsePipelinesOptions = {}
       setLoading(true);
 
       if (onlyWithDeals) {
-        // Server-side DISTINCT via RPC — umgeht PostgREST 1000-Row-Limit
-        const { data } = await supabase.rpc("pipelines_with_deals");
-        setPipelines((data ?? []) as Pipeline[]);
+        // Paginiert alle deal pipeline_ids holen (umgeht PostgREST 1000-Row-Limit)
+        const pageSize = 1000;
+        let from = 0;
+        const ids = new Set<string>();
+        while (true) {
+          const { data: page, error } = await supabase
+            .from("deals")
+            .select("pipeline_id")
+            .is("deleted_at", null)
+            .not("pipeline_id", "is", null)
+            .range(from, from + pageSize - 1);
+          if (error || !page || page.length === 0) break;
+          for (const row of page) {
+            if (row.pipeline_id) ids.add(row.pipeline_id as string);
+          }
+          if (page.length < pageSize) break;
+          from += pageSize;
+        }
+
+        if (ids.size === 0) {
+          setPipelines([]);
+          setLoading(false);
+          return;
+        }
+
+        const { data } = await supabase
+          .from("pipelines")
+          .select("id, name, is_default")
+          .in("id", Array.from(ids))
+          .order("name");
+        setPipelines(data ?? []);
       } else {
         const { data } = await supabase
           .from("pipelines")
