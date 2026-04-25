@@ -10,7 +10,6 @@ import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
 import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
-import { useRoadshowDetails } from "@/hooks/queries/useRoadshowDetails";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
@@ -212,6 +211,8 @@ export default function DealDetail() {
   const openActivities = activities?.filter((a) => !a.completed_at) ?? [];
   const doneActivities = activities?.filter((a) => a.completed_at) ?? [];
 
+  const isWerteraumSchulen = deal?.pipeline_id === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -264,7 +265,7 @@ export default function DealDetail() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
-          <TabsTrigger value="roadshow">Roadshow-Checkliste</TabsTrigger>
+          {isWerteraumSchulen && <TabsTrigger value="roadshow">Roadshow-Checkliste</TabsTrigger>}
           <TabsTrigger value="activities">Aktivitäten</TabsTrigger>
           <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
@@ -364,10 +365,12 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
-        {/* Roadshow */}
-        <TabsContent value="roadshow" className="mt-4">
-          <RoadshowChecklist dealId={id!} />
-        </TabsContent>
+        {/* Roadshow — nur für Werteraum - Schulen */}
+        {isWerteraumSchulen && (
+          <TabsContent value="roadshow" className="mt-4">
+            <RoadshowChecklist dealId={id!} />
+          </TabsContent>
+        )}
 
         {/* Project */}
         {deal.status === "won" && (

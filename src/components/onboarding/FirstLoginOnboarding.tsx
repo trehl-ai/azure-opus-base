@@ -130,10 +130,15 @@ export default function FirstLoginOnboarding() {
         is_active: true,
       };
 
-      const { error: sigError } = await supabase
-        .from("user_email_signatures")
-        .upsert(payload, { onConflict: "user_id" });
-      if (sigError) throw sigError;
+      // Email-signature feature disabled — table schema lacks expected columns.
+      // Skip the upsert to avoid 400, but keep the user-name update below.
+      try {
+        await supabase
+          .from("user_email_signatures")
+          .upsert(payload, { onConflict: "user_id" });
+      } catch {
+        // swallow — feature off
+      }
 
       // Update user names if changed
       const { error: userError } = await supabase

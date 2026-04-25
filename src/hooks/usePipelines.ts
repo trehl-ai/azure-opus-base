@@ -49,12 +49,14 @@ export function usePipelines({ onlyWithDeals = false }: UsePipelinesOptions = {}
           .from("pipelines")
           .select("id, name, is_default")
           .in("id", Array.from(ids))
+          .eq("is_active", true)
           .order("name");
         setPipelines(data ?? []);
       } else {
         const { data } = await supabase
           .from("pipelines")
           .select("id, name, is_default")
+          .eq("is_active", true)
           .order("name");
         setPipelines(data ?? []);
       }

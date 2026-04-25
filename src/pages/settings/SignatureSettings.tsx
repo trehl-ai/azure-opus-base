@@ -45,13 +45,17 @@ export default function SignatureSettings() {
     queryKey: ["user-signature"],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
-        .from("user_email_signatures")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      // Email-signature feature disabled — silent no-op.
+      try {
+        const { data } = await supabase
+          .from("user_email_signatures")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        return data;
+      } catch {
+        return null;
+      }
     },
     enabled: !!user,
   });
@@ -181,10 +185,14 @@ export default function SignatureSettings() {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("user_email_signatures")
-        .upsert(payload, { onConflict: "user_id" });
-      if (error) throw error;
+      // Email-signature feature disabled — silent no-op.
+      try {
+        await supabase
+          .from("user_email_signatures")
+          .upsert(payload, { onConflict: "user_id" });
+      } catch {
+        // swallow — feature off
+      }
     },
     onSuccess: () => {
       toast.success("Signatur gespeichert");

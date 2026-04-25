@@ -153,60 +153,7 @@ function esc(str: string): string {
 // ---------------------------------------------------------------------------
 
 export async function loadUserSignature(): Promise<{ data: SignatureData; config: SignatureTemplateConfig; html: string } | null> {
-  // Get current user's public id
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  if (!authUser) return null;
-
-  const { data: publicUserId } = await supabase.rpc("get_public_user_id", {
-    _auth_user_id: authUser.id,
-  });
-  if (!publicUserId) return null;
-
-  const { data: sig, error } = await supabase
-    .from("user_email_signatures")
-    .select("*")
-    .eq("user_id", publicUserId)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error || !sig) return null;
-
-  // Load template config from workspace_settings
-  const { data: configRow } = await supabase
-    .from("workspace_settings")
-    .select("value")
-    .eq("key", "signature_template_config")
-    .maybeSingle();
-
-  const config: SignatureTemplateConfig = configRow?.value
-    ? { ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(configRow.value) }
-    : DEFAULT_TEMPLATE_CONFIG;
-
-  // Build public URL for profile image
-  let profileImageUrl: string | undefined;
-  if (sig.profile_image_path) {
-    const { data: urlData } = supabase.storage
-      .from("signature-images")
-      .getPublicUrl(sig.profile_image_path);
-    profileImageUrl = urlData?.publicUrl;
-  }
-
-  const sigData: SignatureData = {
-    full_name: sig.full_name || "",
-    job_title: sig.job_title || "",
-    phone: sig.phone || "",
-    email: sig.email || "",
-    address: sig.address || "",
-    website: sig.website || "",
-    profile_image_url: profileImageUrl,
-    linkedin_url: sig.linkedin_url || "",
-    twitter_url: sig.twitter_url || "",
-    whatsapp_url: sig.whatsapp_url || "",
-  };
-
-  return {
-    data: sigData,
-    config,
-    html: renderSignatureHtml(sigData, config),
-  };
+  // Email-signature feature disabled — table schema lacks the expected
+  // columns (is_active, profile_image_path, full_name, etc.). Silently bail.
+  return null;
 }
