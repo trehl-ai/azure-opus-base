@@ -52,8 +52,9 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
         title: form.title.trim() || fallbackTitle,
         description: form.description.trim() || null,
         due_date: dueDate ? dueDate.toISOString() : null,
-        owner_user_id: form.owner_user_id || null,
+        owner_user_id: form.owner_user_id || user?.id || null,
         created_by_user_id: user?.id ?? null,
+        status: "completed",
       });
       if (error) throw error;
     },
