@@ -17,11 +17,13 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const activityTypes = [
-  { value: "call", label: "Anruf" },
-  { value: "email", label: "E-Mail" },
-  { value: "meeting", label: "Meeting" },
-  { value: "follow_up", label: "Follow-Up" },
-  { value: "note", label: "Notiz" },
+  { value: "call", label: "📞 Anruf" },
+  { value: "email", label: "📧 E-Mail" },
+  { value: "meeting", label: "🤝 Meeting" },
+  { value: "wiedervorlage", label: "🔄 Wiedervorlage" },
+  { value: "notiz", label: "📝 Notiz" },
+  { value: "angebot", label: "📄 Angebot versendet" },
+  { value: "absage", label: "❌ Absage erhalten" },
 ];
 
 interface Props {
