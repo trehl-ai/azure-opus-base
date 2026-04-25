@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Handshake, Users, Building2, TrendingDown, Plus, ArrowRight } from "lucide-react";
+import { Handshake, Users, Building2, TrendingDown, Plus, ArrowRight, Phone, Mail, FileText, XCircle, StickyNote, RefreshCw, Users as MeetingIcon } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
