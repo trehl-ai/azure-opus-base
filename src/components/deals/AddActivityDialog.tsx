@@ -106,7 +106,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
             </Select>
           </div>
           <div className="flex gap-3">
-            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.title.trim()}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
+            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           </div>
         </div>
