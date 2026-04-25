@@ -43,20 +43,9 @@ export default function SignatureSettings() {
 
   const { data: existingSignature, isLoading } = useQuery({
     queryKey: ["user-signature"],
-    queryFn: async () => {
-      if (!user) return null;
-      // Email-signature feature disabled — silent no-op.
-      try {
-        const { data } = await supabase
-          .from("user_email_signatures")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        return data;
-      } catch {
-        return null;
-      }
-    },
+    // Email-signature feature disabled — Tabelle hat nur id/user_id/signature/created_at,
+    // SELECT * mit Filter auf nicht-existente Spalten würde HTTP 400 erzeugen. No-op.
+    queryFn: async () => null as null,
     enabled: !!user,
   });
 
@@ -185,14 +174,8 @@ export default function SignatureSettings() {
         updated_at: new Date().toISOString(),
       };
 
-      // Email-signature feature disabled — silent no-op.
-      try {
-        await supabase
-          .from("user_email_signatures")
-          .upsert(payload, { onConflict: "user_id" });
-      } catch {
-        // swallow — feature off
-      }
+      // Email-signature feature disabled — kein Upsert, sonst HTTP 400.
+      void payload;
     },
     onSuccess: () => {
       toast.success("Signatur gespeichert");
