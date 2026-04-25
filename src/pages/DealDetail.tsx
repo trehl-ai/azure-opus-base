@@ -39,11 +39,14 @@ const priorityColors: Record<string, string> = {
 };
 
 const activityIcons: Record<string, typeof Phone> = {
-  call: Phone, email: Mail, meeting: Users, follow_up: CalendarCheck, note: StickyNote,
+  call: Phone, email: Mail, meeting: Users, follow_up: CalendarCheck, wiedervorlage: CalendarCheck,
+  note: StickyNote, notiz: StickyNote, angebot: Mail, absage: XCircle,
 };
 
 const activityLabels: Record<string, string> = {
-  call: "Anruf", email: "E-Mail", meeting: "Meeting", follow_up: "Follow-Up", note: "Notiz",
+  call: "📞 Anruf", email: "📧 E-Mail", meeting: "🤝 Meeting", follow_up: "🔄 Follow-Up",
+  wiedervorlage: "🔄 Wiedervorlage", note: "📝 Notiz", notiz: "📝 Notiz",
+  angebot: "📄 Angebot", absage: "❌ Absage",
 };
 
 const fmt = (v: number | null, c: string | null) =>
