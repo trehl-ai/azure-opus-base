@@ -80,8 +80,8 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Titel <span className="text-destructive">*</span></Label>
-            <Input value={form.title} onChange={(e) => u("title", e.target.value)} placeholder="z.B. Demo-Call vereinbaren" />
+            <Label>Titel</Label>
+            <Input value={form.title} onChange={(e) => u("title", e.target.value)} placeholder="Optional – Standardwert wird verwendet" />
           </div>
           <div className="space-y-1.5">
             <Label>Beschreibung</Label>
