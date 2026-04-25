@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Handshake, Users, Building2, TrendingDown, Plus, ArrowRight, Phone, Mail, FileText, XCircle, StickyNote, RefreshCw, Users as MeetingIcon } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { Handshake, Users, Building2, TrendingDown, Plus, ArrowRight } from "lucide-react";
+import { format, formatDistanceToNow, startOfWeek, subWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -280,232 +280,171 @@ function FallbackCard({ message, span }: { message: string; span?: number }) {
   );
 }
 
-/* ---------- Activity Stats Widget (live from DB) ---------- */
+/* ---------- Activity Stats Widget (live from deal_activities, Werteraum-Schulen) ---------- */
 
-type ActivityStats = {
-  weekly: Array<{ week_key: string; week_label: string; activity_type: string; count: number }>;
-  recent: Array<{ id: string; activity_type: string; title: string; created_at: string; deal_id: string | null; deal_title: string | null; company_name: string | null }>;
-  total_7d: number;
-  total_30d: number;
-  total_all: number;
-};
-
-const ACTIVITY_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  call:           { label: "Anruf",        icon: Phone,        color: "hsl(var(--brand))" },
-  email:          { label: "E-Mail",       icon: Mail,         color: "#3b82f6" },
-  meeting:        { label: "Meeting",      icon: MeetingIcon,  color: "#8b5cf6" },
-  wiedervorlage:  { label: "Wiedervorlage",icon: RefreshCw,    color: "#10b981" },
-  follow_up:      { label: "Follow-Up",    icon: RefreshCw,    color: "#10b981" },
-  notiz:          { label: "Notiz",        icon: StickyNote,   color: "#6b7280" },
-  note:           { label: "Notiz",        icon: StickyNote,   color: "#6b7280" },
-  angebot:        { label: "Angebot",      icon: FileText,     color: "hsl(var(--gold))" },
-  absage:         { label: "Absage",       icon: XCircle,      color: "#dc2626" },
-};
-
-function metaFor(type: string) {
-  return ACTIVITY_META[type] ?? { label: type, icon: StickyNote, color: "#6b7280" };
-}
+const WERTERAUM_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
 
 function ActivityStatsWidget() {
-  const navigate = useNavigate();
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["activity-stats"],
+  const { data: activityData } = useQuery({
+    queryKey: ["dashboard_activities"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_activity_stats");
-      if (error) throw error;
-      return data as unknown as ActivityStats;
+      const threeWeeksAgo = subWeeks(new Date(), 3).toISOString();
+      const { data } = await supabase
+        .from("deal_activities")
+        .select("id, activity_type, created_at, deals!inner(pipeline_id)")
+        .eq("deals.pipeline_id", WERTERAUM_PIPELINE_ID)
+        .gte("created_at", threeWeeksAgo)
+        .order("created_at", { ascending: true });
+      return data ?? [];
     },
-    staleTime: 60_000,
+    refetchInterval: 120_000,
   });
 
-  // Aggregate weekly data per week
-  const weeks = useMemo(() => {
-    if (!data?.weekly) return [];
-    const map = new Map<string, { key: string; label: string; types: Record<string, number>; total: number }>();
-    for (const row of data.weekly) {
-      const w = map.get(row.week_key) ?? { key: row.week_key, label: row.week_label, types: {}, total: 0 };
-      w.types[row.activity_type] = (w.types[row.activity_type] ?? 0) + row.count;
-      w.total += row.count;
-      map.set(row.week_key, w);
-    }
-    return Array.from(map.values()).slice(-3);
-  }, [data]);
+  const weeklyActivityData = useMemo(() => {
+    if (!activityData || activityData.length === 0) return null;
 
-  const yMax = useMemo(() => Math.max(10, ...weeks.map((w) => w.total)) * 1.1, [weeks]);
-  const totalActivities = data?.total_all ?? 0;
-  const isEmpty = !isLoading && !error && totalActivities === 0;
+    const weeks = [0, 1, 2].map((weeksAgo) => {
+      const weekStart = startOfWeek(subWeeks(new Date(), 2 - weeksAgo), { weekStartsOn: 1 });
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const weekActivities = activityData.filter((a) => {
+        const d = new Date(a.created_at);
+        return d >= weekStart && d <= weekEnd;
+      });
+
+      return {
+        week: `KW ${format(weekStart, "w")}`,
+        sublabel: `${format(weekStart, "dd.MM.")} – ${format(weekEnd, "dd.MM.")}`,
+        wiedervorlage: weekActivities.filter((a) => a.activity_type === "wiedervorlage").length,
+        lost: weekActivities.filter((a) => a.activity_type === "absage").length,
+        other: weekActivities.filter((a) => !["wiedervorlage", "absage"].includes(a.activity_type)).length,
+      };
+    });
+
+    const total = activityData.length;
+    const wiedervorlage = activityData.filter((a) => a.activity_type === "wiedervorlage").length;
+    const absagen = activityData.filter((a) => a.activity_type === "absage").length;
+
+    return { weeks, total, wiedervorlage, absagen };
+  }, [activityData]);
+
+  const BRAND = "hsl(var(--brand))";
+  const RED = "#dc2626";
+  const GRAY = "#6b7280";
+
+  if (weeklyActivityData === null) {
+    return (
+      <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+        <div className="mb-5">
+          <h2 className="text-[20px] font-bold text-foreground">Noch keine Aktivitäten in Werteraum - Schulen</h2>
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            Aktivitäten im Deal-Detail erfassen → Aktivitäten Tab
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  const { weeks, total, wiedervorlage, absagen } = weeklyActivityData;
+  const yMax = Math.max(10, ...weeks.map((w) => w.wiedervorlage + w.lost + w.other));
 
   return (
     <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
       <div className="mb-5">
-        <h2 className="text-[20px] font-bold text-foreground">Aktivitäten Übersicht</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">
-          Letzte 3 Wochen · gruppiert nach Aktivitätstyp
-        </p>
+        <h2 className="text-[20px] font-bold text-foreground">{total} Aktivitäten (letzte 3 Wochen)</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Werteraum - Schulen Pipeline</p>
       </div>
 
-      {isLoading && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px] gap-6">
-          <Skeleton className="h-[260px] rounded-[12px]" />
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-[80px] rounded-[12px]" />
-            <Skeleton className="h-[80px] rounded-[12px]" />
-            <Skeleton className="h-[80px] rounded-[12px]" />
-          </div>
-        </div>
-      )}
-
-      {error && !isLoading && (
-        <FallbackCard message="Aktivitätsdaten konnten nicht geladen werden." />
-      )}
-
-      {isEmpty && (
-        <div className="rounded-[12px] border border-dashed border-border bg-canvas p-8 text-center">
-          <Phone className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
-          <p className="text-[14px] font-medium text-foreground">Noch keine Aktivitäten erfasst</p>
-          <p className="text-[12px] text-muted-foreground mt-1 mb-4">
-            Erfasse Anrufe, E-Mails und Meetings direkt in einem Deal.
-          </p>
-          <button
-            onClick={() => navigate("/deals")}
-            className="inline-flex items-center gap-2 rounded-[12px] bg-brand text-brand-foreground px-4 py-2 text-[13px] font-medium hover:bg-brand/90 transition-colors"
-          >
-            <ArrowRight className="h-4 w-4" /> Ersten Anruf erfassen
-          </button>
-        </div>
-      )}
-
-      {!isLoading && !error && !isEmpty && (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px] gap-6">
-            {/* Stacked bar chart */}
-            <div>
-              <div className="flex gap-3">
-                <div className="flex flex-col justify-between text-[10px] text-muted-foreground tabular-nums h-[220px] pr-1 text-right">
-                  {Array.from({ length: 6 }).map((_, i) => {
-                    const v = Math.round((yMax / 5) * (5 - i));
-                    return <span key={i}>{v}</span>;
-                  })}
-                </div>
-                <div className="flex-1 relative">
-                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="border-t border-border/50 h-0" />
-                    ))}
-                  </div>
-                  <div className="relative h-[220px] flex items-end justify-around gap-4 px-2">
-                    {weeks.length === 0 ? (
-                      <p className="text-[12px] text-muted-foreground self-center">Keine Daten in den letzten 3 Wochen.</p>
-                    ) : (
-                      weeks.map((w) => {
-                        const totalPct = (w.total / yMax) * 100;
-                        const entries = Object.entries(w.types);
-                        return (
-                          <div key={w.key} className="relative flex-1 max-w-[80px] h-full flex flex-col justify-end items-center">
-                            <div className="w-full rounded-t-md overflow-hidden flex flex-col" style={{ height: `${totalPct}%` }}>
-                              {entries.map(([type, count]) => {
-                                const m = metaFor(type);
-                                const share = (count / w.total) * 100;
-                                return (
-                                  <div
-                                    key={type}
-                                    className="w-full flex items-center justify-center text-[10px] font-semibold text-white"
-                                    style={{ height: `${share}%`, background: m.color }}
-                                    title={`${m.label}: ${count}`}
-                                  >
-                                    {share > 12 ? count : ""}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  <div className="flex justify-around gap-4 px-2 mt-2">
-                    {weeks.map((w) => (
-                      <div key={w.key} className="flex-1 max-w-[80px] text-center">
-                        <p className="text-[12px] font-medium text-foreground">{w.label}</p>
-                        <p className="text-[10px] text-muted-foreground">{w.total} ges.</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px] gap-6">
+        {/* Chart */}
+        <div>
+          <div className="flex gap-3">
+            <div className="flex flex-col justify-between text-[10px] text-muted-foreground tabular-nums h-[220px] pr-1 text-right">
+              {Array.from({ length: 8 }, (_, i) => Math.round(yMax - (yMax / 7) * i)).map((v, i) => (
+                <span key={i}>{v}</span>
+              ))}
+            </div>
+            <div className="flex-1 relative">
+              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="border-t border-border/50 h-0" />
+                ))}
               </div>
-
-              {/* Legend */}
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-5">
-                {Array.from(new Set(weeks.flatMap((w) => Object.keys(w.types)))).map((type) => {
-                  const m = metaFor(type);
+              <div className="relative h-[220px] flex items-end justify-around gap-4 px-2">
+                {weeks.map((w) => {
+                  const weekTotal = w.wiedervorlage + w.lost + w.other;
+                  const totalPct = (weekTotal / yMax) * 100;
+                  const wvShare = weekTotal > 0 ? (w.wiedervorlage / weekTotal) * 100 : 0;
+                  const lostShare = weekTotal > 0 ? (w.lost / weekTotal) * 100 : 0;
+                  const otherShare = weekTotal > 0 ? (w.other / weekTotal) * 100 : 0;
                   return (
-                    <div key={type} className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm" style={{ background: m.color }} />
-                      <span className="text-[12px] text-foreground">{m.label}</span>
+                    <div key={w.week} className="relative flex-1 max-w-[80px] h-full flex flex-col justify-end items-center">
+                      <div className="w-full rounded-t-md overflow-hidden flex flex-col" style={{ height: `${totalPct}%` }}>
+                        {w.wiedervorlage > 0 && (
+                          <div className="w-full flex items-center justify-center text-[11px] font-semibold text-white" style={{ height: `${wvShare}%`, background: BRAND }}>
+                            {w.wiedervorlage}
+                          </div>
+                        )}
+                        {w.lost > 0 && (
+                          <div className="w-full flex items-center justify-center text-[11px] font-semibold text-white" style={{ height: `${lostShare}%`, background: RED }}>
+                            {w.lost}
+                          </div>
+                        )}
+                        {w.other > 0 && (
+                          <div className="w-full flex items-center justify-center text-[11px] font-semibold text-white" style={{ height: `${otherShare}%`, background: GRAY }}>
+                            {w.other}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-
-            {/* KPI tiles */}
-            <div className="flex flex-col gap-3">
-              <div className="rounded-[12px] border border-border bg-canvas p-4">
-                <p className="text-[28px] font-bold text-foreground leading-none tabular-nums">{data?.total_7d ?? 0}</p>
-                <p className="text-[12px] text-muted-foreground mt-1.5">Letzte 7 Tage</p>
-              </div>
-              <div className="rounded-[12px] border border-border bg-canvas p-4">
-                <p className="text-[28px] font-bold leading-none tabular-nums text-brand">{data?.total_30d ?? 0}</p>
-                <p className="text-[12px] text-muted-foreground mt-1.5">Letzte 30 Tage</p>
-              </div>
-              <div className="rounded-[12px] border border-border bg-canvas p-4">
-                <p className="text-[28px] font-bold leading-none tabular-nums text-gold">{data?.total_all ?? 0}</p>
-                <p className="text-[12px] text-muted-foreground mt-1.5">Insgesamt</p>
+              <div className="flex justify-around gap-4 px-2 mt-2">
+                {weeks.map((w) => (
+                  <div key={w.week} className="flex-1 max-w-[80px] text-center">
+                    <p className="text-[12px] font-medium text-foreground">{w.week}</p>
+                    <p className="text-[10px] text-muted-foreground">{w.sublabel}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Recent activities */}
-          {data?.recent && data.recent.length > 0 && (
-            <div className="mt-6 pt-5 border-t border-border">
-              <h3 className="text-[13px] font-semibold text-foreground mb-3">Neueste Aktivitäten</h3>
-              <ul className="divide-y divide-border">
-                {data.recent.map((a) => {
-                  const m = metaFor(a.activity_type);
-                  const Icon = m.icon;
-                  return (
-                    <li key={a.id}>
-                      <button
-                        onClick={() => a.deal_id && navigate(`/deals/${a.deal_id}`)}
-                        disabled={!a.deal_id}
-                        className="w-full flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg hover:bg-brand-soft transition-colors text-left"
-                      >
-                        <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                          style={{ background: `${m.color}20`, color: m.color }}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-medium text-foreground truncate">
-                            {a.deal_title ?? a.title}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {a.company_name ?? "—"} · {m.label}
-                          </p>
-                        </div>
-                        <span className="text-[11px] text-muted-foreground shrink-0">
-                          {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: de })}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-6 mt-5">
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm" style={{ background: BRAND }} />
+              <span className="text-[12px] text-foreground">Wiedervorlage</span>
             </div>
-          )}
-        </>
-      )}
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm" style={{ background: RED }} />
+              <span className="text-[12px] text-foreground">Absage / Kein Interesse</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm" style={{ background: GRAY }} />
+              <span className="text-[12px] text-foreground">Sonstige</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI tiles */}
+        <div className="flex flex-col gap-3">
+          <div className="rounded-[12px] border border-border bg-canvas p-4">
+            <p className="text-[28px] font-bold text-foreground leading-none tabular-nums">{total}</p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">Gesamt</p>
+          </div>
+          <div className="rounded-[12px] border border-border bg-canvas p-4">
+            <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: "#10b981" }}>{wiedervorlage}</p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">Wiedervorlage</p>
+          </div>
+          <div className="rounded-[12px] border border-border bg-canvas p-4">
+            <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: RED }}>{absagen}</p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">Absagen</p>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

@@ -16,15 +16,16 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-const activityTypes = [
-  { value: "call", label: "📞 Anruf" },
-  { value: "email", label: "📧 E-Mail" },
-  { value: "meeting", label: "🤝 Meeting" },
+const ACTIVITY_TYPE_OPTIONS = [
+  { value: "call",          label: "📞 Anruf" },
+  { value: "email",         label: "📧 E-Mail" },
+  { value: "meeting",       label: "🤝 Meeting" },
+  { value: "follow_up",     label: "🔄 Follow-Up" },
   { value: "wiedervorlage", label: "🔄 Wiedervorlage" },
-  { value: "notiz", label: "📝 Notiz" },
-  { value: "angebot", label: "📄 Angebot versendet" },
-  { value: "absage", label: "❌ Absage erhalten" },
-];
+  { value: "note",          label: "📝 Notiz" },
+  { value: "angebot",       label: "📄 Angebot versendet" },
+  { value: "absage",        label: "❌ Absage erhalten" },
+] as const;
 
 interface Props {
   dealId: string;
@@ -39,18 +40,24 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
   const qc = useQueryClient();
 
   const [form, setForm] = useState({ activity_type: "call", title: "", description: "", owner_user_id: "" });
+  const [outcome, setOutcome] = useState("");
   const [dueDate, setDueDate] = useState<Date>();
 
   const u = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const fallbackTitle = activityTypes.find((t) => t.value === form.activity_type)?.label ?? form.activity_type;
+      const fallbackTitle = ACTIVITY_TYPE_OPTIONS.find((t) => t.value === form.activity_type)?.label ?? form.activity_type;
+      const description = form.description.trim();
+      const outcomeText = outcome.trim();
+      const finalDescription = outcomeText
+        ? (description ? `${description}\n\nErgebnis: ${outcomeText}` : `Ergebnis: ${outcomeText}`)
+        : (description || null);
       const { error } = await supabase.from("deal_activities").insert({
         deal_id: dealId,
         activity_type: form.activity_type,
         title: form.title.trim() || fallbackTitle,
-        description: form.description.trim() || null,
+        description: finalDescription,
         due_date: dueDate ? dueDate.toISOString() : null,
         owner_user_id: form.owner_user_id || user?.id || null,
         created_by_user_id: user?.id ?? null,
@@ -62,7 +69,9 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
       toast({ title: "Aktivität erstellt" });
       qc.invalidateQueries({ queryKey: ["deal-activities", dealId] });
       qc.invalidateQueries({ queryKey: ["activity-stats"] });
+      qc.invalidateQueries({ queryKey: ["dashboard_activities"] });
       setForm({ activity_type: "call", title: "", description: "", owner_user_id: "" });
+      setOutcome("");
       setDueDate(undefined);
       onOpenChange(false);
     },
@@ -78,7 +87,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
             <Label>Typ</Label>
             <Select value={form.activity_type} onValueChange={(v) => u("activity_type", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{activityTypes.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+              <SelectContent>{ACTIVITY_TYPE_OPTIONS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
@@ -88,6 +97,15 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
           <div className="space-y-1.5">
             <Label>Beschreibung</Label>
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={3} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="outcome">Ergebnis / Outcome (optional)</Label>
+            <Input
+              id="outcome"
+              placeholder="z.B. Rückruf vereinbart, Angebot angefordert, kein Interesse..."
+              value={outcome}
+              onChange={(e) => setOutcome(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Fälligkeitsdatum</Label>
