@@ -45,10 +45,11 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
 
   const mutation = useMutation({
     mutationFn: async () => {
+      const fallbackTitle = activityTypes.find((t) => t.value === form.activity_type)?.label ?? form.activity_type;
       const { error } = await supabase.from("deal_activities").insert({
         deal_id: dealId,
         activity_type: form.activity_type,
-        title: form.title.trim(),
+        title: form.title.trim() || fallbackTitle,
         description: form.description.trim() || null,
         due_date: dueDate ? dueDate.toISOString() : null,
         owner_user_id: form.owner_user_id || null,
