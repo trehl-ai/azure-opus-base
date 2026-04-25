@@ -191,8 +191,8 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Anruf-Aktivitäten */}
-      <CallActivitiesWidget />
+      {/* Aktivitäten-Widget (live) */}
+      <ActivityStatsWidget />
 
       {/* Quick Actions */}
       <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
