@@ -60,6 +60,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
     onSuccess: () => {
       toast({ title: "Aktivität erstellt" });
       qc.invalidateQueries({ queryKey: ["deal-activities", dealId] });
+      qc.invalidateQueries({ queryKey: ["activity-stats"] });
       setForm({ activity_type: "call", title: "", description: "", owner_user_id: "" });
       setDueDate(undefined);
       onOpenChange(false);
