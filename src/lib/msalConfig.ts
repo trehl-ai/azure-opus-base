@@ -8,7 +8,7 @@ export const msalConfig: Configuration = {
     postLogoutRedirectUri: "https://crm.ts-connect.cloud/settings/email-accounts",
   },
   cache: {
-    cacheLocation: "sessionStorage",
+    cacheLocation: "localStorage",
     storeAuthStateInCookie: false,
   },
 };

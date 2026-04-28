@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { sendOutlookEmailViaGraph } from "@/lib/sendOutlookEmail";
 
 // ---------------------------------------------------------------------------
 // Multi-provider email service abstraction
@@ -122,27 +123,39 @@ async function sendViaGmail(params: SendEmailParams): Promise<SendEmailResult> {
 // ---------------------------------------------------------------------------
 
 async function sendViaOutlook(params: SendEmailParams): Promise<SendEmailResult> {
-  if (!params.account_id) {
-    return { success: false, error: "account_id ist für Outlook-Versand erforderlich." };
+  if (!params.body_html) {
+    return { success: false, error: "body_html ist für Outlook-Versand erforderlich." };
   }
 
-  const { data, error } = await supabase.functions.invoke("send-email-via-outlook", {
-    body: {
-      account_id: params.account_id,
-      to: params.to,
-      cc: params.cc,
-      bcc: params.bcc,
-      subject: params.subject,
-      body_html: params.body_html,
-      body_text: params.body_text,
-      contact_id: params.contact_id,
-      deal_id: params.deal_id,
-      attachments: params.attachments,
-    },
+  const result = await sendOutlookEmailViaGraph({
+    to: params.to,
+    cc: params.cc,
+    bcc: params.bcc,
+    subject: params.subject,
+    bodyHtml: params.body_html,
+    attachments: params.attachments,
   });
 
-  if (error) return { success: false, error: error.message };
-  if (data?.error) return { success: false, error: data.details || data.error };
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
 
-  return { success: true, message_id: data?.message_id };
+  // Log to user_email_messages so EmailHistory and email_attachments-FK keep working
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: inserted } = await supabase
+        .from("user_email_messages")
+        .insert({ user_id: user.id, subject: params.subject, body: params.body_html })
+        .select("id")
+        .single();
+      if (inserted?.id) {
+        return { success: true, message_id: inserted.id };
+      }
+    }
+  } catch {
+    // Logging-Fehler darf den Versand nicht versenken
+  }
+
+  return { success: true };
 }
