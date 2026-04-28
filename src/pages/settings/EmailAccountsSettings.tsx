@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
+import { useMicrosoftAuth } from "@/hooks/useMicrosoftAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -39,7 +40,14 @@ export default function EmailAccountsSettings() {
   const queryClient = useQueryClient();
   const [disconnectId, setDisconnectId] = useState<string | null>(null);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
-  const [connectingOutlook, setConnectingOutlook] = useState(false);
+
+  const {
+    outlookAccount,
+    connecting: connectingOutlook,
+    error: outlookError,
+    connect: connectOutlook,
+    disconnect: disconnectOutlook,
+  } = useMicrosoftAuth();
 
   // Check provider setup status
   const { data: providerStatus, isLoading: statusLoading } = useQuery({
@@ -135,34 +143,25 @@ export default function EmailAccountsSettings() {
   };
 
   const handleConnectOutlook = async () => {
-    setConnectingOutlook(true);
     try {
-      const { data, error } = await supabase.functions.invoke("start-outlook-oauth");
-      if (error || data?.error) {
-        toast.error("Fehler beim Starten der Outlook-Verbindung.");
-        return;
-      }
-      if (data?.auth_url) {
-        const popup = window.open(data.auth_url, "outlook-oauth", "width=600,height=700,popup=yes");
-        const handler = (event: MessageEvent) => {
-          if (event.data?.type === "outlook-oauth-success") {
-            window.removeEventListener("message", handler);
-            queryClient.invalidateQueries({ queryKey: ["email-accounts"] });
-            toast.success("Outlook-Konto erfolgreich verbunden!");
-            popup?.close();
-          }
-        };
-        window.addEventListener("message", handler);
-      }
-    } catch {
+      await connectOutlook();
+    } catch (err) {
+      console.error(err);
       toast.error("Fehler beim Starten der Outlook-Verbindung.");
-    } finally {
-      setConnectingOutlook(false);
+    }
+  };
+
+  const handleDisconnectOutlook = async () => {
+    try {
+      await disconnectOutlook();
+      toast.success("Outlook-Konto getrennt");
+    } catch {
+      toast.error("Fehler beim Trennen des Outlook-Kontos");
     }
   };
 
   const googleReady = providerStatus?.google ?? false;
-  const outlookReady = providerStatus?.outlook ?? false;
+  const outlookReady = true;
   const resendReady = providerStatus?.resend ?? false;
   const disconnectAccount = accounts.find((a) => a.id === disconnectId);
 
@@ -205,17 +204,15 @@ export default function EmailAccountsSettings() {
                     {googleReady ? "Alle Secrets konfiguriert" : "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET oder EMAIL_TOKEN_ENCRYPTION_KEY fehlt"}
                   </p>
                 </div>
-                {/* Outlook */}
-                <div className={`rounded-lg border p-3 ${outlookReady ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
+                {/* Outlook (PKCE — keine Backend-Secrets nötig) */}
+                <div className="rounded-lg border p-3 border-success/30 bg-success/5">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Mail className="h-4 w-4 text-[#0078D4]" />
                     <span className="text-[13px] font-semibold">Outlook / Microsoft</span>
-                    {outlookReady
-                      ? <CheckCircle2 className="h-4 w-4 text-success ml-auto" />
-                      : <XCircle className="h-4 w-4 text-destructive ml-auto" />}
+                    <CheckCircle2 className="h-4 w-4 text-success ml-auto" />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {outlookReady ? "Alle Secrets konfiguriert" : "MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET oder EMAIL_TOKEN_ENCRYPTION_KEY fehlt"}
+                    PKCE-Flow (MSAL.js) — keine Backend-Secrets nötig
                   </p>
                 </div>
                 {/* Resend */}
@@ -311,37 +308,60 @@ export default function EmailAccountsSettings() {
               </Tooltip>
             </TooltipProvider>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleConnectOutlook}
-                      disabled={!outlookReady || connectingOutlook || statusLoading}
-                      className="gap-1.5"
-                    >
-                      {connectingOutlook
-                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                        : <Mail className="h-4 w-4 text-[#0078D4]" />}
-                      Outlook verbinden
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {!outlookReady && !statusLoading && (
-                  <TooltipContent>
-                    <p className="text-[12px] max-w-[250px]">
-                      {isAdmin
-                        ? "Outlook OAuth ist noch nicht konfiguriert. Bitte hinterlege MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET und EMAIL_TOKEN_ENCRYPTION_KEY als Backend-Secrets."
-                        : "Dieser Provider wurde von deinem Administrator noch nicht eingerichtet."}
-                    </p>
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
+            {!outlookAccount && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleConnectOutlook}
+                disabled={connectingOutlook}
+                className="gap-1.5"
+              >
+                {connectingOutlook
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Mail className="h-4 w-4 text-[#0078D4]" />}
+                Outlook verbinden
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* Outlook (MSAL PKCE) — verbundenes Konto */}
+        {outlookAccount && (
+          <Card className="mb-4 border-[#0078D4]/30 bg-[#0078D4]/[0.03]">
+            <CardContent className="flex items-center gap-4 py-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0078D4] text-white">
+                <Mail className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-[14px] truncate">
+                    {outlookAccount.displayName || outlookAccount.email}
+                  </span>
+                  <Badge variant="outline" className="text-[11px] bg-[#0078D4] text-white border-0">
+                    Outlook
+                  </Badge>
+                  <Badge variant="default" className="text-[11px]">
+                    Aktiv
+                  </Badge>
+                </div>
+                <p className="text-[13px] text-green-600 truncate mt-0.5">
+                  {outlookAccount.email}
+                </p>
+                {outlookError && (
+                  <p className="text-[12px] text-destructive mt-1">{outlookError}</p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDisconnectOutlook}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                Trennen
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Info for non-admin when both unavailable */}
         {!isAdmin && !googleReady && !outlookReady && !statusLoading && (
