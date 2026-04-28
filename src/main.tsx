@@ -1,3 +1,4 @@
+// build-trigger
 // v2.0 MSAL
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
