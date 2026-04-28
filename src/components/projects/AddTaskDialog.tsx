@@ -80,7 +80,7 @@ export function AddTaskDialog({ projectId, open, onOpenChange }: Props) {
               <Label>Verantwortlich</Label>
               <Select value={form.assigned_user_id} onValueChange={(v) => u("assigned_user_id", v)}>
                 <SelectTrigger><SelectValue placeholder="Zuweisen" /></SelectTrigger>
-                <SelectContent>{users?.map((usr) => <SelectItem key={usr.id} value={usr.id}>{usr.first_name} {usr.last_name}</SelectItem>)}</SelectContent>
+                <SelectContent>{users?.map((usr) => <SelectItem key={usr.id} value={usr.id}>{usr.full_name || `${usr.first_name || ''} ${usr.last_name || ''}`.trim() || usr.email}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">

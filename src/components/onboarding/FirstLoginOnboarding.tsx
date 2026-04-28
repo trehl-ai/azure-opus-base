@@ -130,15 +130,9 @@ export default function FirstLoginOnboarding() {
         is_active: true,
       };
 
-      // Email-signature feature disabled — table schema lacks expected columns.
-      // Skip the upsert to avoid 400, but keep the user-name update below.
-      try {
-        await supabase
-          .from("user_email_signatures")
-          .upsert(payload, { onConflict: "user_id" });
-      } catch {
-        // swallow — feature off
-      }
+      // Email-signature feature disabled — Schema fehlen profile_image_path/is_active/etc.
+      // Call komplett weglassen (try/catch fängt PostgREST-400 nicht — Browser loggt trotzdem).
+      void payload;
 
       // Update user names if changed
       const { error: userError } = await supabase

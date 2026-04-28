@@ -138,19 +138,20 @@ export default function Deals() {
   // Set initial mobile stage
   const effectiveMobileStageId = mobileStageId || stages?.[0]?.id || "";
 
-  // Roadshow details for all deals in pipeline
+  // Roadshow details — nur für Werteraum - Schulen Pipeline (sonst existiert die Tabelle nicht → 404)
+  const WERTERAUM_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
   const { data: roadshowMap } = useQuery({
     queryKey: ["roadshow-map", activePipelineId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deal_roadshow_details" as any)
         .select("deal_id, roadshow_eignung");
-      if (error) throw error;
+      if (error) return new Map<string, string>();
       const map = new Map<string, string>();
       (data as any[])?.forEach((r: any) => map.set(r.deal_id, r.roadshow_eignung));
       return map;
     },
-    enabled: !!activePipelineId,
+    enabled: !!activePipelineId && activePipelineId === WERTERAUM_PIPELINE_ID,
   });
 
   // Deals
