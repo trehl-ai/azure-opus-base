@@ -28,6 +28,7 @@ import Compose from "./pages/Compose.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import AuthCallback from "./pages/AuthCallback.tsx";
 import Ideas from "./pages/Ideas.tsx";
+import OutlookAdminConsent from "./pages/settings/OutlookAdminConsent.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient({
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/compose" element={<P><Compose /></P>} />
               <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
               <Route path="/settings/*" element={<P><SettingsPage /></P>} />
+              <Route path="/admin/outlook-consent" element={<P><OutlookAdminConsent /></P>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
