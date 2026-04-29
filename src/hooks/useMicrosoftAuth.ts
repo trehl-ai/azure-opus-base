@@ -8,6 +8,27 @@ export interface OutlookAccount {
   displayName: string;
 }
 
+function mapAuthError(err: any): string | null {
+  console.error("MSAL auth error:", err);
+  if (
+    err?.errorCode === "interaction_required" ||
+    err?.errorCode === "consent_required" ||
+    err?.errorCode === "admin_consent_required" ||
+    err?.message?.includes("AADSTS65001") ||
+    err?.message?.includes("admin")
+  ) {
+    return (
+      "Ihre Organisation erfordert eine Administrator-Genehmigung. " +
+      "Bitte wenden Sie sich an Ihren IT-Administrator oder besuchen Sie " +
+      "/admin/outlook-consent für weitere Informationen."
+    );
+  }
+  if (err?.errorCode === "user_cancelled") {
+    return null;
+  }
+  return "Verbindung fehlgeschlagen: " + (err?.message || "Unbekannter Fehler");
+}
+
 export function useMicrosoftAuth() {
   const [outlookAccount, setOutlookAccount] = useState<OutlookAccount | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -17,17 +38,22 @@ export function useMicrosoftAuth() {
     const init = async () => {
       await msalInstance.initialize();
 
-      const result = await msalInstance.handleRedirectPromise();
-      if (result) {
-        setConnecting(true);
-        try {
-          await persistTokenToSupabase(result.account, result.accessToken);
-        } catch (err) {
-          setError("Fehler beim Speichern des Tokens");
-          console.error(err);
-        } finally {
-          setConnecting(false);
+      try {
+        const result = await msalInstance.handleRedirectPromise();
+        if (result) {
+          setConnecting(true);
+          try {
+            await persistTokenToSupabase(result.account, result.accessToken);
+          } catch (err) {
+            setError("Fehler beim Speichern des Tokens");
+            console.error(err);
+          } finally {
+            setConnecting(false);
+          }
         }
+      } catch (err) {
+        setError(mapAuthError(err));
+        setConnecting(false);
       }
 
       await loadExistingAccount();
@@ -78,8 +104,15 @@ export function useMicrosoftAuth() {
   };
 
   const connect = useCallback(async () => {
-    await msalInstance.initialize();
-    await msalInstance.loginRedirect(loginRequest);
+    setError(null);
+    setConnecting(true);
+    try {
+      await msalInstance.initialize();
+      await msalInstance.loginRedirect(loginRequest);
+    } catch (err) {
+      setError(mapAuthError(err));
+      setConnecting(false);
+    }
   }, []);
 
   const disconnect = useCallback(async () => {
