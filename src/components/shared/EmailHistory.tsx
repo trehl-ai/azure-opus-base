@@ -1,128 +1,102 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Paperclip, Download } from "lucide-react";
+import { Mail } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
-const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  sent: { label: "Gesendet", variant: "default" },
-  draft: { label: "Entwurf", variant: "secondary" },
-  failed: { label: "Fehlgeschlagen", variant: "destructive" },
-  pending: { label: "Ausstehend", variant: "outline" },
-  queued: { label: "In Warteschlange", variant: "outline" },
-};
-
-const providerLabels: Record<string, string> = {
-  resend: "Plattform",
-  gmail: "Gmail",
-  outlook: "Outlook",
-};
 
 interface EmailHistoryProps {
   contactId?: string;
   dealId?: string;
 }
 
+type EmailActivity = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+  auto_generated: boolean | null;
+  metadata: Record<string, unknown> | null;
+  contact_id: string | null;
+  deal_id: string | null;
+  activity_type: string;
+};
+
+const ACTIVITY_FIELDS =
+  "id, title, description, completed_at, created_at, auto_generated, metadata, contact_id, deal_id, activity_type";
+
 export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
-  const { data: emails = [], isLoading } = useQuery({
+  const { data: emails = [], isLoading } = useQuery<EmailActivity[]>({
     queryKey: ["email-history", contactId, dealId],
     queryFn: async () => {
       if (dealId) {
-        // Deal view: show emails linked to this deal
         const { data, error } = await supabase
-          .from("email_messages")
-          .select("id, subject, to_email, from_email, provider, status, sent_at, created_at, body_text")
+          .from("deal_activities")
+          .select(ACTIVITY_FIELDS)
           .eq("deal_id", dealId)
+          .in("activity_type", ["email", "email_sent"])
+          .order("completed_at", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
           .limit(50);
         if (error) throw error;
-        return data;
+        return (data ?? []) as EmailActivity[];
       }
 
       if (contactId) {
-        // Contact view: show emails linked directly to this contact
-        // OR linked via a deal whose primary_contact_id matches
-        const { data: directEmails, error: e1 } = await supabase
-          .from("email_messages")
-          .select("id, subject, to_email, from_email, provider, status, sent_at, created_at, body_text")
+        const { data: directActs, error: e1 } = await supabase
+          .from("deal_activities")
+          .select(ACTIVITY_FIELDS)
           .eq("contact_id", contactId)
+          .in("activity_type", ["email", "email_sent"])
+          .order("completed_at", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
           .limit(50);
         if (e1) throw e1;
 
-        // Also find emails linked to deals that belong to this contact
-        const { data: dealEmails, error: e2 } = await supabase
-          .from("email_messages")
-          .select("id, subject, to_email, from_email, provider, status, sent_at, created_at, body_text, deal_id")
-          .not("deal_id", "is", null)
-          .is("contact_id", null)
-          .order("created_at", { ascending: false })
-          .limit(100);
+        // Pull emails attached only to a deal whose primary_contact_id is this contact
+        const { data: relatedDeals } = await supabase
+          .from("deals")
+          .select("id")
+          .eq("primary_contact_id", contactId);
 
-        let mergedEmails = directEmails || [];
+        let merged: EmailActivity[] = (directActs ?? []) as EmailActivity[];
 
-        if (!e2 && dealEmails?.length) {
-          // Fetch deals to check primary_contact_id
-          const dealIds = [...new Set(dealEmails.map((e) => e.deal_id!))];
-          const { data: deals } = await supabase
-            .from("deals")
-            .select("id, primary_contact_id")
-            .in("id", dealIds);
+        if (relatedDeals?.length) {
+          const dealIds = relatedDeals.map((d) => d.id);
+          const { data: dealActs } = await supabase
+            .from("deal_activities")
+            .select(ACTIVITY_FIELDS)
+            .in("deal_id", dealIds)
+            .in("activity_type", ["email", "email_sent"])
+            .is("contact_id", null)
+            .order("completed_at", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(100);
 
-          if (deals?.length) {
-            const matchingDealIds = new Set(
-              deals.filter((d) => d.primary_contact_id === contactId).map((d) => d.id)
-            );
-            const extraEmails = dealEmails.filter(
-              (e) => e.deal_id && matchingDealIds.has(e.deal_id) && !mergedEmails.some((m) => m.id === e.id)
-            );
-            mergedEmails = [...mergedEmails, ...extraEmails]
-              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-              .slice(0, 50);
+          if (dealActs?.length) {
+            const seen = new Set(merged.map((a) => a.id));
+            for (const a of dealActs as EmailActivity[]) {
+              if (!seen.has(a.id)) {
+                merged.push(a);
+                seen.add(a.id);
+              }
+            }
+            merged.sort((a, b) => {
+              const ta = new Date(a.completed_at ?? a.created_at ?? 0).getTime();
+              const tb = new Date(b.completed_at ?? b.created_at ?? 0).getTime();
+              return tb - ta;
+            });
+            merged = merged.slice(0, 50);
           }
         }
 
-        return mergedEmails;
+        return merged;
       }
 
       return [];
     },
     enabled: !!(contactId || dealId),
   });
-
-  // Load attachments for all displayed emails
-  const emailIds = emails.map((e) => e.id);
-  const { data: attachments = [] } = useQuery({
-    queryKey: ["email-attachments", emailIds],
-    queryFn: async () => {
-      if (!emailIds.length) return [];
-      const { data, error } = await supabase
-        .from("email_attachments")
-        .select("id, email_message_id, file_name, file_path, file_type, file_size")
-        .in("email_message_id", emailIds);
-      if (error) throw error;
-      return data;
-    },
-    enabled: emailIds.length > 0,
-  });
-
-  const attachmentsByEmail = attachments.reduce<Record<string, typeof attachments>>((acc, a) => {
-    if (!acc[a.email_message_id]) acc[a.email_message_id] = [];
-    acc[a.email_message_id].push(a);
-    return acc;
-  }, {});
-
-  const handleDownload = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage
-      .from("email-attachments")
-      .createSignedUrl(filePath, 60);
-
-    if (error || !data?.signedUrl) {
-      return;
-    }
-    window.open(data.signedUrl, "_blank");
-  };
 
   if (isLoading) {
     return (
@@ -146,9 +120,12 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
   return (
     <div className="space-y-2">
       {emails.map((email) => {
-        const st = statusLabels[email.status] ?? statusLabels.draft;
-        const preview = email.body_text?.slice(0, 120) || "";
-        const emailAttachments = attachmentsByEmail[email.id] || [];
+        const inbound = email.auto_generated === true;
+        const meta = (email.metadata ?? {}) as Record<string, unknown>;
+        const senderEmail = typeof meta.sender_email === "string" ? meta.sender_email : null;
+        const fromLabel = inbound ? senderEmail ?? "Eingehend" : "Ausgehend";
+        const timestamp = email.completed_at ?? email.created_at;
+        const preview = (email.description ?? "").trim().slice(0, 150);
 
         return (
           <div
@@ -158,54 +135,31 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">
-                  {email.subject || "(Kein Betreff)"}
+                  {email.title || "(Kein Betreff)"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  An: {(email.to_email as string[])?.join(", ") || "–"}
+                  Von: {fromLabel}
                 </p>
                 {preview && (
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preview}…</p>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                    {preview}
+                    {(email.description ?? "").length > preview.length ? "…" : ""}
+                  </p>
                 )}
               </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <Badge variant={st.variant} className="text-[10px]">{st.label}</Badge>
-                <span className="text-[10px] text-muted-foreground">
-                  {providerLabels[email.provider] ?? email.provider}
-                </span>
-              </div>
+              <Badge
+                variant={inbound ? "default" : "secondary"}
+                className="text-[10px] shrink-0"
+              >
+                {inbound ? "Eingehend" : "Ausgehend"}
+              </Badge>
             </div>
 
-            {/* Attachments */}
-            {emailAttachments.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {emailAttachments.map((att) => (
-                  <button
-                    key={att.id}
-                    onClick={() => handleDownload(att.file_path, att.file_name)}
-                    className="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  >
-                    <Paperclip className="h-3 w-3" />
-                    <span className="truncate max-w-[120px]">{att.file_name}</span>
-                    <Download className="h-2.5 w-2.5 ml-0.5" />
-                  </button>
-                ))}
+            {timestamp && (
+              <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                <span>{format(new Date(timestamp), "dd.MM.yyyy HH:mm")}</span>
               </div>
             )}
-
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-              <span>Von: {email.from_email}</span>
-              <span>
-                {email.sent_at
-                  ? format(new Date(email.sent_at), "dd.MM.yyyy HH:mm")
-                  : format(new Date(email.created_at), "dd.MM.yyyy HH:mm")}
-              </span>
-              {emailAttachments.length > 0 && (
-                <span className="flex items-center gap-0.5">
-                  <Paperclip className="h-3 w-3" />
-                  {emailAttachments.length}
-                </span>
-              )}
-            </div>
           </div>
         );
       })}
