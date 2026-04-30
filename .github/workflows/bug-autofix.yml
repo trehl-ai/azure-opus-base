@@ -48,8 +48,8 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           BRANCH="fix/bug-${ISSUE_NUMBER}"
-
-          claude --dangerously-skip-permissions -p "
+          PROMPT_FILE=$(mktemp)
+          cat > "${PROMPT_FILE}" <<EOF
           Du bist Senior Frontend-Entwickler fuer das EO IPSO CRM.
           Lies zuerst CLAUDE.md fuer Stack-Kontext.
 
@@ -63,41 +63,24 @@ jobs:
           2. Finde Root Cause des Bugs
           3. Entscheide: Ist ein eindeutiger Code-Fix moeglich?
 
-          WENN JA:
+          WENN JA (eindeutiger Code-Fix):
           - git checkout -b ${BRANCH}
           - Minimaler Fix, nur betroffene Files
-          - npx tsc --noEmit (ignoriere falls kein TypeScript-Projekt)
-          - git add -A && git commit -m 'fix: ${ISSUE_TITLE} (fixes #${ISSUE_NUMBER})'
+          - Falls TypeScript: npx tsc --noEmit (ignoriere falls kein TS-Projekt)
+          - git add -A && git commit -m "fix: ${ISSUE_TITLE} (fixes #${ISSUE_NUMBER})"
           - git push origin ${BRANCH}
-          - gh pr create --title 'fix: ${ISSUE_TITLE} (fixes #${ISSUE_NUMBER})' --body '## Fix fuer Issue #${ISSUE_NUMBER}
-
-### Problem
-${ISSUE_TITLE}
-
-### Aenderungen
-[Beschreibe was du geaendert hast]
-
-fixes #${ISSUE_NUMBER}' --base main --head ${BRANCH}
-          - Schreibe 'PR_CREATED=true' in /tmp/fix_result.txt
-          - Schreibe die PR-URL in /tmp/pr_url.txt (via: gh pr view --head ${BRANCH} --json url --jq .url)
+          - gh pr create --title "fix: ${ISSUE_TITLE} (fixes #${ISSUE_NUMBER})" --body "Fix fuer #${ISSUE_NUMBER}. Beschreibe in 2-3 Saetzen was geaendert wurde. fixes #${ISSUE_NUMBER}" --base main --head ${BRANCH}
+          - Hole die PR-URL: gh pr view --head ${BRANCH} --json url --jq .url > /tmp/pr_url.txt
+          - echo "PR_CREATED=true" > /tmp/fix_result.txt
 
           WENN NEIN (zu komplex, zu wenig Info):
-          - Schreibe 'PR_CREATED=false' in /tmp/fix_result.txt
-          - gh issue comment ${ISSUE_NUMBER} --body '## Claude Code Analyse
-
-**Automatischer Fix nicht moeglich.**
-
-### Grund
-[Erklaere warum]
-
-### Was manuell geprueft werden sollte
-[Konkrete Hinweise]
-
-### Wahrscheinlich betroffene Files
-[Liste der Files]'
+          - echo "PR_CREATED=false" > /tmp/fix_result.txt
+          - gh issue comment ${ISSUE_NUMBER} --body "## Claude Code Analyse - Automatischer Fix nicht moeglich. Grund: [erklaere kurz]. Manuell zu pruefen: [konkrete Hinweise]. Wahrscheinlich betroffene Files: [Liste]."
 
           NIEMALS auf main committen. Nur betroffene Files aendern.
-          "
+          EOF
+
+          claude --dangerously-skip-permissions -p "$(cat ${PROMPT_FILE})"
 
       - name: Telegram Push
         if: always()
