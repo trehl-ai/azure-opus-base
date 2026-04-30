@@ -26,6 +26,7 @@ jobs:
         run: npm ci || npm install || true
 
       - name: Claude Code Bug Fix
+        id: claude_fix
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -42,29 +43,75 @@ jobs:
             ${{ github.event.issue.body }}
 
             Aufgabe:
-            1. Analysiere Root Cause im Code
-            2. Erstelle Branch: fix/bug-${{ github.event.issue.number }}
-            3. Minimaler Fix — nur betroffene Files
-            4. TypeScript prüfen: npx tsc --noEmit
-            5. Commit: "fix: ${{ github.event.issue.title }} (fixes #${{ github.event.issue.number }})"
-            6. Push Branch + Pull Request erstellen
+            1. Analysiere Root Cause im Code — lies alle relevanten Files
+            2. Entscheide: Ist ein automatischer Code-Fix möglich?
+
+            WENN JA (eindeutiger Code-Fix):
+            - Erstelle Branch: fix/bug-${{ github.event.issue.number }}
+            - Minimaler Fix — nur betroffene Files, kein Refactoring
+            - TypeScript prüfen: npx tsc --noEmit
+            - Commit: "fix: ${{ github.event.issue.title }} (fixes #${{ github.event.issue.number }})"
+            - Push Branch
+            - Pull Request erstellen mit Titel: "fix: ${{ github.event.issue.title }} (fixes #${{ github.event.issue.number }})"
+            - Schreibe "PR_CREATED=true" in die Datei /tmp/fix_result.txt
+            - Schreibe PR URL in /tmp/pr_url.txt
+
+            WENN NEIN (zu komplex, zu wenig Info, kein eindeutiger Fix):
+            - Schreibe "PR_CREATED=false" in /tmp/fix_result.txt
+            - Schreibe eine kurze Erklärung in /tmp/fix_reason.txt:
+              - Was ist das Problem
+              - Warum kein automatischer Fix möglich
+              - Was manuell geprüft werden sollte
+              - Welche Files wahrscheinlich betroffen sind
+            - Poste diese Erklärung als Comment am GitHub Issue #${{ github.event.issue.number }}
+
+            NIEMALS:
+            - Direkt auf main committen
+            - Supabase Service Role Key in Code schreiben
+            - Andere Supabase Projekte als ttgvhqygmgtnjgwunuwz verwenden
+            - Globale Refactors machen
           claude_args: |
-            --max-turns 15
+            --max-turns 20
             --model claude-sonnet-4-5
 
-      - name: Telegram Push Success
+      - name: Telegram Push - Fix PR bereit
         if: success()
         run: |
-          PR_URL=$(gh pr list --head "fix/bug-${{ github.event.issue.number }}" --json url --jq '.[0].url' 2>/dev/null || echo "https://github.com/trehl-ai/azure-opus-base/pulls")
-          curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "{\"chat_id\":\"6299105090\",\"text\":\"🔧 Fix-PR bereit\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\n${PR_URL}\",\"parse_mode\":\"HTML\"}"
+          FIX_RESULT=$(cat /tmp/fix_result.txt 2>/dev/null || echo "unknown")
+          PR_URL=$(cat /tmp/pr_url.txt 2>/dev/null || echo "")
+          ISSUE_URL="https://github.com/trehl-ai/azure-opus-base/issues/${{ github.event.issue.number }}"
+
+          if [ "$FIX_RESULT" = "PR_CREATED=true" ] && [ -n "$PR_URL" ]; then
+            curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"chat_id\": \"6299105090\",
+                \"text\": \"🔧 Fix-PR bereit\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\n${PR_URL}\",
+                \"parse_mode\": \"HTML\",
+                \"disable_web_page_preview\": true
+              }"
+          else
+            curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"chat_id\": \"6299105090\",
+                \"text\": \"💭 Kein automatischer Fix\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\nClaude hat den Bug analysiert aber keinen eindeutigen Code-Fix gefunden. Analyse am Issue.\\n\\n${ISSUE_URL}\",
+                \"parse_mode\": \"HTML\",
+                \"disable_web_page_preview\": true
+              }"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Telegram Push Failure
+      - name: Telegram Push - Fehler
         if: failure()
         run: |
+          ISSUE_URL="https://github.com/trehl-ai/azure-opus-base/issues/${{ github.event.issue.number }}"
           curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{\"chat_id\":\"6299105090\",\"text\":\"⚠️ Autofix fehlgeschlagen\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\nManuelle Prüfung nötig.\",\"parse_mode\":\"HTML\"}"
+            -d "{
+              \"chat_id\": \"6299105090\",
+              \"text\": \"⚠️ Autofix fehlgeschlagen\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\nGitHub Action Fehler — manuelle Prüfung nötig.\\n\\n${ISSUE_URL}\",
+              \"parse_mode\": \"HTML\",
+              \"disable_web_page_preview\": true
+            }"
