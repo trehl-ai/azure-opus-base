@@ -30,6 +30,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          label_trigger: bug
+          branch_prefix: fix/bug-
           prompt: |
             Du bist Senior Frontend-Entwickler für das EO IPSO CRM (crm.ts-connect.cloud).
             Lies zuerst CLAUDE.md für Stack-Kontext.
