@@ -1,0 +1,68 @@
+name: Bug Autofix mit Claude Code
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  autofix:
+    if: github.event.label.name == 'bug'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci || npm install || true
+
+      - name: Claude Code Bug Fix
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Du bist Senior Frontend-Entwickler für das EO IPSO CRM (crm.ts-connect.cloud).
+            Lies zuerst CLAUDE.md für Stack-Kontext.
+
+            GitHub Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+
+            Beschreibung:
+            ${{ github.event.issue.body }}
+
+            Aufgabe:
+            1. Analysiere Root Cause im Code
+            2. Erstelle Branch: fix/bug-${{ github.event.issue.number }}
+            3. Minimaler Fix — nur betroffene Files
+            4. TypeScript prüfen: npx tsc --noEmit
+            5. Commit: "fix: ${{ github.event.issue.title }} (fixes #${{ github.event.issue.number }})"
+            6. Push Branch + Pull Request erstellen
+          claude_args: |
+            --max-turns 15
+            --model claude-sonnet-4-5
+
+      - name: Telegram Push Success
+        if: success()
+        run: |
+          PR_URL=$(gh pr list --head "fix/bug-${{ github.event.issue.number }}" --json url --jq '.[0].url' 2>/dev/null || echo "https://github.com/trehl-ai/azure-opus-base/pulls")
+          curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"6299105090\",\"text\":\"🔧 Fix-PR bereit\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\n${PR_URL}\",\"parse_mode\":\"HTML\"}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Telegram Push Failure
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"6299105090\",\"text\":\"⚠️ Autofix fehlgeschlagen\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\nManuelle Prüfung nötig.\",\"parse_mode\":\"HTML\"}"
