@@ -1,4 +1,4 @@
-name: Bug Autofix mit Claude Code
+name: Bug Autofix mit Claude Code CLI
 
 on:
   issues:
@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,93 +27,95 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install || true
 
+      - name: Install Claude Code CLI + GitHub CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          gh --version
+          claude --version
+
+      - name: Git config
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
       - name: Claude Code Bug Fix
         id: claude_fix
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          label_trigger: bug
-          branch_prefix: fix/bug-
-          prompt: |
-            Du bist Senior Frontend-Entwickler für das EO IPSO CRM (crm.ts-connect.cloud).
-            Lies zuerst CLAUDE.md für Stack-Kontext.
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          BRANCH="fix/bug-${ISSUE_NUMBER}"
 
-            GitHub Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+          claude --dangerously-skip-permissions -p "
+          Du bist Senior Frontend-Entwickler fuer das EO IPSO CRM.
+          Lies zuerst CLAUDE.md fuer Stack-Kontext.
 
-            Beschreibung:
-            ${{ github.event.issue.body }}
+          GitHub Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
 
-            Aufgabe:
-            1. Analysiere Root Cause im Code — lies alle relevanten Files
-            2. Entscheide: Ist ein automatischer Code-Fix möglich?
+          Beschreibung:
+          ${ISSUE_BODY}
 
-            WENN JA (eindeutiger Code-Fix):
-            - Erstelle Branch: fix/bug-${{ github.event.issue.number }}
-            - Minimaler Fix — nur betroffene Files, kein Refactoring
-            - TypeScript prüfen: npx tsc --noEmit
-            - Commit: "fix: ${{ github.event.issue.title }} (fixes #${{ github.event.issue.number }})"
-            - Push Branch
-            - Pull Request erstellen mit Titel: "fix: ${{ github.event.issue.title }} (fixes #${{ github.event.issue.number }})"
-            - Schreibe "PR_CREATED=true" in die Datei /tmp/fix_result.txt
-            - Schreibe PR URL in /tmp/pr_url.txt
+          Aufgabe:
+          1. Analysiere alle relevanten Files im Repo
+          2. Finde Root Cause des Bugs
+          3. Entscheide: Ist ein eindeutiger Code-Fix moeglich?
 
-            WENN NEIN (zu komplex, zu wenig Info, kein eindeutiger Fix):
-            - Schreibe "PR_CREATED=false" in /tmp/fix_result.txt
-            - Schreibe eine kurze Erklärung in /tmp/fix_reason.txt:
-              - Was ist das Problem
-              - Warum kein automatischer Fix möglich
-              - Was manuell geprüft werden sollte
-              - Welche Files wahrscheinlich betroffen sind
-            - Poste diese Erklärung als Comment am GitHub Issue #${{ github.event.issue.number }}
+          WENN JA:
+          - git checkout -b ${BRANCH}
+          - Minimaler Fix, nur betroffene Files
+          - npx tsc --noEmit (ignoriere falls kein TypeScript-Projekt)
+          - git add -A && git commit -m 'fix: ${ISSUE_TITLE} (fixes #${ISSUE_NUMBER})'
+          - git push origin ${BRANCH}
+          - gh pr create --title 'fix: ${ISSUE_TITLE} (fixes #${ISSUE_NUMBER})' --body '## Fix fuer Issue #${ISSUE_NUMBER}
 
-            NIEMALS:
-            - Direkt auf main committen
-            - Supabase Service Role Key in Code schreiben
-            - Andere Supabase Projekte als ttgvhqygmgtnjgwunuwz verwenden
-            - Globale Refactors machen
-          claude_args: |
-            --max-turns 20
-            --model claude-sonnet-4-5
+### Problem
+${ISSUE_TITLE}
 
-      - name: Telegram Push - Fix PR bereit
-        if: success()
+### Aenderungen
+[Beschreibe was du geaendert hast]
+
+fixes #${ISSUE_NUMBER}' --base main --head ${BRANCH}
+          - Schreibe 'PR_CREATED=true' in /tmp/fix_result.txt
+          - Schreibe die PR-URL in /tmp/pr_url.txt (via: gh pr view --head ${BRANCH} --json url --jq .url)
+
+          WENN NEIN (zu komplex, zu wenig Info):
+          - Schreibe 'PR_CREATED=false' in /tmp/fix_result.txt
+          - gh issue comment ${ISSUE_NUMBER} --body '## Claude Code Analyse
+
+**Automatischer Fix nicht moeglich.**
+
+### Grund
+[Erklaere warum]
+
+### Was manuell geprueft werden sollte
+[Konkrete Hinweise]
+
+### Wahrscheinlich betroffene Files
+[Liste der Files]'
+
+          NIEMALS auf main committen. Nur betroffene Files aendern.
+          "
+
+      - name: Telegram Push
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           FIX_RESULT=$(cat /tmp/fix_result.txt 2>/dev/null || echo "unknown")
           PR_URL=$(cat /tmp/pr_url.txt 2>/dev/null || echo "")
           ISSUE_URL="https://github.com/trehl-ai/azure-opus-base/issues/${{ github.event.issue.number }}"
 
-          if [ "$FIX_RESULT" = "PR_CREATED=true" ] && [ -n "$PR_URL" ]; then
-            curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
-              -H "Content-Type: application/json" \
-              -d "{
-                \"chat_id\": \"6299105090\",
-                \"text\": \"🔧 Fix-PR bereit\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\n${PR_URL}\",
-                \"parse_mode\": \"HTML\",
-                \"disable_web_page_preview\": true
-              }"
+          if [ "${{ job.status }}" = "failure" ]; then
+            MSG="⚠️ Autofix fehlgeschlagen\n\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\n\nGitHub Action Fehler — Actions-Log prüfen.\n\n${ISSUE_URL}"
+          elif [ "$FIX_RESULT" = "PR_CREATED=true" ] && [ -n "$PR_URL" ]; then
+            MSG="🔧 Fix-PR bereit\n\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\n\n${PR_URL}"
           else
-            curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
-              -H "Content-Type: application/json" \
-              -d "{
-                \"chat_id\": \"6299105090\",
-                \"text\": \"💭 Kein automatischer Fix\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\nClaude hat den Bug analysiert aber keinen eindeutigen Code-Fix gefunden. Analyse am Issue.\\n\\n${ISSUE_URL}\",
-                \"parse_mode\": \"HTML\",
-                \"disable_web_page_preview\": true
-              }"
+            MSG="💭 Kein automatischer Fix\n\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\n\nAnalyse am Issue.\n\n${ISSUE_URL}"
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Telegram Push - Fehler
-        if: failure()
-        run: |
-          ISSUE_URL="https://github.com/trehl-ai/azure-opus-base/issues/${{ github.event.issue.number }}"
           curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"chat_id\": \"6299105090\",
-              \"text\": \"⚠️ Autofix fehlgeschlagen\\n\\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\\n\\nGitHub Action Fehler — manuelle Prüfung nötig.\\n\\n${ISSUE_URL}\",
-              \"parse_mode\": \"HTML\",
-              \"disable_web_page_preview\": true
-            }"
+            -d "{\"chat_id\":\"6299105090\",\"text\":\"${MSG}\",\"parse_mode\":\"HTML\",\"disable_web_page_preview\":true}"
