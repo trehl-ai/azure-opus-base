@@ -166,11 +166,11 @@ export default function Dashboard() {
         <KpiCard
           icon={Percent}
           label="Ø Wahrscheinlichkeit"
-          value={loading ? null : `${stats?.weighted_probability ?? 0}%`}
+          value={loading ? null : eurFormatter.format(stats?.expected_value ?? 0)}
           subtext={
             loading
               ? undefined
-              : `${eurFormatter.format(stats?.expected_value ?? 0)} erwarteter Umsatz`
+              : `${stats?.weighted_probability ?? 0}% gewichtete Wahrscheinlichkeit`
           }
           tone="gold"
         />
