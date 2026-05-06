@@ -12,6 +12,8 @@ export type DashboardStats = {
   won_value: number;
   deal_count: number;
   avg_probability: number;
+  weighted_probability: number;
+  expected_value: number;
   contact_count: number;
   company_count: number;
   hot_leads: number;
