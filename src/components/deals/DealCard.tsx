@@ -1,8 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
 import { Phone } from "lucide-react";
-import type { RoadshowEignung } from "@/lib/roadshowEignung";
 
 interface DealCardData {
   id: string;
@@ -13,7 +11,6 @@ interface DealCardData {
   priority: string | null;
   owner_first_name: string | null;
   owner_last_name: string | null;
-  roadshow_eignung?: RoadshowEignung | null;
   phone?: string | null;
 }
 
@@ -48,7 +45,6 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
-          <RoadshowBadge eignung={deal.roadshow_eignung} size="sm" />
           {deal.priority && (
             <span className={cn("h-1.5 w-1.5 rounded-full", priorityDot[deal.priority] ?? priorityDot.medium)} />
           )}

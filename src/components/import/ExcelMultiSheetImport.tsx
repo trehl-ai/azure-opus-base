@@ -414,10 +414,10 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             if (!isNaN(score)) { roadshowFields.intern_attraktivitaet_score = Math.min(10, Math.max(1, score)); hasRoadshowData = true; }
           }
 
+          // Roadshow-Details-Tabelle existiert nicht im Schema → INSERT skippen.
+          // hasRoadshowData/roadshowFields werden im aktuellen Flow ignoriert.
           if (hasRoadshowData) {
-            const { error: rsErr } = await supabase.from("deal_roadshow_details" as any).insert(roadshowFields);
-            if (rsErr) importErrors.push(`Roadshow für "${mapped.title}": ${rsErr.message}`);
-            else counts.roadshow++;
+            void roadshowFields;
           }
 
           counts.deals.success++;

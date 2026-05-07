@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,8 +30,9 @@ export default function GeneralSettings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Workspace settings
-  const [workspaceName, setWorkspaceName] = useState("");
+  // Workspace settings — workspace_settings-Tabelle existiert nicht im Schema.
+  // State ist lokal/transient, Save-Mutationen zeigen Info-Toast.
+  const [workspaceName, setWorkspaceName] = useState("eo ipso BOOST");
   const [currency, setCurrency] = useState("EUR");
   const [dateFormat, setDateFormat] = useState("DD.MM.YYYY");
   const [timezone, setTimezone] = useState("Europe/Berlin");
@@ -48,15 +49,6 @@ export default function GeneralSettings() {
   const [deleteInput, setDeleteInput] = useState("");
   const [resetInput, setResetInput] = useState("");
   const [deleting, setDeleting] = useState(false);
-
-  const { data: settings = [] } = useQuery({
-    queryKey: ["workspace-settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("workspace_settings").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const { data: pipelines = [] } = useQuery({
     queryKey: ["pipelines-active"],
@@ -121,61 +113,16 @@ export default function GeneralSettings() {
     },
   });
 
-  useEffect(() => {
-    if (settings.length > 0) {
-      const get = (key: string) => settings.find(s => s.key === key)?.value ?? "";
-      setWorkspaceName(get("workspace_name") || "eo ipso BOOST");
-      setCurrency(get("default_currency") || "EUR");
-      setDateFormat(get("date_format") || "DD.MM.YYYY");
-      setTimezone(get("timezone") || "Europe/Berlin");
-      setDefaultPipeline(get("default_deal_pipeline_id"));
-      setDefaultOwner(get("default_deal_owner_id"));
-    }
-  }, [settings]);
-
-  const upsertSettings = async (entries: { key: string; value: string }[]) => {
-    for (const entry of entries) {
-      const { error } = await supabase
-        .from("workspace_settings")
-        .upsert(
-          { key: entry.key, value: entry.value, updated_by_user_id: user?.id, updated_at: new Date().toISOString() },
-          { onConflict: "key" }
-        );
-      if (error) throw error;
-    }
-    queryClient.invalidateQueries({ queryKey: ["workspace-settings"] });
-  };
-
   const saveWorkspace = async () => {
     setSavingWorkspace(true);
-    try {
-      await upsertSettings([
-        { key: "workspace_name", value: workspaceName },
-        { key: "default_currency", value: currency },
-        { key: "date_format", value: dateFormat },
-        { key: "timezone", value: timezone },
-      ]);
-      toast.success("Workspace-Einstellungen gespeichert");
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setSavingWorkspace(false);
-    }
+    toast.info("Workspace-Einstellungen werden noch nicht persistiert (Tabelle fehlt im Schema). Eingaben sind lokal sichtbar.");
+    setSavingWorkspace(false);
   };
 
   const saveSales = async () => {
     setSavingSales(true);
-    try {
-      await upsertSettings([
-        { key: "default_deal_pipeline_id", value: defaultPipeline },
-        { key: "default_deal_owner_id", value: defaultOwner },
-      ]);
-      toast.success("Vertriebs-Einstellungen gespeichert");
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setSavingSales(false);
-    }
+    toast.info("Vertriebs-Einstellungen werden noch nicht persistiert (Tabelle fehlt im Schema). Eingaben sind lokal sichtbar.");
+    setSavingSales(false);
   };
 
   const callDangerZone = async (action: string) => {

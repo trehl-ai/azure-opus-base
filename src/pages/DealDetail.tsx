@@ -9,7 +9,6 @@ import { EditDealSheet } from "@/components/deals/EditDealSheet";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
-import { RoadshowBadge } from "@/components/deals/RoadshowBadge";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";

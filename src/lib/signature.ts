@@ -18,7 +18,8 @@ export interface SignatureData {
 }
 
 // ---------------------------------------------------------------------------
-// Global template config (stored in workspace_settings)
+// Global template config (lokaler Default — Persistenz nicht aktiv,
+// workspace_settings-Tabelle existiert nicht im Schema)
 // ---------------------------------------------------------------------------
 
 export interface SignatureTemplateConfig {

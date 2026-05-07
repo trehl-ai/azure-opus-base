@@ -49,21 +49,9 @@ export default function SignatureSettings() {
     enabled: !!user,
   });
 
-  const { data: templateConfig } = useQuery({
-    queryKey: ["signature-template-config"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("workspace_settings")
-        .select("value")
-        .eq("key", "signature_template_config")
-        .maybeSingle();
-      return data?.value
-        ? { ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(data.value) }
-        : DEFAULT_TEMPLATE_CONFIG;
-    },
-  });
-
-  const config = (templateConfig || DEFAULT_TEMPLATE_CONFIG) as SignatureTemplateConfig;
+  // Signature-Template-Config wird nicht mehr aus workspace_settings geladen
+  // (Tabelle existiert nicht). Default-Config wird für Live-Vorschau genutzt.
+  const config: SignatureTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
 
   useEffect(() => {
     if (existingSignature) {

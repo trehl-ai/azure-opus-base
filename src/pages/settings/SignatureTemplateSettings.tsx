@@ -1,6 +1,4 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { DEFAULT_TEMPLATE_CONFIG, renderSignatureHtml, type SignatureTemplateConfig, type SignatureData } from "@/lib/signature";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -9,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, Eye, Shield } from "lucide-react";
+import { Save, Eye, Shield } from "lucide-react";
 
 const SAMPLE_DATA: SignatureData = {
   full_name: "Max Mustermann",
@@ -26,61 +24,18 @@ const SAMPLE_DATA: SignatureData = {
 
 export default function SignatureTemplateSettings() {
   const { user } = useAuth();
-  const qc = useQueryClient();
-
   const isAdmin = user?.role === "admin";
 
-  const { data: configData, isLoading } = useQuery({
-    queryKey: ["signature-template-config"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("workspace_settings")
-        .select("id, value")
-        .eq("key", "signature_template_config")
-        .maybeSingle();
-      return data;
-    },
-  });
-
-  const existingConfig: SignatureTemplateConfig = configData?.value
-    ? { ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(configData.value) }
-    : DEFAULT_TEMPLATE_CONFIG;
-
-  const [config, setConfig] = useState<SignatureTemplateConfig>(existingConfig);
-
-  // Sync state when data loads
-  useEffect(() => {
-    if (configData?.value) {
-      setConfig({ ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(configData.value) });
-    }
-  }, [configData]);
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const value = JSON.stringify(config);
-
-      if (configData?.id) {
-        const { error } = await supabase
-          .from("workspace_settings")
-          .update({ value, updated_at: new Date().toISOString() })
-          .eq("id", configData.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("workspace_settings")
-          .insert({ key: "signature_template_config", value });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      toast.success("Template-Konfiguration gespeichert");
-      qc.invalidateQueries({ queryKey: ["signature-template-config"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+  // Template-Config wird nicht (mehr) persistiert — workspace_settings-Tabelle
+  // existiert nicht. State ist lokal/transient, Save zeigt Hinweis-Toast.
+  const [config, setConfig] = useState<SignatureTemplateConfig>(DEFAULT_TEMPLATE_CONFIG);
 
   const updateConfig = (key: keyof SignatureTemplateConfig, value: boolean | string) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    toast.info("Globale Template-Persistenz noch nicht aktiv. Vorschau-Änderungen sind nur lokal sichtbar.");
   };
 
   const previewHtml = renderSignatureHtml(SAMPLE_DATA, config);
@@ -90,14 +45,6 @@ export default function SignatureTemplateSettings() {
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Shield className="h-10 w-10 text-muted-foreground/40 mb-3" />
         <p className="text-sm text-muted-foreground">Nur Administratoren können das Signatur-Template verwalten.</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -175,12 +122,11 @@ export default function SignatureTemplateSettings() {
           </Card>
 
           <Button
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
+            onClick={handleSave}
             className="gap-2 w-full"
             size="lg"
           >
-            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            <Save className="h-4 w-4" />
             Template speichern
           </Button>
         </div>

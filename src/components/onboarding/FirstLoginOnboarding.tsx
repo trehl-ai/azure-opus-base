@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { renderSignatureHtml, DEFAULT_TEMPLATE_CONFIG, type SignatureData, type SignatureTemplateConfig } from "@/lib/signature";
@@ -39,21 +39,9 @@ export default function FirstLoginOnboarding() {
     whatsapp_url: "",
   });
 
-  const { data: templateConfig } = useQuery({
-    queryKey: ["signature-template-config"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("workspace_settings")
-        .select("value")
-        .eq("key", "signature_template_config")
-        .maybeSingle();
-      return data?.value
-        ? { ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(data.value) }
-        : DEFAULT_TEMPLATE_CONFIG;
-    },
-  });
-
-  const config = (templateConfig || DEFAULT_TEMPLATE_CONFIG) as SignatureTemplateConfig;
+  // Signature-Template-Config wird nicht mehr aus workspace_settings geladen
+  // (Tabelle existiert nicht im Schema). Default-Config reicht für Vorschau.
+  const config: SignatureTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
 
   // Pre-fill from user data
   useEffect(() => {
