@@ -22,29 +22,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchOrCreateDbUser = useCallback(async (supaUser: SupabaseUser): Promise<DbUser | null> => {
-    // Try to find user by auth id first, then by email
+    // Lookup MUSS per id (= auth.users.id) erfolgen — Lookup per email ist anfällig
+    // für Duplikate (maybeSingle() wirft bei N>1 → null → Insert-Loop legt Junk an).
     const { data: existingUser } = await supabase
       .from("users")
       .select("*")
-      .eq("email", supaUser.email!)
+      .eq("id", supaUser.id)
       .maybeSingle();
 
     if (existingUser) {
       return existingUser;
     }
 
-    // Create new user entry
     const meta = supaUser.user_metadata ?? {};
     const firstName = meta.first_name || meta.full_name?.split(" ")[0] || "";
     const lastName = meta.last_name || meta.full_name?.split(" ").slice(1).join(" ") || "";
 
+    // Upsert mit explizitem id = supaUser.id koppelt public.users an auth.users 1:1.
+    // onConflict 'id' macht den Call idempotent bei Race-Conditions oder wenn
+    // ein DB-Trigger die Row bereits erzeugt hat.
     const { data: newUser, error } = await supabase
       .from("users")
-      .insert({
-        email: supaUser.email!,
-        first_name: firstName || "Neuer",
-        last_name: lastName || "Benutzer",
-      })
+      .upsert(
+        {
+          id: supaUser.id,
+          email: supaUser.email!,
+          first_name: firstName || "Neuer",
+          last_name: lastName || "Benutzer",
+        },
+        { onConflict: "id" },
+      )
       .select()
       .single();
 
