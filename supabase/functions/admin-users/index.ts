@@ -36,11 +36,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check caller is admin via users table
+    // Check caller is admin via users table (lookup per id, NICHT email — siehe
+    // auth_users_dedup_pattern: email-Lookup historisch unsicher bei Duplikaten)
     const { data: callerUser } = await anonClient
       .from("users")
       .select("role")
-      .eq("email", callerAuth.email!)
+      .eq("id", callerAuth.id)
       .maybeSingle();
 
     if (!callerUser || callerUser.role !== "admin") {
@@ -147,7 +148,20 @@ Deno.serve(async (req) => {
       }
 
       const invitedAt = new Date().toISOString();
+      // Mit aktivem Auth-Sync-Trigger (on_auth_user_created) hat die public.users-
+      // Row in der Regel bereits id = auth.users.id. Daher Upsert per id (nicht
+      // INSERT, das gegen UNIQUE(email) verstieße).
+      const authUserId = inviteData?.user?.id ?? existingAuthUser?.id ?? existingPublicUser?.id;
+      if (!authUserId) {
+        console.error("Cannot determine auth user id for upsert");
+        return new Response(
+          JSON.stringify({ error: "Einladung wurde erstellt, aber Benutzer-ID konnte nicht ermittelt werden" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       const publicUserPayload = {
+        id: authUserId,
         email: normalizedEmail,
         first_name,
         last_name,
@@ -156,14 +170,9 @@ Deno.serve(async (req) => {
         invited_at: invitedAt,
       };
 
-      const { error: publicUserError } = existingPublicUser
-        ? await adminClient
-            .from("users")
-            .update(publicUserPayload)
-            .eq("id", existingPublicUser.id)
-        : await adminClient
-            .from("users")
-            .insert(publicUserPayload);
+      const { error: publicUserError } = await adminClient
+        .from("users")
+        .upsert(publicUserPayload, { onConflict: "id" });
 
       if (publicUserError) {
         console.error("Public user sync error:", publicUserError);
