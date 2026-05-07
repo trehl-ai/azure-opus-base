@@ -87,7 +87,7 @@ type TopLead = {
 type RecentActivity = {
   id: string;
   activity_type: string | null;
-  notes: string | null;
+  description: string | null;
   created_at: string;
 };
 
@@ -123,7 +123,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deal_activities")
-        .select("id, activity_type, notes, created_at")
+        .select("id, activity_type, description, created_at")
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;
@@ -374,9 +374,9 @@ export default function Dashboard() {
                   <p className="text-[14px] font-medium text-foreground truncate">
                     {a.activity_type ?? "Aktivität"}
                   </p>
-                  {a.notes && (
+                  {a.description && (
                     <p className="text-[12px] text-muted-foreground line-clamp-1">
-                      {a.notes}
+                      {a.description}
                     </p>
                   )}
                 </div>

@@ -14,10 +14,17 @@ export function useRoadshowDetails(dealId: string | undefined) {
         .select("*")
         .eq("deal_id", dealId!)
         .maybeSingle();
-      if (error) throw error;
+      // Tabelle existiert evtl. (noch) nicht im DB-Schema → leise null zurückgeben
+      if (error) {
+        if (error.code === "PGRST205" || error.code === "42P01" || error.message?.includes("does not exist")) {
+          return null;
+        }
+        throw error;
+      }
       return data as any;
     },
     enabled: !!dealId,
+    retry: false,
   });
 
   const upsertMutation = useMutation({
