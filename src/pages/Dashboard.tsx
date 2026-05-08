@@ -161,6 +161,15 @@ export default function Dashboard() {
     (activityStats?.stage_wiedervorlage_letzte_kw ?? 0) +
     (activityStats?.lost_letzte_kw ?? 0);
 
+  const wonCompanies = stats?.hover_won_companies ?? [];
+  const wonSubtext = !stats
+    ? undefined
+    : wonCompanies.length === 0
+      ? "Noch keine gewonnenen Deals"
+      : wonCompanies.length === 1
+        ? `${wonCompanies[0]?.company_name ?? "—"} abgeschlossen`
+        : `${wonCompanies.length} Deals gewonnen`;
+
   return (
     <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-canvas p-4 md:p-6 lg:p-8 space-y-6">
       {/* Header */}
@@ -200,7 +209,7 @@ export default function Dashboard() {
             icon={Trophy}
             label="Gewonnen"
             value={loading ? null : eurFormatter.format(stats?.won_value ?? 0)}
-            subtext="Porsche Museum abgeschlossen"
+            subtext={wonSubtext}
             tone="success"
           />
         </KpiTooltip>
