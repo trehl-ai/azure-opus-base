@@ -41,12 +41,19 @@ export default function SignatureSettings() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { data: existingSignature, isLoading } = useQuery({
-    queryKey: ["user-signature"],
-    // Email-signature feature disabled — Tabelle hat nur id/user_id/signature/created_at,
-    // SELECT * mit Filter auf nicht-existente Spalten würde HTTP 400 erzeugen. No-op.
-    queryFn: async () => null as null,
-    enabled: !!user,
+  const { data: existingProfile, isLoading } = useQuery({
+    queryKey: ["user-signature", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
   });
 
   // Signature-Template-Config wird nicht mehr aus workspace_settings geladen
@@ -54,34 +61,34 @@ export default function SignatureSettings() {
   const config: SignatureTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
 
   useEffect(() => {
-    if (existingSignature) {
-      setForm({
-        full_name: existingSignature.full_name || "",
-        job_title: existingSignature.job_title || "",
-        phone: existingSignature.phone || "",
-        email: existingSignature.email || "",
-        address: existingSignature.address || "",
-        website: existingSignature.website || "",
-        linkedin_url: existingSignature.linkedin_url || "",
-        twitter_url: existingSignature.twitter_url || "",
-        whatsapp_url: existingSignature.whatsapp_url || "",
-        profile_image_path: existingSignature.profile_image_path || null,
-        is_active: existingSignature.is_active ?? true,
-      });
-      if (existingSignature.profile_image_path) {
-        const { data: urlData } = supabase.storage
-          .from("signature-images")
-          .getPublicUrl(existingSignature.profile_image_path);
-        setImagePreview(urlData?.publicUrl || null);
+    if (!existingProfile) {
+      if (user) {
+        setForm((prev) => ({
+          ...prev,
+          full_name: `${user.first_name} ${user.last_name}`.trim(),
+          email: user.email,
+        }));
       }
-    } else if (user) {
-      setForm((prev) => ({
-        ...prev,
-        full_name: `${user.first_name} ${user.last_name}`.trim(),
-        email: user.email,
-      }));
+      return;
     }
-  }, [existingSignature, user]);
+    const fallbackName = user
+      ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
+      : "";
+    setForm({
+      full_name: existingProfile.signature_full_name ?? fallbackName,
+      job_title: existingProfile.job_title ?? "",
+      phone: existingProfile.phone ?? "",
+      email: existingProfile.email ?? user?.email ?? "",
+      address: existingProfile.address ?? "",
+      website: existingProfile.website ?? "",
+      linkedin_url: existingProfile.linkedin_url ?? "",
+      twitter_url: existingProfile.twitter_url ?? "",
+      whatsapp_url: existingProfile.whatsapp_url ?? "",
+      profile_image_path: existingProfile.signature_image_url ?? null,
+      is_active: existingProfile.signature_active ?? true,
+    });
+    setImagePreview(existingProfile.signature_image_url ?? null);
+  }, [existingProfile, user]);
 
   const handleImageUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -92,37 +99,57 @@ export default function SignatureSettings() {
       toast.error("Bild darf maximal 2 MB groß sein.");
       return;
     }
+    if (!user?.id) {
+      toast.error("Nicht angemeldet");
+      return;
+    }
     setUploading(true);
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) throw new Error("Nicht angemeldet");
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const filePath = `${authUser.id}/profile.${ext}`;
-      if (form.profile_image_path) {
-        await supabase.storage.from("signature-images").remove([form.profile_image_path]);
-      }
-      const { error } = await supabase.storage
+      const filePath = `${user.id}/profile.${ext}`;
+      const { error: uploadErr } = await supabase.storage
         .from("signature-images")
         .upload(filePath, file, { contentType: file.type, upsert: true });
-      if (error) throw error;
+      if (uploadErr) throw uploadErr;
       const { data: urlData } = supabase.storage.from("signature-images").getPublicUrl(filePath);
-      setForm((prev) => ({ ...prev, profile_image_path: filePath }));
-      setImagePreview(urlData?.publicUrl + "?t=" + Date.now());
+      const publicUrl = urlData?.publicUrl ?? null;
+      if (!publicUrl) throw new Error("Konnte publicUrl nicht ermitteln");
+
+      // Persist on users so a refresh shows the same image without reuploading.
+      const { error: updateErr } = await supabase
+        .from("users")
+        .update({ signature_image_url: publicUrl })
+        .eq("id", user.id);
+      if (updateErr) throw updateErr;
+
+      setForm((prev) => ({ ...prev, profile_image_path: publicUrl }));
+      setImagePreview(`${publicUrl}?t=${Date.now()}`);
+      qc.invalidateQueries({ queryKey: ["user-signature", user.id] });
       toast.success("Bild hochgeladen");
-    } catch (err: any) {
-      toast.error("Upload fehlgeschlagen: " + (err.message || "Unbekannter Fehler"));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unbekannter Fehler";
+      toast.error("Upload fehlgeschlagen: " + message);
     } finally {
       setUploading(false);
     }
   };
 
   const removeImage = async () => {
-    if (form.profile_image_path) {
-      await supabase.storage.from("signature-images").remove([form.profile_image_path]);
+    if (!user?.id) return;
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({ signature_image_url: null })
+        .eq("id", user.id);
+      if (error) throw error;
+      setForm((prev) => ({ ...prev, profile_image_path: null }));
+      setImagePreview(null);
+      qc.invalidateQueries({ queryKey: ["user-signature", user.id] });
+      toast.success("Bild entfernt");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unbekannter Fehler";
+      toast.error("Entfernen fehlgeschlagen: " + message);
     }
-    setForm((prev) => ({ ...prev, profile_image_path: null }));
-    setImagePreview(null);
-    toast.success("Bild entfernt");
   };
 
   const validate = (): boolean => {
@@ -140,34 +167,31 @@ export default function SignatureSettings() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!validate()) throw new Error("Bitte korrigiere die markierten Felder.");
-
-      const { data: publicUserIdData } = await supabase.rpc("get_public_user_id", {
-        _auth_user_id: (await supabase.auth.getUser()).data.user!.id,
-      });
-      if (!publicUserIdData) throw new Error("User-ID Zuordnung fehlgeschlagen");
+      if (!user?.id) throw new Error("Nicht angemeldet");
 
       const payload = {
-        user_id: publicUserIdData as string,
-        full_name: form.full_name.trim(),
-        job_title: form.job_title.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim(),
-        address: form.address.trim(),
-        website: form.website.trim(),
-        profile_image_path: form.profile_image_path,
-        linkedin_url: form.linkedin_url.trim() ? ensureUrl(form.linkedin_url) : "",
-        twitter_url: form.twitter_url.trim() ? ensureUrl(form.twitter_url) : "",
-        whatsapp_url: form.whatsapp_url.trim(),
-        is_active: form.is_active,
+        signature_full_name: form.full_name.trim() || null,
+        job_title: form.job_title.trim() || null,
+        phone: form.phone.trim() || null,
+        address: form.address.trim() || null,
+        website: form.website.trim() || null,
+        linkedin_url: form.linkedin_url.trim() ? ensureUrl(form.linkedin_url) : null,
+        twitter_url: form.twitter_url.trim() ? ensureUrl(form.twitter_url) : null,
+        whatsapp_url: form.whatsapp_url.trim() || null,
+        signature_image_url: form.profile_image_path ?? null,
+        signature_active: form.is_active,
         updated_at: new Date().toISOString(),
       };
 
-      // Email-signature feature disabled — kein Upsert, sonst HTTP 400.
-      void payload;
+      const { error } = await supabase
+        .from("users")
+        .update(payload)
+        .eq("id", user.id);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Signatur gespeichert");
-      qc.invalidateQueries({ queryKey: ["user-signature"] });
+      qc.invalidateQueries({ queryKey: ["user-signature", user?.id] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
