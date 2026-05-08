@@ -4528,46 +4528,79 @@ export type Database = {
       }
       users: {
         Row: {
+          address: string | null
+          avatar_url: string | null
           created_at: string
           email: string
           first_name: string
           id: string
           invited_at: string | null
           is_active: boolean | null
+          job_title: string | null
           last_name: string
           last_sign_in_at: string | null
+          linkedin_url: string | null
           onboarding_completed_at: string | null
           password_set_at: string | null
+          phone: string | null
           role: string
+          signature_active: boolean
+          signature_full_name: string | null
+          signature_image_url: string | null
+          twitter_url: string | null
           updated_at: string
+          website: string | null
+          whatsapp_url: string | null
         }
         Insert: {
+          address?: string | null
+          avatar_url?: string | null
           created_at?: string
           email: string
           first_name: string
           id?: string
           invited_at?: string | null
           is_active?: boolean | null
+          job_title?: string | null
           last_name: string
           last_sign_in_at?: string | null
+          linkedin_url?: string | null
           onboarding_completed_at?: string | null
           password_set_at?: string | null
+          phone?: string | null
           role?: string
+          signature_active?: boolean
+          signature_full_name?: string | null
+          signature_image_url?: string | null
+          twitter_url?: string | null
           updated_at?: string
+          website?: string | null
+          whatsapp_url?: string | null
         }
         Update: {
+          address?: string | null
+          avatar_url?: string | null
           created_at?: string
           email?: string
           first_name?: string
           id?: string
           invited_at?: string | null
           is_active?: boolean | null
+          job_title?: string | null
           last_name?: string
           last_sign_in_at?: string | null
+          linkedin_url?: string | null
           onboarding_completed_at?: string | null
           password_set_at?: string | null
+          phone?: string | null
           role?: string
+          signature_active?: boolean
+          signature_full_name?: string | null
+          signature_image_url?: string | null
+          twitter_url?: string | null
           updated_at?: string
+          website?: string | null
+          whatsapp_url?: string | null
         }
         Relationships: []
       }
