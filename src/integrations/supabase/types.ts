@@ -5322,6 +5322,7 @@ export type Database = {
       create_project_from_deal: { Args: { p_deal_id: string }; Returns: string }
       dsar_delete: { Args: { p_guest_id: string }; Returns: Json }
       dsar_export: { Args: { p_guest_id: string }; Returns: Json }
+      get_dashboard_stats: { Args: never; Returns: Json }
       get_digest_data: { Args: never; Returns: Json }
       get_due_followups: {
         Args: never
