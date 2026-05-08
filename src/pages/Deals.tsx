@@ -210,7 +210,25 @@ export default function Deals() {
 
   // Move deal mutation
   const moveDealMutation = useMutation({
-    mutationFn: async ({ dealId, stageId, isWon }: { dealId: string; stageId: string; isWon: boolean }) => {
+    mutationFn: async ({
+      dealId,
+      stageId,
+      isWon,
+      isReopen,
+    }: {
+      dealId: string;
+      stageId: string;
+      isWon: boolean;
+      isReopen?: boolean;
+    }) => {
+      if (isReopen) {
+        const { error } = await supabase.rpc("set_deal_reopen", {
+          p_deal_id: dealId,
+          p_target_stage_id: stageId,
+        });
+        if (error) throw error;
+        return { reopened: true } as const;
+      }
       if (isWon) {
         const { data: result, error } = await supabase.rpc("set_deal_won_and_create_project", {
           p_deal_id: dealId,
@@ -233,13 +251,20 @@ export default function Deals() {
       if (error) throw error;
       return null;
     },
-    onSuccess: (project) => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["deals-board"] });
-      if (project) {
+      if (result && "reopened" in result) {
+        toast({
+          title: "↩ Deal wieder geöffnet",
+          description: "Deal ist jetzt offen.",
+        });
+        return;
+      }
+      if (result) {
         toast({
           title: "Deal gewonnen! Projekt wurde automatisch erstellt. 🎉",
-          description: project.title,
-          action: <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project.id}`)}>Zum Projekt</Button>,
+          description: result.title,
+          action: <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${result.id}`)}>Zum Projekt</Button>,
         });
       }
     },
@@ -249,6 +274,14 @@ export default function Deals() {
   const handleMobileStageChange = (dealId: string, dealTitle: string, newStageId: string) => {
     const stage = stages?.find((s) => s.id === newStageId);
     if (!stage) return;
+    const deal = deals?.find((d) => d.id === dealId);
+    const sourceStage = stages?.find((s) => s.id === deal?.pipeline_stage_id);
+    const sourceTerminal = sourceStage?.is_won_stage || sourceStage?.is_lost_stage || false;
+    const targetTerminal = stage.is_won_stage || stage.is_lost_stage || false;
+    if (sourceTerminal && !targetTerminal) {
+      moveDealMutation.mutate({ dealId, stageId: newStageId, isWon: false, isReopen: true });
+      return;
+    }
     if (stage.is_lost_stage) {
       setLostDialog({ open: true, dealId, dealTitle, stageId: newStageId });
       return;
@@ -269,6 +302,13 @@ export default function Deals() {
     if (!stage) return;
     const deal = deals?.find((d) => d.id === dealId);
     if (!deal || deal.pipeline_stage_id === stageId) return;
+    const sourceStage = stages.find((s) => s.id === deal.pipeline_stage_id);
+    const sourceTerminal = sourceStage?.is_won_stage || sourceStage?.is_lost_stage || false;
+    const targetTerminal = stage.is_won_stage || stage.is_lost_stage || false;
+    if (sourceTerminal && !targetTerminal) {
+      moveDealMutation.mutate({ dealId, stageId, isWon: false, isReopen: true });
+      return;
+    }
     if (stage.is_lost_stage) {
       setLostDialog({ open: true, dealId, dealTitle: deal.title, stageId });
       return;

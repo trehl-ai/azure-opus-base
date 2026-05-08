@@ -5461,6 +5461,10 @@ export type Database = {
         Args: { p_deal_id: string; p_lost_stage_id: string; p_reason?: string }
         Returns: undefined
       }
+      set_deal_reopen: {
+        Args: { p_deal_id: string; p_target_stage_id?: string }
+        Returns: Json
+      }
       set_deal_won_and_create_project: {
         Args: { p_deal_id: string; p_winning_user_id: string }
         Returns: undefined
