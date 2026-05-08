@@ -160,7 +160,7 @@ export default function Dashboard() {
             label="Pipeline-Wert"
             value={loading ? null : eurFormatter.format(stats?.pipeline_value ?? 0)}
             subtext={
-              stats ? `${stats.deal_count.toLocaleString("de-DE")} aktive Deals` : undefined
+              stats ? `${(stats.deal_count ?? 0).toLocaleString("de-DE")} aktive Deals` : undefined
             }
             tone="brand"
             onClick={() => navigate("/deals")}
@@ -204,7 +204,7 @@ export default function Dashboard() {
           }
           subtext={
             stats
-              ? `${stats.company_count.toLocaleString("de-DE")} Unternehmen`
+              ? `${(stats.company_count ?? 0).toLocaleString("de-DE")} Unternehmen`
               : undefined
           }
           tone="brand"
