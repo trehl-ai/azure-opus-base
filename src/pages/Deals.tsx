@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -10,7 +10,6 @@ import { usePermission } from "@/hooks/usePermission";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
-import { WerteraumLeitfadenButton } from "@/components/deals/WerteraumLeitfadenButton";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { MobileStageSelector, StageChangeSheet } from "@/components/shared/MobileStageSelector";
@@ -18,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, ArrowRightLeft, Download } from "lucide-react";
+import { CalendarIcon, Plus, ArrowRightLeft, Download, Trash2 } from "lucide-react";
 import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
@@ -61,6 +60,49 @@ export default function Deals() {
   const [dateTo, setDateTo] = useState<Date>();
   const [eignungFilter, setEignungFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [leitfadenUrl, setLeitfadenUrl] = useState<string | null>(null);
+  const [leitfadenName, setLeitfadenName] = useState<string | null>(null);
+  const [uploadingLeitfaden, setUploadingLeitfaden] = useState(false);
+
+  const handleLeitfadenUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLeitfaden(true);
+    try {
+      const path = `werteraum/leitfaden/${file.name}`;
+      const { error } = await supabase.storage
+        .from("project-files")
+        .upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage
+        .from("project-files")
+        .getPublicUrl(path);
+      setLeitfadenUrl(data.publicUrl);
+      setLeitfadenName(file.name);
+    } catch (err) {
+      console.error("Leitfaden-Upload fehlgeschlagen:", err);
+    } finally {
+      setUploadingLeitfaden(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleLeitfadenDelete = async () => {
+    if (!leitfadenName) return;
+    try {
+      await supabase.storage
+        .from("project-files")
+        .remove([`werteraum/leitfaden/${leitfadenName}`]);
+    } catch (err) {
+      console.error("Leitfaden-Löschen fehlgeschlagen:", err);
+    }
+    setLeitfadenUrl(null);
+    setLeitfadenName(null);
+  };
 
   const handleExport = async () => {
     if (!activePipelineId || !stages) return;
@@ -252,12 +294,50 @@ export default function Deals() {
           <PresenceAvatars users={onlineUsers} />
         </div>
         <div className="flex gap-2 w-full sm:w-auto items-center">
-          {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
-            <WerteraumLeitfadenButton />
-          )}
           <Button variant="outline" onClick={handleExport} disabled={exporting} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
             <Download className="h-4 w-4" /> {exporting ? "Exportiert…" : "Exportieren"}
           </Button>
+          {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
+            leitfadenUrl ? (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => window.open(leitfadenUrl, "_blank")}
+                  className="inline-flex items-center gap-1 border border-gray-300 text-blue-600 text-sm px-3 py-2 rounded-md hover:border-blue-400 hover:underline max-w-[220px]"
+                  title={leitfadenName ?? undefined}
+                >
+                  <span aria-hidden>📎</span>
+                  <span className="truncate">{leitfadenName}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLeitfadenDelete}
+                  aria-label="Leitfaden löschen"
+                  className="text-gray-400 hover:text-red-500 transition-colors p-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingLeitfaden}
+                  className="border border-gray-300 text-gray-600 text-sm px-3 py-2 rounded-md hover:border-blue-400 transition-colors disabled:opacity-50"
+                >
+                  📎 {uploadingLeitfaden ? "Lädt…" : "Gesprächsleitfaden"}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  hidden
+                  accept=".pdf,.docx,.pptx"
+                  onChange={handleLeitfadenUpload}
+                />
+              </>
+            )
+          )}
           {canWriteDeals && (
             <Button onClick={() => setSheetOpen(true)} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
               <Plus className="h-4 w-4" /> Neuer Deal
