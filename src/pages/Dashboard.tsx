@@ -542,7 +542,8 @@ function KpiTooltip({
   variant: "value" | "expected";
   children: React.ReactNode;
 }) {
-  const hasRows = rows.length > 0;
+  const safeRows = rows ?? [];
+  const hasRows = safeRows.length > 0;
   return (
     <div className="relative group h-full">
       {children}
@@ -561,28 +562,28 @@ function KpiTooltip({
             {title}
           </p>
           <ul className="max-h-72 overflow-y-auto divide-y divide-gray-800">
-            {rows.map((r, i) => (
+            {safeRows.map((r, i) => (
               <li
-                key={`${r.company_name}-${i}`}
+                key={`${r?.company_name ?? "unknown"}-${i}`}
                 className="flex items-start justify-between gap-3 py-2"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium truncate">
-                    {r.company_name}
+                    {r?.company_name ?? "—"}
                   </p>
                   <p className="text-[11px] text-gray-400 truncate">
-                    {r.pipeline_name}
+                    {r?.pipeline_name ?? "—"}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-[13px] font-medium tabular-nums">
                     {variant === "expected"
-                      ? `${Math.round((r as HoverCompanyExpected).expected_value).toLocaleString("de-DE")} €`
-                      : `${Math.round((r as HoverCompanyValue).total_value).toLocaleString("de-DE")} €`}
+                      ? `${Math.round((r as HoverCompanyExpected)?.expected_value ?? 0).toLocaleString("de-DE")} €`
+                      : `${Math.round((r as HoverCompanyValue)?.total_value ?? 0).toLocaleString("de-DE")} €`}
                   </p>
                   {variant === "expected" && (
                     <p className="text-[10px] text-gray-400 tabular-nums">
-                      {Math.round((r as HoverCompanyExpected).avg_probability)}%
+                      {Math.round((r as HoverCompanyExpected)?.avg_probability ?? 0)}%
                     </p>
                   )}
                 </div>
