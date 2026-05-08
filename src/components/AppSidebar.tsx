@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   Lightbulb,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -200,6 +201,25 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
               </TooltipTrigger>
               <TooltipContent side="right" className="font-medium">Settings</TooltipContent>
             </Tooltip>
+            {role === "admin" && (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <NavLink
+                    to="/dsgvo"
+                    onClick={handleClick}
+                    className={cn(
+                      "flex items-center justify-center rounded-lg p-2.5 font-medium transition-colors",
+                      isActive("/dsgvo")
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-white/90 hover:bg-white/[0.08]"
+                    )}
+                  >
+                    <Shield className="h-[18px] w-[18px] shrink-0" />
+                  </NavLink>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-medium">Datenschutz</TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
@@ -227,6 +247,21 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
               <Settings className="h-[18px] w-[18px] shrink-0" />
               <span>Settings</span>
             </NavLink>
+            {role === "admin" && (
+              <NavLink
+                to="/dsgvo"
+                onClick={handleClick}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-4 py-2.5 text-[15px] font-medium transition-colors",
+                  isActive("/dsgvo")
+                    ? "bg-white text-primary shadow-sm"
+                    : "text-white/90 hover:bg-white/[0.08]"
+                )}
+              >
+                <Shield className="h-[18px] w-[18px] shrink-0" />
+                <span>🛡️ Datenschutz</span>
+              </NavLink>
+            )}
             <button
               onClick={() => { handleClick(); logout(); }}
               className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[15px] font-medium text-white/90 hover:bg-white/[0.08] transition-colors"
