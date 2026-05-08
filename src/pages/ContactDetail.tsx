@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ContactStatusBadge } from "@/components/contacts/ContactStatusBadge";
+import { LeadScoreBadge } from "@/components/ui/LeadScoreBadge";
 import { EditContactSheet } from "@/components/contacts/EditContactSheet";
 import { LinkCompanyDialog } from "@/components/contacts/LinkCompanyDialog";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
@@ -127,6 +128,7 @@ export default function ContactDetail() {
           <button onClick={() => navigate("/contacts")} className="text-muted-foreground hover:text-foreground transition-colors"><ArrowLeft className="h-5 w-5" /></button>
           <h1 className="text-section-title text-foreground">{contact.first_name} {contact.last_name}</h1>
           <ContactStatusBadge status={contact.status} />
+          <LeadScoreBadge score={contact.lead_score} />
         </div>
         {canWriteContacts && (
           <div className="flex items-center gap-2">

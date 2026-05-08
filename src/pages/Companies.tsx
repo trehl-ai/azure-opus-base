@@ -5,6 +5,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { useUsers } from "@/hooks/useUsers";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CompanyStatusBadge } from "@/components/companies/CompanyStatusBadge";
+import { LeadScoreBadge } from "@/components/ui/LeadScoreBadge";
 import { CreateCompanySheet } from "@/components/companies/CreateCompanySheet";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
@@ -149,7 +150,12 @@ export default function Companies() {
                   initials={initials}
                   title={company.name}
                   subtitle={[company.industry, company.city].filter(Boolean).join(" · ") || undefined}
-                  badge={<CompanyStatusBadge status={company.status} />}
+                  badge={
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <CompanyStatusBadge status={company.status} />
+                      <LeadScoreBadge score={(company as { lead_score?: number | null }).lead_score} />
+                    </div>
+                  }
                   meta={owner ? <p className="text-[12px] text-muted-foreground">Owner: {owner.first_name} {owner.last_name[0]}.</p> : undefined}
                 />
               );
@@ -166,6 +172,7 @@ export default function Companies() {
                 <TableHead className="text-label font-semibold">Branche</TableHead>
                 <TableHead className="text-label font-semibold">Stadt</TableHead>
                 <TableHead className="text-label font-semibold">Status</TableHead>
+                <TableHead className="text-label font-semibold">Score</TableHead>
                 <TableHead className="text-label font-semibold">Owner</TableHead>
                 <TableHead className="text-label font-semibold">Erstellt am</TableHead>
               </TableRow>
@@ -174,11 +181,11 @@ export default function Companies() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((_, c) => <TableCell key={c}><div className="h-4 w-24 animate-pulse rounded bg-[hsl(228,33%,91%)]" /></TableCell>)}
+                    {Array.from({ length: 7 }).map((_, c) => <TableCell key={c}><div className="h-4 w-24 animate-pulse rounded bg-[hsl(228,33%,91%)]" /></TableCell>)}
                   </TableRow>
                 ))
               ) : companies.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">Keine Companies gefunden.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Keine Companies gefunden.</TableCell></TableRow>
               ) : (
                 companies.map((company) => {
                   const owner = company.owner as { id: string; first_name: string; last_name: string } | null;
@@ -188,6 +195,7 @@ export default function Companies() {
                       <TableCell className="text-body text-muted-foreground">{company.industry ?? "–"}</TableCell>
                       <TableCell className="text-body text-muted-foreground">{company.city ?? "–"}</TableCell>
                       <TableCell><CompanyStatusBadge status={company.status} /></TableCell>
+                      <TableCell><LeadScoreBadge score={(company as { lead_score?: number | null }).lead_score} /></TableCell>
                       <TableCell className="text-body text-muted-foreground">{owner ? `${owner.first_name} ${owner.last_name}` : "–"}</TableCell>
                       <TableCell className="text-body text-muted-foreground">{formatDate(company.created_at)}</TableCell>
                     </TableRow>

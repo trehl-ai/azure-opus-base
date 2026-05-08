@@ -93,7 +93,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { stats, loading } = useDashboardStats();
   const { activityStats } = useActivityStats();
-  const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet">("gesamt");
+  const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet" | "anzahl">("gesamt");
 
   const today = useMemo(
     () => format(new Date(), "EEEE, d. MMMM yyyy", { locale: de }),
@@ -239,7 +239,9 @@ export default function Dashboard() {
             <p className="text-[12px] text-muted-foreground mt-0.5">
               {chartMode === "gesamt"
                 ? "Summe der Deal-Werte je Pipeline"
-                : "Erwarteter Wert (Wert × Wahrscheinlichkeit)"}
+                : chartMode === "gewichtet"
+                ? "Erwarteter Wert (Wert × Wahrscheinlichkeit)"
+                : "Anzahl aktiver Deals je Pipeline"}
             </p>
           </div>
           <div role="tablist" aria-label="Chart-Modus" className="flex gap-1 shrink-0">
@@ -271,6 +273,20 @@ export default function Dashboard() {
             >
               Gewichtet
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chartMode === "anzahl"}
+              onClick={() => setChartMode("anzahl")}
+              className={cn(
+                "rounded-md px-3 py-1 text-sm transition-colors",
+                chartMode === "anzahl"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+              )}
+            >
+              Anzahl
+            </button>
           </div>
         </div>
         {loading ? (
@@ -287,14 +303,21 @@ export default function Dashboard() {
                 data={[...stats.pipeline_breakdown].sort((a, b) =>
                   chartMode === "gewichtet"
                     ? (b.weighted_value ?? 0) - (a.weighted_value ?? 0)
+                    : chartMode === "anzahl"
+                    ? (b.deal_count ?? 0) - (a.deal_count ?? 0)
                     : (b.total_value ?? 0) - (a.total_value ?? 0),
                 )}
                 margin={{ top: 8, right: 24, bottom: 8, left: 8 }}
               >
                 <XAxis
                   type="number"
-                  tickFormatter={(v: number) => eurCompactFormatter.format(v)}
+                  tickFormatter={(v: number) =>
+                    chartMode === "anzahl"
+                      ? `${v} ${v === 1 ? "Deal" : "Deals"}`
+                      : eurCompactFormatter.format(v)
+                  }
                   tick={{ fontSize: 11, fill: "#6b7280" }}
+                  allowDecimals={false}
                 />
                 <YAxis
                   type="category"
@@ -304,7 +327,13 @@ export default function Dashboard() {
                 />
                 <Tooltip content={<PipelineTooltip mode={chartMode} />} />
                 <Bar
-                  dataKey={chartMode === "gewichtet" ? "weighted_value" : "total_value"}
+                  dataKey={
+                    chartMode === "gewichtet"
+                      ? "weighted_value"
+                      : chartMode === "anzahl"
+                      ? "deal_count"
+                      : "total_value"
+                  }
                   radius={[0, 4, 4, 0]}
                 >
                   {stats.pipeline_breakdown.map((entry) => (
@@ -866,7 +895,7 @@ function PipelineTooltip({
   active,
   payload,
   mode,
-}: TooltipProps<number, string> & { mode: "gesamt" | "gewichtet" }) {
+}: TooltipProps<number, string> & { mode: "gesamt" | "gewichtet" | "anzahl" }) {
   if (!active || !payload || payload.length === 0) return null;
   const item = payload[0].payload as {
     name: string;
@@ -874,21 +903,34 @@ function PipelineTooltip({
     total_value: number;
     weighted_value: number;
   };
-  const value = mode === "gewichtet" ? item.weighted_value : item.total_value;
-  const valueLabel = mode === "gewichtet" ? "Erwartet" : "Wert";
   return (
     <div className="rounded-md border border-border bg-card px-3 py-2 shadow-md text-[12px]">
       <p className="font-semibold text-foreground mb-1">{item.name}</p>
-      <p className="text-muted-foreground">
-        {valueLabel}: <span className="text-foreground font-medium tabular-nums">
-          {eurFormatter.format(value ?? 0)}
-        </span>
-      </p>
-      <p className="text-muted-foreground">
-        Deals: <span className="text-foreground font-medium tabular-nums">
-          {item.deal_count}
-        </span>
-      </p>
+      {mode === "anzahl" ? (
+        <p className="text-muted-foreground">
+          Deals:{" "}
+          <span className="text-foreground font-medium tabular-nums">
+            {item.deal_count}
+          </span>
+        </p>
+      ) : (
+        <>
+          <p className="text-muted-foreground">
+            {mode === "gewichtet" ? "Erwartet" : "Wert"}:{" "}
+            <span className="text-foreground font-medium tabular-nums">
+              {eurFormatter.format(
+                (mode === "gewichtet" ? item.weighted_value : item.total_value) ?? 0,
+              )}
+            </span>
+          </p>
+          <p className="text-muted-foreground">
+            Deals:{" "}
+            <span className="text-foreground font-medium tabular-nums">
+              {item.deal_count}
+            </span>
+          </p>
+        </>
+      )}
     </div>
   );
 }
