@@ -25,7 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+import {
+  useDashboardStats,
+  type HoverCompanyValue,
+  type HoverCompanyExpected,
+} from "@/hooks/useDashboardStats";
 
 const PIPELINE_COLOR_MAP: Record<string, string> = {
   Erlebniswelten: "#8b5cf6",
@@ -146,34 +150,52 @@ export default function Dashboard() {
 
       {/* Block 1 — KPI Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          icon={Handshake}
-          label="Pipeline-Wert"
-          value={loading ? null : eurFormatter.format(stats?.pipeline_value ?? 0)}
-          subtext={
-            stats ? `${stats.deal_count.toLocaleString("de-DE")} aktive Deals` : undefined
-          }
-          tone="brand"
-          onClick={() => navigate("/deals")}
-        />
-        <KpiCard
-          icon={Trophy}
-          label="Gewonnen"
-          value={loading ? null : eurFormatter.format(stats?.won_value ?? 0)}
-          subtext="Porsche Museum abgeschlossen"
-          tone="success"
-        />
-        <KpiCard
-          icon={Percent}
-          label="Ø Wahrscheinlichkeit"
-          value={loading ? null : eurFormatter.format(stats?.expected_value ?? 0)}
-          subtext={
-            loading
-              ? undefined
-              : `${stats?.weighted_probability ?? 0}% gewichtete Wahrscheinlichkeit`
-          }
-          tone="gold"
-        />
+        <KpiTooltip
+          title="Top Pipeline-Companies"
+          rows={stats?.hover_pipeline_companies ?? []}
+          variant="value"
+        >
+          <KpiCard
+            icon={Handshake}
+            label="Pipeline-Wert"
+            value={loading ? null : eurFormatter.format(stats?.pipeline_value ?? 0)}
+            subtext={
+              stats ? `${stats.deal_count.toLocaleString("de-DE")} aktive Deals` : undefined
+            }
+            tone="brand"
+            onClick={() => navigate("/deals")}
+          />
+        </KpiTooltip>
+        <KpiTooltip
+          title="Top gewonnene Companies"
+          rows={stats?.hover_won_companies ?? []}
+          variant="value"
+        >
+          <KpiCard
+            icon={Trophy}
+            label="Gewonnen"
+            value={loading ? null : eurFormatter.format(stats?.won_value ?? 0)}
+            subtext="Porsche Museum abgeschlossen"
+            tone="success"
+          />
+        </KpiTooltip>
+        <KpiTooltip
+          title="Top Companies nach erwartetem Wert"
+          rows={stats?.hover_probability_companies ?? []}
+          variant="expected"
+        >
+          <KpiCard
+            icon={Percent}
+            label="Ø Wahrscheinlichkeit"
+            value={loading ? null : eurFormatter.format(stats?.expected_value ?? 0)}
+            subtext={
+              loading
+                ? undefined
+                : `${stats?.weighted_probability ?? 0}% gewichtete Wahrscheinlichkeit`
+            }
+            tone="gold"
+          />
+        </KpiTooltip>
         <KpiCard
           icon={Users}
           label="Kontakte"
@@ -430,7 +452,7 @@ function KpiCard({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "text-left rounded-[12px] border border-border bg-card shadow-sm p-5 transition-all",
+        "w-full h-full text-left rounded-[12px] border border-border bg-card shadow-sm p-5 transition-all",
         onClick && "hover:border-brand hover:shadow-md cursor-pointer",
       )}
     >
@@ -505,6 +527,70 @@ function LeadScoreCard({
         </p>
       )}
       <p className="text-[12px] text-muted-foreground mt-1.5">Contacts</p>
+    </div>
+  );
+}
+
+function KpiTooltip({
+  title,
+  rows,
+  variant,
+  children,
+}: {
+  title: string;
+  rows: HoverCompanyValue[] | HoverCompanyExpected[];
+  variant: "value" | "expected";
+  children: React.ReactNode;
+}) {
+  const hasRows = rows.length > 0;
+  return (
+    <div className="relative group h-full">
+      {children}
+      {hasRows && (
+        <div
+          role="tooltip"
+          className={cn(
+            "hidden md:block absolute left-0 top-full mt-2 w-80 z-50",
+            "bg-gray-900 text-white rounded-xl shadow-2xl p-4",
+            "opacity-0 pointer-events-none",
+            "group-hover:opacity-100 group-hover:pointer-events-auto",
+            "transition-all duration-200",
+          )}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-300 mb-2">
+            {title}
+          </p>
+          <ul className="max-h-72 overflow-y-auto divide-y divide-gray-800">
+            {rows.map((r, i) => (
+              <li
+                key={`${r.company_name}-${i}`}
+                className="flex items-start justify-between gap-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium truncate">
+                    {r.company_name}
+                  </p>
+                  <p className="text-[11px] text-gray-400 truncate">
+                    {r.pipeline_name}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[13px] font-medium tabular-nums">
+                    {variant === "expected"
+                      ? `${Math.round((r as HoverCompanyExpected).expected_value).toLocaleString("de-DE")} €`
+                      : `${Math.round((r as HoverCompanyValue).total_value).toLocaleString("de-DE")} €`}
+                  </p>
+                  {variant === "expected" && (
+                    <p className="text-[10px] text-gray-400 tabular-nums">
+                      {Math.round((r as HoverCompanyExpected).avg_probability)}%
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
