@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from "recharts";
-import { Handshake, Trophy, Percent, Users, ArrowUp, ArrowDown, ArrowRight } from "lucide-react";
+import { Handshake, Trophy, Percent, Users, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,7 +30,7 @@ import {
   type HoverCompanyValue,
   type HoverCompanyExpected,
 } from "@/hooks/useDashboardStats";
-import { useActivityStats, type FunnelStage } from "@/hooks/useActivityStats";
+import { useActivityStats, type FunnelBestandStage } from "@/hooks/useActivityStats";
 
 const PIPELINE_COLOR_MAP: Record<string, string> = {
   Erlebniswelten: "#8b5cf6",
@@ -89,14 +89,6 @@ type TopLead = {
   lead_score: number | null;
 };
 
-const FUNNEL_TILE_COLORS: Record<number, string> = {
-  1: "bg-blue-600",
-  2: "bg-blue-500",
-  3: "bg-blue-400",
-  4: "bg-teal-400",
-  5: "bg-green-400",
-};
-
 const FEED_ICONS: Record<string, string> = {
   email: "📧",
   call: "📞",
@@ -146,21 +138,28 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  const funnelStages = useMemo<FunnelStage[]>(() => {
-    return (activityStats?.funnel ?? [])
-      .filter((f) => f && f.position >= 1 && f.position <= 5)
+  const funnelBestand = useMemo<FunnelBestandStage[]>(() => {
+    return (activityStats?.funnel_bestand ?? [])
+      .filter((f) => f && typeof f.position === "number")
+      .slice()
       .sort((a, b) => a.position - b.position);
   }, [activityStats]);
-
-  const maxFunnelDeals = useMemo(() => {
-    if (funnelStages.length === 0) return 0;
-    return Math.max(...funnelStages.map((f) => f.deals ?? 0));
-  }, [funnelStages]);
 
   const stageFeed = useMemo(
     () => (activityStats?.stage_feed ?? []).slice(0, 10),
     [activityStats],
   );
+
+  const totalsThisKw =
+    (activityStats?.calls_diese_woche ?? 0) +
+    (activityStats?.stage_infos_diese_kw ?? 0) +
+    (activityStats?.stage_wiedervorlage_diese_kw ?? 0) +
+    (activityStats?.lost_diese_kw ?? 0);
+  const totalsLastKw =
+    (activityStats?.calls_letzte_woche ?? 0) +
+    (activityStats?.stage_infos_letzte_kw ?? 0) +
+    (activityStats?.stage_wiedervorlage_letzte_kw ?? 0) +
+    (activityStats?.lost_letzte_kw ?? 0);
 
   return (
     <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-canvas p-4 md:p-6 lg:p-8 space-y-6">
@@ -394,125 +393,77 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Block 5 — Werteraum — Aktivitäten */}
+      {/* Block 5 — Werteraum — KW Vergleich */}
       <section className="space-y-4">
         <h2 className="text-[16px] font-semibold text-foreground">
-          Werteraum — Aktivitäten
+          Werteraum — KW {activityStats?.kw_nr_letzte ?? "—"} vs. KW {activityStats?.kw_nr_diese ?? "—"} (lfd.)
         </h2>
 
-        {/* ROW 1: Calls KPI (1/3) + Stage-Wechsel Tabelle (2/3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <CallsKpiCard
-            current={activityStats?.calls_diese_woche ?? 0}
-            previous={activityStats?.calls_letzte_woche ?? 0}
-          />
-          <div className="lg:col-span-2 rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Aktion</TableHead>
-                  <TableHead className="text-right tabular-nums">
-                    Diese Woche (lfd.)
-                  </TableHead>
-                  <TableHead className="text-right tabular-nums">
-                    Letzte Woche
-                  </TableHead>
-                  <TableHead className="text-right">Trend</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <StageWechselRow
-                  icon="📧"
-                  label="Infomaterial versandt"
-                  current={activityStats?.stage_infos_diese_woche ?? 0}
-                  previous={activityStats?.stage_infos_letzte_woche ?? 0}
-                />
-                <StageWechselRow
-                  icon="🔄"
-                  label="→ Wiedervorlage"
-                  current={activityStats?.stage_moves_diese_woche ?? 0}
-                  previous={activityStats?.stage_moves_letzte_woche ?? 0}
-                />
-                <StageWechselRow
-                  icon="❌"
-                  label="Als verloren markiert"
-                  current={activityStats?.lost_diese_woche ?? 0}
-                  previous={activityStats?.lost_letzte_woche ?? 0}
-                />
-              </TableBody>
-            </Table>
-            <p className="text-xs text-gray-400 mt-3">
-              Diese Woche läuft noch bis Freitag
-            </p>
-          </div>
-        </div>
-
-        {/* ROW 2: Werteraum Funnel */}
+        {/* KW-Vergleichs-Tabelle */}
         <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-          {funnelStages.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Keine Funnel-Daten verfügbar.
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Aktion</TableHead>
+                <TableHead className="text-right tabular-nums">
+                  KW {activityStats?.kw_nr_letzte ?? "—"}
+                </TableHead>
+                <TableHead className="text-right tabular-nums">
+                  KW {activityStats?.kw_nr_diese ?? "—"} (lfd.)
+                </TableHead>
+                <TableHead className="text-right">Trend</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <ComparisonRow
+                icon="📞"
+                label="Anrufe"
+                previous={activityStats?.calls_letzte_woche ?? 0}
+                current={activityStats?.calls_diese_woche ?? 0}
+              />
+              <ComparisonRow
+                icon="📧"
+                label="Infomaterial versandt"
+                previous={activityStats?.stage_infos_letzte_kw ?? 0}
+                current={activityStats?.stage_infos_diese_kw ?? 0}
+              />
+              <ComparisonRow
+                icon="🔄"
+                label="→ Wiedervorlage"
+                previous={activityStats?.stage_wiedervorlage_letzte_kw ?? 0}
+                current={activityStats?.stage_wiedervorlage_diese_kw ?? 0}
+              />
+              <ComparisonRow
+                icon="❌"
+                label="Als verloren markiert"
+                previous={activityStats?.lost_letzte_kw ?? 0}
+                current={activityStats?.lost_diese_kw ?? 0}
+                invertedGood
+              />
+              <ComparisonRow
+                icon="📊"
+                label="Gesamt Aktivitäten"
+                previous={totalsLastKw}
+                current={totalsThisKw}
+              />
+            </TableBody>
+          </Table>
+          <p className="text-xs text-gray-400 mt-3">
+            KW {activityStats?.kw_nr_diese ?? "—"} läuft noch bis Freitag · Vergleich mit abgeschlossener KW {activityStats?.kw_nr_letzte ?? "—"}
+          </p>
+          {funnelBestand.length > 0 && (
+            <p className="text-xs text-gray-500 mt-3 border-t border-border pt-3">
+              <span className="font-medium text-foreground">Aktueller Bestand:</span>{" "}
+              {funnelBestand.map((b, i) => (
+                <span key={`${b.stage}-${b.position}`}>
+                  {b.stage}{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {(b.deals ?? 0).toLocaleString("de-DE")}
+                  </span>
+                  {i < funnelBestand.length - 1 ? " · " : ""}
+                </span>
+              ))}
             </p>
-          ) : (
-            <div className="flex items-stretch gap-2 overflow-x-auto">
-              <div className="flex items-stretch gap-2">
-                {funnelStages.map((curr, idx) => {
-                  const prev = idx > 0 ? funnelStages[idx - 1] : null;
-                  const conversion =
-                    idx === 0
-                      ? null
-                      : prev && prev.deals > 0
-                        ? Math.round((curr.deals / prev.deals) * 100) + "%"
-                        : "—";
-                  const widthPx =
-                    maxFunnelDeals > 0
-                      ? Math.max(
-                          100,
-                          Math.round((curr.deals / maxFunnelDeals) * 300),
-                        )
-                      : 100;
-                  return (
-                    <div key={curr.position} className="flex items-center gap-2">
-                      <div
-                        className={cn(
-                          "flex flex-col items-center justify-center rounded-md px-3 py-4 min-h-[88px]",
-                          FUNNEL_TILE_COLORS[curr.position] ?? "bg-blue-400",
-                        )}
-                        style={{ width: `${widthPx}px` }}
-                      >
-                        <span className="text-xs text-white/80 text-center leading-tight">
-                          {curr.stage}
-                        </span>
-                        <span className="text-2xl font-bold text-white tabular-nums leading-none mt-1">
-                          {curr.deals}
-                        </span>
-                        {conversion && (
-                          <span className="text-xs text-white/70 tabular-nums mt-1">
-                            {conversion}
-                          </span>
-                        )}
-                      </div>
-                      {idx < funnelStages.length - 1 && (
-                        <ArrowRight
-                          className="h-4 w-4 text-gray-400 shrink-0"
-                          aria-hidden
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex items-stretch ml-4">
-                <div className="flex flex-col items-center justify-center rounded-md px-3 py-4 min-h-[88px] bg-red-500 text-white min-w-[100px]">
-                  <span className="text-xs text-white/80 text-center leading-tight">
-                    Verloren
-                  </span>
-                  <span className="text-2xl font-bold text-white tabular-nums leading-none mt-1">
-                    33
-                  </span>
-                </div>
-              </div>
-            </div>
           )}
         </div>
 
@@ -730,52 +681,30 @@ function KpiTooltip({
   );
 }
 
-function CallsKpiCard({
-  current,
-  previous,
-}: {
-  current: number;
-  previous: number;
-}) {
-  const isUp = current > previous;
-  const isDown = current < previous;
-  return (
-    <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-      <p className="text-[44px] font-bold leading-none tabular-nums text-brand">
-        {current.toLocaleString("de-DE")}
-      </p>
-      <div className="flex items-center gap-2 mt-2">
-        <p className="text-[13px] text-muted-foreground">
-          Anrufe diese Woche
-        </p>
-        <span className="text-[11px] text-gray-400 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800">
-          (lfd.)
-        </span>
-      </div>
-      <div className="flex items-center gap-1.5 mt-3 text-[12px] text-muted-foreground">
-        <span>Letzte Woche: {previous.toLocaleString("de-DE")}</span>
-        {isUp && <ArrowUp className="h-3.5 w-3.5 text-green-600" aria-hidden />}
-        {isDown && (
-          <ArrowDown className="h-3.5 w-3.5 text-red-600" aria-hidden />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function StageWechselRow({
+function ComparisonRow({
   icon,
   label,
-  current,
   previous,
+  current,
+  invertedGood = false,
 }: {
   icon: string;
   label: string;
-  current: number;
   previous: number;
+  current: number;
+  /** When true, an INCREASE is bad (e.g. lost deals). Default: increase = good. */
+  invertedGood?: boolean;
 }) {
   const diff = current - previous;
-  const trendUp = current >= previous;
+  const isFlat = diff === 0;
+  const isUp = diff > 0;
+  const isGood = isFlat ? null : isUp !== invertedGood;
+  const trendColor = isFlat
+    ? "text-gray-400"
+    : isGood
+      ? "text-emerald-600"
+      : "text-red-500";
+  const Arrow = isFlat ? null : isUp ? ArrowUp : ArrowDown;
   return (
     <TableRow>
       <TableCell className="font-medium">
@@ -784,26 +713,22 @@ function StageWechselRow({
         </span>
         {label}
       </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {current.toLocaleString("de-DE")}
-      </TableCell>
-      <TableCell className="text-right tabular-nums text-muted-foreground">
+      <TableCell className="text-right tabular-nums text-gray-500">
         {previous.toLocaleString("de-DE")}
       </TableCell>
-      <TableCell className="text-right">
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 text-[12px] font-medium tabular-nums",
-            trendUp ? "text-green-600" : "text-red-600",
-          )}
-        >
-          {trendUp ? (
-            <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+      <TableCell className="text-right tabular-nums text-foreground font-semibold">
+        {current.toLocaleString("de-DE")}
+      </TableCell>
+      <TableCell className={cn("text-right tabular-nums", trendColor)}>
+        <span className="inline-flex items-center gap-1 justify-end text-[12px] font-medium">
+          {Arrow ? (
+            <Arrow className="h-3.5 w-3.5" aria-hidden />
           ) : (
-            <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+            <span aria-hidden>—</span>
           )}
-          {trendUp ? "+" : ""}
-          {diff.toLocaleString("de-DE")}
+          <span>
+            {isFlat ? "0" : `${isUp ? "+" : ""}${diff.toLocaleString("de-DE")}`}
+          </span>
         </span>
       </TableCell>
     </TableRow>
