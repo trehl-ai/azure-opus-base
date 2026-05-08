@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -89,29 +89,6 @@ type TopLead = {
   lead_score: number | null;
 };
 
-const FEED_ICONS: Record<string, string> = {
-  email: "📧",
-  call: "📞",
-  note: "📝",
-};
-
-function relativeTimeDe(iso: string): string {
-  const rtf = new Intl.RelativeTimeFormat("de", { numeric: "auto" });
-  const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
-  const abs = Math.abs(diffSec);
-  if (abs < 60) return rtf.format(diffSec, "second");
-  const diffMin = Math.round(diffSec / 60);
-  if (Math.abs(diffMin) < 60) return rtf.format(diffMin, "minute");
-  const diffHour = Math.round(diffMin / 60);
-  if (Math.abs(diffHour) < 24) return rtf.format(diffHour, "hour");
-  const diffDay = Math.round(diffHour / 24);
-  if (Math.abs(diffDay) < 30) return rtf.format(diffDay, "day");
-  const diffMonth = Math.round(diffDay / 30);
-  if (Math.abs(diffMonth) < 12) return rtf.format(diffMonth, "month");
-  const diffYear = Math.round(diffMonth / 12);
-  return rtf.format(diffYear, "year");
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const { stats, loading } = useDashboardStats();
@@ -145,10 +122,15 @@ export default function Dashboard() {
       .sort((a, b) => a.position - b.position);
   }, [activityStats]);
 
-  const stageFeed = useMemo(
-    () => (activityStats?.stage_feed ?? []).slice(0, 10),
+  const identifiziertBestand = useMemo(
+    () =>
+      (activityStats?.funnel_bestand ?? []).find(
+        (f) => f && f.stage === "Identifiziert",
+      )?.deals ?? 0,
     [activityStats],
   );
+
+  const [selectedKw, setSelectedKw] = useState<"diese" | "letzte">("diese");
 
   const totalsThisKw =
     (activityStats?.calls_diese_woche ?? 0) +
@@ -476,35 +458,81 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ROW 3: Stage Feed */}
+        {/* Stage-Bewegungen Werteraum (KW-Umschalter) */}
         <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-          {stageFeed.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Noch keine Aktivitäten erfasst.
-            </p>
-          ) : (
-            <ul className="max-h-64 overflow-y-auto">
-              {stageFeed.map((item, i) => (
-                <li
-                  key={`${item.created_at}-${i}`}
-                  className="flex items-center gap-2 py-2"
-                >
-                  <span aria-hidden className="shrink-0">
-                    {FEED_ICONS[item.activity_type] ?? "•"}
-                  </span>
-                  <span className="font-medium text-sm text-foreground truncate">
-                    {item.company_name}
-                  </span>
-                  <span className="text-xs text-gray-500 ml-2 truncate flex-1">
-                    {item.title}
-                  </span>
-                  <span className="text-xs text-gray-500 shrink-0 tabular-nums">
-                    {relativeTimeDe(item.created_at)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="text-[15px] font-semibold text-foreground">
+              Stage-Bewegungen Werteraum
+            </h3>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSelectedKw("letzte")}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                  selectedKw === "letzte"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                )}
+              >
+                KW {activityStats?.kw_nr_letzte ?? "—"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedKw("diese")}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                  selectedKw === "diese"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                )}
+              >
+                KW {activityStats?.kw_nr_diese ?? "—"} (lfd.)
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-row items-stretch gap-0">
+            <StageFlowBox
+              label="Identifiziert"
+              value={identifiziertBestand}
+              subtext="Gesamt im Pool"
+              tone="blue"
+            />
+            <StageFlowArrow />
+            <StageFlowBox
+              label="→ Wiedervorlage"
+              value={
+                selectedKw === "diese"
+                  ? activityStats?.stage_wiedervorlage_diese_kw ?? 0
+                  : activityStats?.stage_wiedervorlage_letzte_kw ?? 0
+              }
+              subtext="neu qualifiziert"
+              tone="blue"
+            />
+            <StageFlowArrow />
+            <StageFlowBox
+              label="→ Infomaterial"
+              value={
+                selectedKw === "diese"
+                  ? activityStats?.stage_infos_diese_kw ?? 0
+                  : activityStats?.stage_infos_letzte_kw ?? 0
+              }
+              subtext="versandt"
+              tone="teal"
+            />
+            <StageFlowArrow />
+            <StageFlowBox
+              label="→ Verloren"
+              value={
+                selectedKw === "diese"
+                  ? activityStats?.lost_diese_kw ?? 0
+                  : activityStats?.lost_letzte_kw ?? 0
+              }
+              subtext="ausgeschieden"
+              tone="red"
+            />
+          </div>
         </div>
       </section>
     </div>
@@ -512,6 +540,56 @@ export default function Dashboard() {
 }
 
 /* ---------- Subcomponents ---------- */
+
+function StageFlowBox({
+  label,
+  value,
+  subtext,
+  tone,
+}: {
+  label: string;
+  value: number;
+  subtext: string;
+  tone: "blue" | "teal" | "red";
+}) {
+  const toneStyles =
+    tone === "red"
+      ? "bg-red-50 border-red-200"
+      : tone === "teal"
+        ? "bg-teal-50 border-teal-200"
+        : "bg-blue-50 border-blue-200";
+  const numberStyle = tone === "red" ? "text-red-600" : "text-blue-600";
+  return (
+    <div
+      className={cn(
+        "flex-1 rounded-xl border p-5 text-center flex flex-col items-center justify-center gap-1",
+        toneStyles,
+      )}
+    >
+      <p className="text-xs font-medium text-foreground">{label}</p>
+      <p
+        className={cn(
+          "text-3xl font-bold tabular-nums leading-none",
+          numberStyle,
+        )}
+      >
+        {value.toLocaleString("de-DE")}
+      </p>
+      <p className="text-[11px] text-muted-foreground">{subtext}</p>
+    </div>
+  );
+}
+
+function StageFlowArrow() {
+  return (
+    <span
+      aria-hidden
+      className="text-gray-300 text-2xl self-center mx-1 select-none"
+    >
+      →
+    </span>
+  );
+}
 
 function KpiCard({
   icon: Icon,
