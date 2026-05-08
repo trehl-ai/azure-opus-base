@@ -1,0 +1,119 @@
+{
+  "name": "EIC — Health Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "1f8a7e2a-1111-4001-9001-000000000001",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ttgvhqygmgtnjgwunuwz.supabase.co/rest/v1/rpc/get_health_check_stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "SUPABASE_SERVICE_ROLE_KEY_PLACEHOLDER"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer SUPABASE_SERVICE_ROLE_KEY_PLACEHOLDER"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "1f8a7e2a-1111-4001-9001-000000000002",
+      "name": "HTTP - get_health_check_stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json ?? {};\n\nconst intakeStau = Number(data.intake_stau ?? 0);\nconst intakeNullPayload = Number(data.intake_null_payload ?? 0);\nconst contactsUnscored = Number(data.contacts_unscored ?? 0);\nconst contactsNoEmbedding = Number(data.contacts_no_embedding ?? 0);\nconst dealsNoStage = Number(data.deals_no_stage ?? 0);\n\nconst dealsOpen = Number(data.deals_open ?? 0);\nconst contactsTotal = Number(data.contacts_total ?? 0);\nconst activities7d = Number(data.activities_7d ?? 0);\n\nconst issues = [];\nif (intakeStau > 0) issues.push(`⚠️ Intake-Stau: ${intakeStau} Nachrichten >24h ohne Payload`);\nif (intakeNullPayload > 0) issues.push(`❌ Intake-Bug: ${intakeNullPayload} neue Nachrichten ohne parsed_payload_json`);\nif (contactsUnscored > 0) issues.push(`⚠️ ${contactsUnscored} Contacts ohne lead_score`);\nif (contactsNoEmbedding > 0) issues.push(`⚠️ ${contactsNoEmbedding} Contacts ohne Embedding`);\nif (dealsNoStage > 0) issues.push(`❌ ${dealsNoStage} Deals ohne Pipeline-Stage`);\n\nconst dateDe = new Date().toLocaleDateString('de-DE', {\n  weekday: 'long',\n  day: '2-digit',\n  month: 'long',\n  year: 'numeric',\n});\n\nlet message;\nif (issues.length === 0) {\n  message = `✅ EIC Health Check OK\\n${dateDe}\\nDeals offen: ${dealsOpen} | Contacts: ${contactsTotal} | Activities 7d: ${activities7d}`;\n} else {\n  message = `🚨 EIC Health Check FEHLER\\n${dateDe}\\n\\n${issues.join('\\n')}\\n\\nDeals: ${dealsOpen} | Contacts: ${contactsTotal}`;\n}\n\nreturn [{ json: { message, ok: issues.length === 0 } }];\n"
+      },
+      "id": "1f8a7e2a-1111-4001-9001-000000000003",
+      "name": "Auswerten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{EIC_BOT_TOKEN_PLACEHOLDER}}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: '6299105090', text: $json.message }) }}",
+        "options": {}
+      },
+      "id": "1f8a7e2a-1111-4001-9001-000000000004",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP - get_health_check_stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - get_health_check_stats": {
+      "main": [
+        [
+          {
+            "node": "Auswerten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auswerten": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
