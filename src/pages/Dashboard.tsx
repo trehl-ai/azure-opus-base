@@ -93,6 +93,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { stats, loading } = useDashboardStats();
   const { activityStats } = useActivityStats();
+  const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet">("gesamt");
 
   const today = useMemo(
     () => format(new Date(), "EEEE, d. MMMM yyyy", { locale: de }),
@@ -230,13 +231,47 @@ export default function Dashboard() {
 
       {/* Block 2 — Pipeline Wert Chart */}
       <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-        <div className="mb-4">
-          <h2 className="text-[16px] font-semibold text-foreground">
-            Pipeline-Wert nach Pipeline
-          </h2>
-          <p className="text-[12px] text-muted-foreground mt-0.5">
-            Summe der Deal-Werte je Pipeline
-          </p>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[16px] font-semibold text-foreground">
+              Pipeline-Wert nach Pipeline
+            </h2>
+            <p className="text-[12px] text-muted-foreground mt-0.5">
+              {chartMode === "gesamt"
+                ? "Summe der Deal-Werte je Pipeline"
+                : "Erwarteter Wert (Wert × Wahrscheinlichkeit)"}
+            </p>
+          </div>
+          <div role="tablist" aria-label="Chart-Modus" className="flex gap-1 shrink-0">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chartMode === "gesamt"}
+              onClick={() => setChartMode("gesamt")}
+              className={cn(
+                "rounded-md px-3 py-1 text-sm transition-colors",
+                chartMode === "gesamt"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+              )}
+            >
+              Gesamt
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chartMode === "gewichtet"}
+              onClick={() => setChartMode("gewichtet")}
+              className={cn(
+                "rounded-md px-3 py-1 text-sm transition-colors",
+                chartMode === "gewichtet"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+              )}
+            >
+              Gewichtet
+            </button>
+          </div>
         </div>
         {loading ? (
           <Skeleton className="h-[300px] rounded-lg" />
@@ -249,8 +284,10 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 layout="vertical"
-                data={[...stats.pipeline_breakdown].sort(
-                  (a, b) => b.total_value - a.total_value,
+                data={[...stats.pipeline_breakdown].sort((a, b) =>
+                  chartMode === "gewichtet"
+                    ? (b.weighted_value ?? 0) - (a.weighted_value ?? 0)
+                    : (b.total_value ?? 0) - (a.total_value ?? 0),
                 )}
                 margin={{ top: 8, right: 24, bottom: 8, left: 8 }}
               >
@@ -265,8 +302,11 @@ export default function Dashboard() {
                   width={200}
                   tick={{ fontSize: 12, fill: "#374151" }}
                 />
-                <Tooltip content={<PipelineTooltip />} />
-                <Bar dataKey="total_value" radius={[0, 4, 4, 0]}>
+                <Tooltip content={<PipelineTooltip mode={chartMode} />} />
+                <Bar
+                  dataKey={chartMode === "gewichtet" ? "weighted_value" : "total_value"}
+                  radius={[0, 4, 4, 0]}
+                >
                   {stats.pipeline_breakdown.map((entry) => (
                     <Cell
                       key={entry.name}
@@ -822,19 +862,26 @@ function ComparisonRow({
   );
 }
 
-function PipelineTooltip({ active, payload }: TooltipProps<number, string>) {
+function PipelineTooltip({
+  active,
+  payload,
+  mode,
+}: TooltipProps<number, string> & { mode: "gesamt" | "gewichtet" }) {
   if (!active || !payload || payload.length === 0) return null;
   const item = payload[0].payload as {
     name: string;
     deal_count: number;
     total_value: number;
+    weighted_value: number;
   };
+  const value = mode === "gewichtet" ? item.weighted_value : item.total_value;
+  const valueLabel = mode === "gewichtet" ? "Erwartet" : "Wert";
   return (
     <div className="rounded-md border border-border bg-card px-3 py-2 shadow-md text-[12px]">
       <p className="font-semibold text-foreground mb-1">{item.name}</p>
       <p className="text-muted-foreground">
-        Wert: <span className="text-foreground font-medium tabular-nums">
-          {eurFormatter.format(item.total_value)}
+        {valueLabel}: <span className="text-foreground font-medium tabular-nums">
+          {eurFormatter.format(value ?? 0)}
         </span>
       </p>
       <p className="text-muted-foreground">

@@ -5,6 +5,7 @@ export type PipelineBreakdownItem = {
   name: string;
   deal_count: number;
   total_value: number;
+  weighted_value: number;
 };
 
 export type HoverCompanyValue = {
