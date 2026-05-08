@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from "recharts";
-import { Handshake, Trophy, Percent, Users } from "lucide-react";
+import { Handshake, Trophy, Percent, Users, ArrowUp, ArrowDown, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +30,7 @@ import {
   type HoverCompanyValue,
   type HoverCompanyExpected,
 } from "@/hooks/useDashboardStats";
+import { useActivityStats, type FunnelStage } from "@/hooks/useActivityStats";
 
 const PIPELINE_COLOR_MAP: Record<string, string> = {
   Erlebniswelten: "#8b5cf6",
@@ -88,16 +89,41 @@ type TopLead = {
   lead_score: number | null;
 };
 
-type RecentActivity = {
-  id: string;
-  activity_type: string | null;
-  description: string | null;
-  created_at: string;
+const FUNNEL_TILE_COLORS: Record<number, string> = {
+  1: "bg-blue-600",
+  2: "bg-blue-500",
+  3: "bg-blue-400",
+  4: "bg-teal-400",
+  5: "bg-green-400",
 };
+
+const FEED_ICONS: Record<string, string> = {
+  email: "📧",
+  call: "📞",
+  note: "📝",
+};
+
+function relativeTimeDe(iso: string): string {
+  const rtf = new Intl.RelativeTimeFormat("de", { numeric: "auto" });
+  const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+  const abs = Math.abs(diffSec);
+  if (abs < 60) return rtf.format(diffSec, "second");
+  const diffMin = Math.round(diffSec / 60);
+  if (Math.abs(diffMin) < 60) return rtf.format(diffMin, "minute");
+  const diffHour = Math.round(diffMin / 60);
+  if (Math.abs(diffHour) < 24) return rtf.format(diffHour, "hour");
+  const diffDay = Math.round(diffHour / 24);
+  if (Math.abs(diffDay) < 30) return rtf.format(diffDay, "day");
+  const diffMonth = Math.round(diffDay / 30);
+  if (Math.abs(diffMonth) < 12) return rtf.format(diffMonth, "month");
+  const diffYear = Math.round(diffMonth / 12);
+  return rtf.format(diffYear, "year");
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { stats, loading } = useDashboardStats();
+  const { activityStats } = useActivityStats();
 
   const today = useMemo(
     () => format(new Date(), "EEEE, d. MMMM yyyy", { locale: de }),
@@ -120,21 +146,21 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  const { data: recentActivities, isLoading: activitiesLoading } = useQuery<
-    RecentActivity[]
-  >({
-    queryKey: ["dashboard_recent_activities"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deal_activities")
-        .select("id, activity_type, description, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return (data ?? []) as RecentActivity[];
-    },
-    staleTime: 60_000,
-  });
+  const funnelStages = useMemo<FunnelStage[]>(() => {
+    return (activityStats?.funnel ?? [])
+      .filter((f) => f && f.position >= 1 && f.position <= 5)
+      .sort((a, b) => a.position - b.position);
+  }, [activityStats]);
+
+  const maxFunnelDeals = useMemo(() => {
+    if (funnelStages.length === 0) return 0;
+    return Math.max(...funnelStages.map((f) => f.deals ?? 0));
+  }, [funnelStages]);
+
+  const stageFeed = useMemo(
+    () => (activityStats?.stage_feed ?? []).slice(0, 10),
+    [activityStats],
+  );
 
   return (
     <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-canvas p-4 md:p-6 lg:p-8 space-y-6">
@@ -368,50 +394,158 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Block 5 — Recent Activities */}
-      <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-        <div className="mb-4">
-          <h2 className="text-[16px] font-semibold text-foreground">
-            Letzte Aktivitäten
-          </h2>
-        </div>
-        {activitiesLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 rounded-lg" />
-            ))}
+      {/* Block 5 — Werteraum — Aktivitäten */}
+      <section className="space-y-4">
+        <h2 className="text-[16px] font-semibold text-foreground">
+          Werteraum — Aktivitäten
+        </h2>
+
+        {/* ROW 1: Calls KPI (1/3) + Stage-Wechsel Tabelle (2/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <CallsKpiCard
+            current={activityStats?.calls_diese_woche ?? 0}
+            previous={activityStats?.calls_letzte_woche ?? 0}
+          />
+          <div className="lg:col-span-2 rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Aktion</TableHead>
+                  <TableHead className="text-right tabular-nums">
+                    Diese Woche (lfd.)
+                  </TableHead>
+                  <TableHead className="text-right tabular-nums">
+                    Letzte Woche
+                  </TableHead>
+                  <TableHead className="text-right">Trend</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <StageWechselRow
+                  icon="📧"
+                  label="Infomaterial versandt"
+                  current={activityStats?.stage_infos_diese_woche ?? 0}
+                  previous={activityStats?.stage_infos_letzte_woche ?? 0}
+                />
+                <StageWechselRow
+                  icon="🔄"
+                  label="→ Wiedervorlage"
+                  current={activityStats?.stage_moves_diese_woche ?? 0}
+                  previous={activityStats?.stage_moves_letzte_woche ?? 0}
+                />
+                <StageWechselRow
+                  icon="❌"
+                  label="Als verloren markiert"
+                  current={activityStats?.lost_diese_woche ?? 0}
+                  previous={activityStats?.lost_letzte_woche ?? 0}
+                />
+              </TableBody>
+            </Table>
+            <p className="text-xs text-gray-400 mt-3">
+              Diese Woche läuft noch bis Freitag
+            </p>
           </div>
-        ) : !recentActivities || recentActivities.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Noch keine Aktivitäten erfasst.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {recentActivities.map((a) => (
-              <li
-                key={a.id}
-                className="flex items-start justify-between gap-3 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-medium text-foreground truncate">
-                    {a.activity_type ?? "Aktivität"}
-                  </p>
-                  {a.description && (
-                    <p className="text-[12px] text-muted-foreground line-clamp-1">
-                      {a.description}
-                    </p>
-                  )}
+        </div>
+
+        {/* ROW 2: Werteraum Funnel */}
+        <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+          {funnelStages.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Keine Funnel-Daten verfügbar.
+            </p>
+          ) : (
+            <div className="flex items-stretch gap-2 overflow-x-auto">
+              <div className="flex items-stretch gap-2">
+                {funnelStages.map((curr, idx) => {
+                  const prev = idx > 0 ? funnelStages[idx - 1] : null;
+                  const conversion =
+                    idx === 0
+                      ? null
+                      : prev && prev.deals > 0
+                        ? Math.round((curr.deals / prev.deals) * 100) + "%"
+                        : "—";
+                  const widthPx =
+                    maxFunnelDeals > 0
+                      ? Math.max(
+                          100,
+                          Math.round((curr.deals / maxFunnelDeals) * 300),
+                        )
+                      : 100;
+                  return (
+                    <div key={curr.position} className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "flex flex-col items-center justify-center rounded-md px-3 py-4 min-h-[88px]",
+                          FUNNEL_TILE_COLORS[curr.position] ?? "bg-blue-400",
+                        )}
+                        style={{ width: `${widthPx}px` }}
+                      >
+                        <span className="text-xs text-white/80 text-center leading-tight">
+                          {curr.stage}
+                        </span>
+                        <span className="text-2xl font-bold text-white tabular-nums leading-none mt-1">
+                          {curr.deals}
+                        </span>
+                        {conversion && (
+                          <span className="text-xs text-white/70 tabular-nums mt-1">
+                            {conversion}
+                          </span>
+                        )}
+                      </div>
+                      {idx < funnelStages.length - 1 && (
+                        <ArrowRight
+                          className="h-4 w-4 text-gray-400 shrink-0"
+                          aria-hidden
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-stretch ml-4">
+                <div className="flex flex-col items-center justify-center rounded-md px-3 py-4 min-h-[88px] bg-red-500 text-white min-w-[100px]">
+                  <span className="text-xs text-white/80 text-center leading-tight">
+                    Verloren
+                  </span>
+                  <span className="text-2xl font-bold text-white tabular-nums leading-none mt-1">
+                    33
+                  </span>
                 </div>
-                <span className="text-[11px] text-muted-foreground shrink-0 mt-0.5">
-                  {formatDistanceToNow(new Date(a.created_at), {
-                    addSuffix: true,
-                    locale: de,
-                  })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ROW 3: Stage Feed */}
+        <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+          {stageFeed.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Noch keine Aktivitäten erfasst.
+            </p>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto">
+              {stageFeed.map((item, i) => (
+                <li
+                  key={`${item.created_at}-${i}`}
+                  className="flex items-center gap-2 py-2"
+                >
+                  <span aria-hidden className="shrink-0">
+                    {FEED_ICONS[item.activity_type] ?? "•"}
+                  </span>
+                  <span className="font-medium text-sm text-foreground truncate">
+                    {item.company_name}
+                  </span>
+                  <span className="text-xs text-gray-500 ml-2 truncate flex-1">
+                    {item.title}
+                  </span>
+                  <span className="text-xs text-gray-500 shrink-0 tabular-nums">
+                    {relativeTimeDe(item.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
     </div>
   );
@@ -593,6 +727,86 @@ function KpiTooltip({
         </div>
       )}
     </div>
+  );
+}
+
+function CallsKpiCard({
+  current,
+  previous,
+}: {
+  current: number;
+  previous: number;
+}) {
+  const isUp = current > previous;
+  const isDown = current < previous;
+  return (
+    <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+      <p className="text-[44px] font-bold leading-none tabular-nums text-brand">
+        {current.toLocaleString("de-DE")}
+      </p>
+      <div className="flex items-center gap-2 mt-2">
+        <p className="text-[13px] text-muted-foreground">
+          Anrufe diese Woche
+        </p>
+        <span className="text-[11px] text-gray-400 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800">
+          (lfd.)
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5 mt-3 text-[12px] text-muted-foreground">
+        <span>Letzte Woche: {previous.toLocaleString("de-DE")}</span>
+        {isUp && <ArrowUp className="h-3.5 w-3.5 text-green-600" aria-hidden />}
+        {isDown && (
+          <ArrowDown className="h-3.5 w-3.5 text-red-600" aria-hidden />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StageWechselRow({
+  icon,
+  label,
+  current,
+  previous,
+}: {
+  icon: string;
+  label: string;
+  current: number;
+  previous: number;
+}) {
+  const diff = current - previous;
+  const trendUp = current >= previous;
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        <span aria-hidden className="mr-2">
+          {icon}
+        </span>
+        {label}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {current.toLocaleString("de-DE")}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {previous.toLocaleString("de-DE")}
+      </TableCell>
+      <TableCell className="text-right">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 text-[12px] font-medium tabular-nums",
+            trendUp ? "text-green-600" : "text-red-600",
+          )}
+        >
+          {trendUp ? (
+            <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {trendUp ? "+" : ""}
+          {diff.toLocaleString("de-DE")}
+        </span>
+      </TableCell>
+    </TableRow>
   );
 }
 
