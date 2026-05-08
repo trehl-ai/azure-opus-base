@@ -34,6 +34,15 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId }: Props)
     pipeline_stage_id: "", value_amount: "", currency: "EUR",
     probability_percent: "", priority: "medium", source: "", owner_user_id: "", description: "",
   });
+
+  // Default owner = current user. Without this default the deal lands with
+  // owner_user_id NULL, and sales-role users (who default-filter to own deals)
+  // never see the deal they just created. (#35)
+  useEffect(() => {
+    if (open && user?.id && !form.owner_user_id) {
+      setForm((p) => ({ ...p, owner_user_id: user.id }));
+    }
+  }, [open, user?.id]);
   const [expectedCloseDate, setExpectedCloseDate] = useState<Date>();
   const [companySearch, setCompanySearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
@@ -138,7 +147,7 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId }: Props)
         probability_percent: form.probability_percent ? parseInt(form.probability_percent) : 0,
         priority: form.priority,
         source: form.source.trim() || null,
-        owner_user_id: form.owner_user_id || null,
+        owner_user_id: form.owner_user_id || user?.id || null,
         description: form.description.trim() || null,
         created_by_user_id: user?.id ?? null,
       });
