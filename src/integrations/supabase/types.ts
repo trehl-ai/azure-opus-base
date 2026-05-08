@@ -2382,7 +2382,7 @@ export type Database = {
       }
       set_deal_won_and_create_project: {
         Args: { p_deal_id: string; p_winning_user_id: string }
-        Returns: string
+        Returns: Json
       }
     }
     Enums: {
