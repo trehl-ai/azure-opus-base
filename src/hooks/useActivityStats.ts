@@ -1,7 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type FunnelStage = {
+export type FunnelKwBucket = {
+  kw_label: string;
+  zu_wiedervorlage: number;
+  zu_infos: number;
+  zu_lost: number;
+  zu_terminiert: number;
+};
+
+export type FunnelBestandStage = {
   stage: string;
   position: number;
   deals: number;
@@ -15,15 +23,18 @@ export type StageFeedItem = {
 };
 
 export type ActivityStats = {
+  kw_nr_diese: number;
+  kw_nr_letzte: number;
   calls_diese_woche: number;
   calls_letzte_woche: number;
-  stage_infos_diese_woche: number;
-  stage_infos_letzte_woche: number;
-  stage_moves_diese_woche: number;
-  stage_moves_letzte_woche: number;
-  lost_diese_woche: number;
-  lost_letzte_woche: number;
-  funnel: FunnelStage[];
+  stage_infos_diese_kw: number;
+  stage_wiedervorlage_diese_kw: number;
+  lost_diese_kw: number;
+  stage_infos_letzte_kw: number;
+  stage_wiedervorlage_letzte_kw: number;
+  lost_letzte_kw: number;
+  funnel_kw: FunnelKwBucket[];
+  funnel_bestand: FunnelBestandStage[];
   stage_feed: StageFeedItem[];
 };
 
