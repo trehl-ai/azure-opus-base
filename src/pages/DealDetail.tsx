@@ -171,6 +171,21 @@ export default function DealDetail() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
+  // Reopen — flip won/lost back to open via RPC (nulls won_at/lost_at/lost_reason)
+  const reopenMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("set_deal_reopen", { p_deal_id: id! });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deal", id] });
+      qc.invalidateQueries({ queryKey: ["deal-project", id] });
+      qc.invalidateQueries({ queryKey: ["deals-board"] });
+      toast({ title: "↩ Deal wieder geöffnet", description: "Deal ist jetzt offen." });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
+  });
+
   // Notes
   const notesMutation = useMutation({
     mutationFn: async (text: string) => {
@@ -243,6 +258,17 @@ export default function DealDetail() {
                 <XCircle className="h-3.5 w-3.5" /> Lost
               </Button>
             </>
+          )}
+          {(deal.status === "won" || deal.status === "lost") && canWriteDeals && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => reopenMutation.mutate()}
+              disabled={reopenMutation.isPending}
+            >
+              ↩ Als offen markieren
+            </Button>
           )}
           {canWriteDeals && (
           <AlertDialog>
