@@ -10,6 +10,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
+import { WerteraumLeitfadenButton } from "@/components/deals/WerteraumLeitfadenButton";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { MobileStageSelector, StageChangeSheet } from "@/components/shared/MobileStageSelector";
@@ -142,7 +143,7 @@ export default function Deals() {
     queryFn: async () => {
       let q = supabase
         .from("deals")
-        .select("id, title, value_amount, currency, priority, pipeline_stage_id, pipeline_id, status, gespraechsleitfaden_url, gespraechsleitfaden_name, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile)")
+        .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile)")
         .eq("pipeline_id", activePipelineId)
         .is("deleted_at", null);
 
@@ -250,7 +251,10 @@ export default function Deals() {
           <h1 className="text-[28px] font-semibold text-foreground">Deals</h1>
           <PresenceAvatars users={onlineUsers} />
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex gap-2 w-full sm:w-auto items-center">
+          {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
+            <WerteraumLeitfadenButton />
+          )}
           <Button variant="outline" onClick={handleExport} disabled={exporting} className="gap-2 flex-1 sm:flex-initial min-h-[44px]">
             <Download className="h-4 w-4" /> {exporting ? "Exportiert…" : "Exportieren"}
           </Button>
@@ -395,9 +399,6 @@ export default function Deals() {
                             priority: deal.priority, owner_first_name: owner?.first_name ?? null,
                             owner_last_name: owner?.last_name ?? null,
                             phone: dealPhone,
-                            pipeline_id: (deal as { pipeline_id?: string | null }).pipeline_id ?? activePipelineId,
-                            gespraechsleitfaden_url: (deal as { gespraechsleitfaden_url?: string | null }).gespraechsleitfaden_url ?? null,
-                            gespraechsleitfaden_name: (deal as { gespraechsleitfaden_name?: string | null }).gespraechsleitfaden_name ?? null,
                           }}
                           onDragStart={handleDragStart}
                         />
