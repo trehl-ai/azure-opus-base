@@ -8,7 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Globe, Rocket, BarChart3, ExternalLink, Pencil, Trash2, Plus, Upload, Loader2 } from "lucide-react";
+import { Globe, Rocket, BarChart3, ExternalLink, Pencil, Trash2, Plus, Upload, Loader2, Paperclip } from "lucide-react";
+
+const LEITFADEN_BUCKET = "project-files";
+const LEITFADEN_ACCEPT = ".pdf,.docx,.pptx";
+
+type ProjectFileRow = {
+  gespraechsleitfaden_url: string | null;
+  gespraechsleitfaden_name: string | null;
+};
 
 interface Resource {
   id: string;
@@ -33,11 +41,14 @@ export function ProjectResources({ projectId }: { projectId: string }) {
   const { canWrite } = usePermission();
   const canEdit = canWrite("projects");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const leitfadenInputRef = useRef<HTMLInputElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({ type: "website", name: "", url: "" });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [editResource, setEditResource] = useState<Resource | null>(null);
+  const [leitfadenUploading, setLeitfadenUploading] = useState(false);
+  const [leitfadenError, setLeitfadenError] = useState<string | null>(null);
 
   const { data: resources } = useQuery<Resource[]>({
     queryKey: ["project-resources", projectId],
@@ -49,6 +60,19 @@ export function ProjectResources({ projectId }: { projectId: string }) {
         .order("created_at");
       if (error) throw error;
       return data ?? [];
+    },
+  });
+
+  const { data: projectFile } = useQuery<ProjectFileRow | null>({
+    queryKey: ["project-leitfaden", projectId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("projects")
+        .select("gespraechsleitfaden_url, gespraechsleitfaden_name")
+        .eq("id", projectId)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? null;
     },
   });
 
@@ -131,6 +155,64 @@ export function ProjectResources({ projectId }: { projectId: string }) {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
+  const handleLeitfadenUpload = async (file: File) => {
+    setLeitfadenError(null);
+    setLeitfadenUploading(true);
+    try {
+      const newPath = `${projectId}/gespraechsleitfaden/${file.name}`;
+      const previousName = projectFile?.gespraechsleitfaden_name ?? null;
+      if (previousName && previousName !== file.name) {
+        await supabase.storage
+          .from(LEITFADEN_BUCKET)
+          .remove([`${projectId}/gespraechsleitfaden/${previousName}`]);
+      }
+      const { error: upErr } = await supabase.storage
+        .from(LEITFADEN_BUCKET)
+        .upload(newPath, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage
+        .from(LEITFADEN_BUCKET)
+        .getPublicUrl(newPath);
+      const { error: updErr } = await (supabase as any)
+        .from("projects")
+        .update({
+          gespraechsleitfaden_url: publicUrl,
+          gespraechsleitfaden_name: file.name,
+        })
+        .eq("id", projectId);
+      if (updErr) throw updErr;
+      qc.invalidateQueries({ queryKey: ["project-leitfaden", projectId] });
+      toast({ title: "Gesprächsleitfaden hochgeladen" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload fehlgeschlagen";
+      setLeitfadenError(msg);
+      toast({ variant: "destructive", title: "Fehler", description: msg });
+    } finally {
+      setLeitfadenUploading(false);
+    }
+  };
+
+  const handleLeitfadenDelete = async () => {
+    if (!projectFile?.gespraechsleitfaden_name) return;
+    try {
+      const path = `${projectId}/gespraechsleitfaden/${projectFile.gespraechsleitfaden_name}`;
+      await supabase.storage.from(LEITFADEN_BUCKET).remove([path]);
+      const { error } = await (supabase as any)
+        .from("projects")
+        .update({
+          gespraechsleitfaden_url: null,
+          gespraechsleitfaden_name: null,
+        })
+        .eq("id", projectId);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["project-leitfaden", projectId] });
+      toast({ title: "Gesprächsleitfaden gelöscht" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Löschen fehlgeschlagen";
+      toast({ variant: "destructive", title: "Fehler", description: msg });
+    }
+  };
+
   const resetDialog = () => {
     setDialogOpen(false);
     setForm({ type: "website", name: "", url: "" });
@@ -172,10 +254,6 @@ export function ProjectResources({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      {(!resources || resources.length === 0) && (
-        <p className="text-sm text-muted-foreground text-center py-4">Keine Ressourcen vorhanden.</p>
-      )}
-
       <div className="space-y-2">
         {resources?.map((r) => {
           const cfg = typeConfig[r.resource_type];
@@ -212,6 +290,86 @@ export function ProjectResources({ projectId }: { projectId: string }) {
             </div>
           );
         })}
+
+        {/* Gesprächsleitfaden — fixed slot, projects.gespraechsleitfaden_{url,name} */}
+        <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5">
+          <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">Gesprächsleitfaden</p>
+            {leitfadenUploading ? (
+              <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Wird hochgeladen…
+              </p>
+            ) : leitfadenError ? (
+              <p className="text-[11px] text-red-500 truncate">Upload fehlgeschlagen</p>
+            ) : projectFile?.gespraechsleitfaden_url ? (
+              <a
+                href={projectFile.gespraechsleitfaden_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline truncate block"
+              >
+                {projectFile.gespraechsleitfaden_name ?? "Datei öffnen"}
+              </a>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">PDF, DOCX oder PPTX</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {projectFile?.gespraechsleitfaden_url ? (
+              <>
+                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                  <a
+                    href={projectFile.gespraechsleitfaden_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </Button>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive"
+                    onClick={handleLeitfadenDelete}
+                    disabled={leitfadenUploading}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </>
+            ) : (
+              canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => leitfadenInputRef.current?.click()}
+                  disabled={leitfadenUploading}
+                >
+                  {leitfadenUploading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              )
+            )}
+            <input
+              ref={leitfadenInputRef}
+              type="file"
+              className="hidden"
+              accept={LEITFADEN_ACCEPT}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleLeitfadenUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Add/Edit Dialog */}
