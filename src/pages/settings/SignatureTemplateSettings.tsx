@@ -11,6 +11,7 @@ import { Save, Eye, Shield } from "lucide-react";
 
 const SAMPLE_DATA: SignatureData = {
   full_name: "Max Mustermann",
+  company_name: "eo ipso Marke & Erlebnis GmbH",
   job_title: "Sales Manager",
   phone: "+49 123 456 789",
   email: "max@example.com",

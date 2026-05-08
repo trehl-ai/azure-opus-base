@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface SignatureData {
   full_name: string;
+  company_name?: string;
   job_title: string;
   phone: string;
   email: string;
@@ -112,6 +113,11 @@ export function renderSignatureHtml(
     </table>
   </td>`;
 
+  // --- Company name (rendered between full name and job title) ---
+  const companyHtml = data.company_name && data.company_name.trim()
+    ? `<p style="margin:0 0 2px 0;padding:0;${font}font-size:13px;line-height:18px;color:#6b7280;">${esc(data.company_name.trim())}</p>`
+    : "";
+
   // --- Job title ---
   const titleHtml = data.job_title
     ? `<p style="margin:0 0 10px 0;padding:0;${font}font-size:13px;line-height:16px;color:${primary_color};font-weight:500;letter-spacing:0.3px;">${esc(data.job_title)}</p>`
@@ -129,6 +135,7 @@ export function renderSignatureHtml(
     ${imgCell}
     <td valign="top" style="vertical-align:top;">
       <p style="margin:0 0 2px 0;padding:0;${font}font-size:17px;line-height:22px;font-weight:700;color:#1a1a1a;">${esc(data.full_name)}</p>
+      ${companyHtml}
       ${titleHtml}
       <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
         ${details.join("")}

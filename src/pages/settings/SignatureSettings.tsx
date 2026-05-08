@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Upload, Trash2, Eye, Save, Linkedin, Globe, Phone, Mail, MapPin, Briefcase, User } from "lucide-react";
+import { Loader2, Upload, Trash2, Eye, Save, Linkedin, Globe, Phone, Mail, MapPin, Briefcase, Building2, User } from "lucide-react";
 
 function ensureUrl(value: string): string {
   if (!value) return value;
@@ -26,6 +26,7 @@ export default function SignatureSettings() {
 
   const [form, setForm] = useState({
     full_name: "",
+    company_name: "",
     job_title: "",
     phone: "",
     email: "",
@@ -76,6 +77,7 @@ export default function SignatureSettings() {
       : "";
     setForm({
       full_name: existingProfile.signature_full_name ?? fallbackName,
+      company_name: existingProfile.company_name ?? "",
       job_title: existingProfile.job_title ?? "",
       phone: existingProfile.phone ?? "",
       email: existingProfile.email ?? user?.email ?? "",
@@ -171,6 +173,7 @@ export default function SignatureSettings() {
 
       const payload = {
         signature_full_name: form.full_name.trim() || null,
+        company_name: form.company_name.trim() || null,
         job_title: form.job_title.trim() || null,
         phone: form.phone.trim() || null,
         address: form.address.trim() || null,
@@ -200,6 +203,7 @@ export default function SignatureSettings() {
 
   const previewData: SignatureData = {
     full_name: form.full_name || "Dein Name",
+    company_name: form.company_name,
     job_title: form.job_title,
     phone: form.phone,
     email: form.email,
@@ -292,20 +296,33 @@ export default function SignatureSettings() {
                 </div>
               </div>
 
-              {/* Name + Title */}
+              {/* Name */}
+              <div className="space-y-1.5">
+                <Label className="text-[13px] flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                  Vollständiger Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  value={form.full_name}
+                  onChange={(e) => updateField("full_name", e.target.value)}
+                  placeholder="Max Mustermann"
+                  className={errors.full_name ? "border-destructive focus-visible:ring-destructive" : ""}
+                />
+                {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
+              </div>
+
+              {/* Company + Job Title */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-[13px] flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-muted-foreground" />
-                    Vollständiger Name <span className="text-destructive">*</span>
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    Unternehmen
                   </Label>
                   <Input
-                    value={form.full_name}
-                    onChange={(e) => updateField("full_name", e.target.value)}
-                    placeholder="Max Mustermann"
-                    className={errors.full_name ? "border-destructive focus-visible:ring-destructive" : ""}
+                    value={form.company_name}
+                    onChange={(e) => updateField("company_name", e.target.value)}
+                    placeholder="eo ipso Marke & Erlebnis GmbH"
                   />
-                  {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[13px] flex items-center gap-1.5">
