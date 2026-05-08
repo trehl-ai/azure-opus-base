@@ -21,9 +21,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultContactId?: string;
+  defaultPipelineId?: string;
 }
 
-export function CreateDealSheet({ open, onOpenChange, defaultContactId }: Props) {
+export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultPipelineId }: Props) {
   const { user } = useAuth();
   const { data: users } = useUsers();
   const { toast } = useToast();
@@ -66,8 +67,8 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId }: Props)
   // Pipelines (live from DB via shared hook)
   const { pipelines } = usePipelines();
 
-  // Auto-select default pipeline
-  const selectedPipelineId = form.pipeline_id || pipelines?.find((p) => p.is_default)?.id || pipelines?.[0]?.id || "";
+  // Auto-select pipeline: prefer caller-provided (currently viewed) pipeline, else workspace default
+  const selectedPipelineId = form.pipeline_id || defaultPipelineId || pipelines?.find((p) => p.is_default)?.id || pipelines?.[0]?.id || "";
 
   // Stages for selected pipeline
   const { data: stages } = useQuery({
