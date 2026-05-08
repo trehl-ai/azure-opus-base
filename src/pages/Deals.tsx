@@ -212,13 +212,19 @@ export default function Deals() {
   const moveDealMutation = useMutation({
     mutationFn: async ({ dealId, stageId, isWon }: { dealId: string; stageId: string; isWon: boolean }) => {
       if (isWon) {
-        const { data, error } = await supabase.rpc("set_deal_won_and_create_project", {
+        const { data: result, error } = await supabase.rpc("set_deal_won_and_create_project", {
           p_deal_id: dealId,
           p_winning_user_id: user?.id ?? "",
         });
         if (error) throw error;
-        if (data) {
-          const { data: project } = await supabase.from("projects").select("id, title").eq("id", data).maybeSingle();
+        const projectId =
+          (result as { project_id?: string } | null)?.project_id ?? null;
+        if (projectId) {
+          const { data: project } = await supabase
+            .from("projects")
+            .select("id, title")
+            .eq("id", projectId)
+            .maybeSingle();
           return project;
         }
         return null;

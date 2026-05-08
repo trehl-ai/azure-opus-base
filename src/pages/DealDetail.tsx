@@ -137,13 +137,19 @@ export default function DealDetail() {
   // Won via atomic RPC
   const wonMutation = useMutation({
     mutationFn: async () => {
-      const { data: projectId, error } = await supabase.rpc("set_deal_won_and_create_project", {
+      const { data: result, error } = await supabase.rpc("set_deal_won_and_create_project", {
         p_deal_id: id!,
         p_winning_user_id: user?.id ?? "",
       });
       if (error) throw error;
+      const projectId =
+        (result as { project_id?: string } | null)?.project_id ?? null;
       if (projectId) {
-        const { data: project } = await supabase.from("projects").select("id, title").eq("id", projectId).maybeSingle();
+        const { data: project } = await supabase
+          .from("projects")
+          .select("id, title")
+          .eq("id", projectId)
+          .maybeSingle();
         return project;
       }
       return null;
