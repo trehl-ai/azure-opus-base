@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CompanyStatusBadge } from "@/components/companies/CompanyStatusBadge";
+import { LeadScoreBadge } from "@/components/ui/LeadScoreBadge";
 import { EditCompanySheet } from "@/components/companies/EditCompanySheet";
 import { LinkContactDialog } from "@/components/companies/LinkContactDialog";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
@@ -195,6 +196,7 @@ export default function CompanyDetail() {
           </button>
           <h1 className="text-section-title text-foreground">{company.name}</h1>
           <CompanyStatusBadge status={company.status} />
+          <LeadScoreBadge score={(company as { lead_score?: number | null }).lead_score} />
         </div>
         {canWriteCompanies && (
           <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import { useUsers } from "@/hooks/useUsers";
 import { usePermission } from "@/hooks/usePermission";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ContactStatusBadge } from "@/components/contacts/ContactStatusBadge";
+import { LeadScoreBadge } from "@/components/ui/LeadScoreBadge";
 import { CreateContactSheet } from "@/components/contacts/CreateContactSheet";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
@@ -154,7 +155,12 @@ export default function Contacts() {
                   initials={initials}
                   title={`${contact.first_name} ${contact.last_name}`}
                   subtitle={[contact.job_title, company?.name].filter(Boolean).join(" · ") || contact.email || undefined}
-                  badge={<ContactStatusBadge status={contact.status} />}
+                  badge={
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <ContactStatusBadge status={contact.status} />
+                      <LeadScoreBadge score={contact.lead_score} />
+                    </div>
+                  }
                   meta={owner ? <p className="text-[12px] text-muted-foreground">Owner: {owner.first_name} {owner.last_name[0]}.</p> : undefined}
                 />
               );
@@ -172,16 +178,17 @@ export default function Contacts() {
                 <TableHead className="text-label font-semibold">Unternehmen</TableHead>
                 <TableHead className="text-label font-semibold">Position</TableHead>
                 <TableHead className="text-label font-semibold">Status</TableHead>
+                <TableHead className="text-label font-semibold">Score</TableHead>
                 <TableHead className="text-label font-semibold">Owner</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>{Array.from({ length: 7 }).map((_, c) => <TableCell key={c}><div className="h-4 w-24 animate-pulse rounded bg-[hsl(228,33%,91%)]" /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{Array.from({ length: 8 }).map((_, c) => <TableCell key={c}><div className="h-4 w-24 animate-pulse rounded bg-[hsl(228,33%,91%)]" /></TableCell>)}</TableRow>
                 ))
               ) : contacts.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Keine Contacts gefunden.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">Keine Contacts gefunden.</TableCell></TableRow>
               ) : (
                 contacts.map((contact) => {
                   const owner = contact.owner as { id: string; first_name: string; last_name: string } | null;
@@ -194,6 +201,7 @@ export default function Contacts() {
                       <TableCell className="text-body text-muted-foreground">{company?.name ?? "–"}</TableCell>
                       <TableCell className="text-body text-muted-foreground">{contact.job_title ?? "–"}</TableCell>
                       <TableCell><ContactStatusBadge status={contact.status} /></TableCell>
+                      <TableCell><LeadScoreBadge score={contact.lead_score} /></TableCell>
                       <TableCell className="text-body text-muted-foreground">{owner ? `${owner.first_name} ${owner.last_name}` : "–"}</TableCell>
                     </TableRow>
                   );
