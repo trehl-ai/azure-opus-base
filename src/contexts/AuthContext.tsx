@@ -111,6 +111,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Invite-flow detection: when an invitee opens the magic-link, Supabase
+    // exchanges the hash for a session and fires SIGNED_IN with `type=invite`
+    // still present in window.location.hash. Route those users to set their
+    // password before they land in the app. Recovery / normal logins have no
+    // `type=invite` and are not redirected.
+    const { data: { subscription: inviteSubscription } } = supabase.auth.onAuthStateChange(
+      (event, inviteSession) => {
+        if (event !== "USER_UPDATED" && event !== "SIGNED_IN") return;
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        if (hashParams.get("type") === "invite" && inviteSession) {
+          window.location.replace("/auth/set-password");
+        }
+      }
+    );
+
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       void syncAuthState(currentSession);
@@ -119,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      inviteSubscription.unsubscribe();
     };
   }, [fetchOrCreateDbUser]);
 
