@@ -1,16 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // ---------------------------------------------------------------------------
+// Company anchor — hardcoded, single-tenant (eo ipso Marke & Erlebnis GmbH).
+// Nicht per User konfigurierbar.
+// ---------------------------------------------------------------------------
+
+export const COMPANY = {
+  name: "eo ipso Marke & Erlebnis GmbH",
+  address: "Talangerstraße 7, 82152 Krailling-München",
+} as const;
+
+// ---------------------------------------------------------------------------
 // Signature data types
 // ---------------------------------------------------------------------------
 
 export interface SignatureData {
   full_name: string;
-  company_name?: string;
   job_title: string;
   phone: string;
   email: string;
-  address: string;
   website: string;
   profile_image_url?: string;
   linkedin_url: string;
@@ -26,7 +34,6 @@ export interface SignatureData {
 export interface SignatureTemplateConfig {
   show_profile_image: boolean;
   show_phone: boolean;
-  show_address: boolean;
   show_website: boolean;
   show_linkedin: boolean;
   show_twitter: boolean;
@@ -38,7 +45,6 @@ export interface SignatureTemplateConfig {
 export const DEFAULT_TEMPLATE_CONFIG: SignatureTemplateConfig = {
   show_profile_image: true,
   show_phone: true,
-  show_address: true,
   show_website: true,
   show_linkedin: true,
   show_twitter: true,
@@ -87,9 +93,8 @@ export function renderSignatureHtml(
   if (data.email) {
     details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#9993;&nbsp; <a href="mailto:${esc(data.email)}" style="color:${primary_color};text-decoration:none;">${esc(data.email)}</a></td></tr>`);
   }
-  if (config.show_address && data.address) {
-    details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#128205;&nbsp; ${esc(data.address)}</td></tr>`);
-  }
+  // Address comes from the hardcoded COMPANY anchor, not per-user data.
+  details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#128205;&nbsp; ${esc(COMPANY.address)}</td></tr>`);
   if (config.show_website && data.website) {
     const href = data.website.startsWith("http") ? data.website : `https://${data.website}`;
     details.push(`<tr><td style="padding:0 0 4px 0;${font}font-size:13px;line-height:18px;color:#555555;">&#127760;&nbsp; <a href="${esc(href)}" target="_blank" style="color:${primary_color};text-decoration:none;">${esc(data.website)}</a></td></tr>`);
@@ -113,10 +118,8 @@ export function renderSignatureHtml(
     </table>
   </td>`;
 
-  // --- Company name (rendered between full name and job title) ---
-  const companyHtml = data.company_name && data.company_name.trim()
-    ? `<p style="margin:0 0 2px 0;padding:0;${font}font-size:13px;line-height:18px;color:#6b7280;">${esc(data.company_name.trim())}</p>`
-    : "";
+  // --- Company name (hardcoded from COMPANY anchor) ---
+  const companyHtml = `<p style="margin:0 0 2px 0;padding:0;${font}font-size:13px;line-height:18px;color:#6b7280;">${esc(COMPANY.name)}</p>`;
 
   // --- Job title ---
   const titleHtml = data.job_title

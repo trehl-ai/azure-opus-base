@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Upload, Camera, ArrowRight, ArrowLeft, Check, User, Briefcase, Phone, Mail, MapPin, Globe, Linkedin, MessageCircle } from "lucide-react";
+import { Loader2, Upload, Camera, ArrowRight, ArrowLeft, Check, User, Briefcase, Phone, Mail, Globe, Linkedin, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
@@ -33,7 +33,6 @@ export default function FirstLoginOnboarding() {
     job_title: "",
     phone: "",
     email: "",
-    address: "",
     website: "",
     linkedin_url: "",
     whatsapp_url: "",
@@ -109,7 +108,6 @@ export default function FirstLoginOnboarding() {
         job_title: form.job_title.trim(),
         phone: form.phone.trim(),
         email: form.email.trim(),
-        address: form.address.trim(),
         website: form.website.trim(),
         profile_image_path: profileImagePath,
         linkedin_url: form.linkedin_url.trim(),
@@ -169,7 +167,6 @@ export default function FirstLoginOnboarding() {
     job_title: form.job_title,
     phone: form.phone,
     email: form.email,
-    address: form.address,
     website: form.website,
     profile_image_url: imagePreview || undefined,
     linkedin_url: form.linkedin_url,
@@ -307,13 +304,6 @@ export default function FirstLoginOnboarding() {
                   E-Mail
                 </Label>
                 <Input value={form.email} disabled className="bg-muted" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                  Adresse <span className="text-xs text-muted-foreground font-normal">(optional)</span>
-                </Label>
-                <Input value={form.address} onChange={(e) => updateField("address", e.target.value)} placeholder="Musterstraße 1, 12345 Berlin" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm flex items-center gap-1.5">

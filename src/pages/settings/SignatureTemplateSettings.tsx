@@ -11,11 +11,9 @@ import { Save, Eye, Shield } from "lucide-react";
 
 const SAMPLE_DATA: SignatureData = {
   full_name: "Max Mustermann",
-  company_name: "eo ipso Marke & Erlebnis GmbH",
   job_title: "Sales Manager",
   phone: "+49 123 456 789",
   email: "max@example.com",
-  address: "Musterstraße 1, 12345 Berlin",
   website: "www.example.com",
   profile_image_url: "https://ui-avatars.com/api/?name=Max+Mustermann&background=4F46E5&color=fff&size=80",
   linkedin_url: "https://linkedin.com/in/max",
@@ -63,7 +61,6 @@ export default function SignatureTemplateSettings() {
               {[
                 { key: "show_profile_image" as const, label: "Profilbild" },
                 { key: "show_phone" as const, label: "Telefon" },
-                { key: "show_address" as const, label: "Adresse" },
                 { key: "show_website" as const, label: "Website" },
                 { key: "show_linkedin" as const, label: "LinkedIn" },
                 { key: "show_twitter" as const, label: "X / Twitter" },

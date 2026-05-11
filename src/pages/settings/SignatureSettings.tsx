@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Upload, Trash2, Eye, Save, Linkedin, Globe, Phone, Mail, MapPin, Briefcase, Building2, User } from "lucide-react";
+import { Loader2, Upload, Trash2, Eye, Save, Linkedin, Globe, Phone, Mail, Briefcase, User } from "lucide-react";
 
 function ensureUrl(value: string): string {
   if (!value) return value;
@@ -26,11 +26,9 @@ export default function SignatureSettings() {
 
   const [form, setForm] = useState({
     full_name: "",
-    company_name: "",
     job_title: "",
     phone: "",
     email: "",
-    address: "",
     website: "",
     linkedin_url: "",
     twitter_url: "",
@@ -77,11 +75,9 @@ export default function SignatureSettings() {
       : "";
     setForm({
       full_name: existingProfile.signature_full_name ?? fallbackName,
-      company_name: existingProfile.company_name ?? "",
       job_title: existingProfile.job_title ?? "",
       phone: existingProfile.phone ?? "",
       email: existingProfile.email ?? user?.email ?? "",
-      address: existingProfile.address ?? "",
       website: existingProfile.website ?? "",
       linkedin_url: existingProfile.linkedin_url ?? "",
       twitter_url: existingProfile.twitter_url ?? "",
@@ -173,10 +169,8 @@ export default function SignatureSettings() {
 
       const payload = {
         signature_full_name: form.full_name.trim() || null,
-        company_name: form.company_name.trim() || null,
         job_title: form.job_title.trim() || null,
         phone: form.phone.trim() || null,
-        address: form.address.trim() || null,
         website: form.website.trim() || null,
         linkedin_url: form.linkedin_url.trim() ? ensureUrl(form.linkedin_url) : null,
         twitter_url: form.twitter_url.trim() ? ensureUrl(form.twitter_url) : null,
@@ -203,11 +197,9 @@ export default function SignatureSettings() {
 
   const previewData: SignatureData = {
     full_name: form.full_name || "Dein Name",
-    company_name: form.company_name,
     job_title: form.job_title,
     phone: form.phone,
     email: form.email,
-    address: form.address,
     website: form.website,
     profile_image_url: imagePreview || undefined,
     linkedin_url: form.linkedin_url,
@@ -311,26 +303,13 @@ export default function SignatureSettings() {
                 {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
               </div>
 
-              {/* Company + Job Title */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[13px] flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    Unternehmen
-                  </Label>
-                  <Input
-                    value={form.company_name}
-                    onChange={(e) => updateField("company_name", e.target.value)}
-                    placeholder="eo ipso Marke & Erlebnis GmbH"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[13px] flex items-center gap-1.5">
-                    <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-                    Jobtitel
-                  </Label>
-                  <Input value={form.job_title} onChange={(e) => updateField("job_title", e.target.value)} placeholder="Sales Manager" />
-                </div>
+              {/* Job Title (Unternehmen + Adresse sind hardcoded in lib/signature.ts) */}
+              <div className="space-y-1.5">
+                <Label className="text-[13px] flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                  Jobtitel
+                </Label>
+                <Input value={form.job_title} onChange={(e) => updateField("job_title", e.target.value)} placeholder="Sales Manager" />
               </div>
 
               {/* Phone + Email */}
@@ -355,16 +334,6 @@ export default function SignatureSettings() {
                   />
                   {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                 </div>
-              </div>
-
-              {/* Address */}
-              <div className="space-y-1.5">
-                <Label className="text-[13px] flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                  Adresse
-                </Label>
-                <Input value={form.address} onChange={(e) => updateField("address", e.target.value)} placeholder="Musterstraße 1, 12345 Berlin" />
-                <p className="text-xs text-muted-foreground">Straße, PLZ und Ort in einem Feld</p>
               </div>
 
               {/* Website */}
