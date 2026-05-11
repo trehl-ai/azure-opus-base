@@ -229,6 +229,31 @@ export function ProjectResources({ projectId }: { projectId: string }) {
     }
   };
 
+  const openLeitfaden = async (filePath: string, bucketName: string = LEITFADEN_BUCKET) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(filePath, 3600);
+
+      if (error || !data?.signedUrl) {
+        toast({ variant: "destructive", title: "Leitfaden konnte nicht geöffnet werden" });
+        return;
+      }
+
+      const lower = filePath.toLowerCase();
+      const isDocx = lower.endsWith(".docx") || lower.endsWith(".doc");
+
+      if (isDocx) {
+        const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.signedUrl)}&embedded=false`;
+        window.open(viewerUrl, "_blank", "noopener,noreferrer");
+      } else {
+        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Fehler beim Öffnen des Leitfadens" });
+    }
+  };
+
   const openEdit = (r: Resource) => {
     setEditResource(r);
     setForm({ type: r.resource_type, name: r.display_name, url: r.url || "" });
@@ -304,14 +329,13 @@ export function ProjectResources({ projectId }: { projectId: string }) {
             ) : leitfadenError ? (
               <p className="text-[11px] text-red-500 truncate">Upload fehlgeschlagen</p>
             ) : projectFile?.gespraechsleitfaden_url ? (
-              <a
-                href={projectFile.gespraechsleitfaden_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline truncate block"
+              <button
+                type="button"
+                onClick={() => openLeitfaden(projectFile.gespraechsleitfaden_url ?? "werteraum/leitfaden/Gespraechsleitfaden_Werteraum_Calls_v3.docx")}
+                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline truncate block text-left"
               >
                 {projectFile.gespraechsleitfaden_name ?? "Datei öffnen"}
-              </a>
+              </button>
             ) : (
               <p className="text-[11px] text-muted-foreground">PDF, DOCX oder PPTX</p>
             )}
@@ -319,14 +343,13 @@ export function ProjectResources({ projectId }: { projectId: string }) {
           <div className="flex items-center gap-1 shrink-0">
             {projectFile?.gespraechsleitfaden_url ? (
               <>
-                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                  <a
-                    href={projectFile.gespraechsleitfaden_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => openLeitfaden(projectFile.gespraechsleitfaden_url ?? "werteraum/leitfaden/Gespraechsleitfaden_Werteraum_Calls_v3.docx")}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </Button>
                 {canEdit && (
                   <Button
