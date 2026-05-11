@@ -122,7 +122,8 @@ export default function Deals() {
 
       let exportData = data ?? [];
       if (eignungFilter !== "all") {
-        exportData = exportData.filter((d: any) => (roadshowMap?.get(d.id) ?? "grau") === eignungFilter);
+        // Roadshow-Eignung lebt in deal_roadshow_details und wird hier nicht geladen — Filter ignoriert "Offen" nicht.
+        exportData = exportData.filter(() => eignungFilter === "grau");
       }
 
       const pipelineName = pipelines?.find(p => p.id === activePipelineId)?.name ?? "";
@@ -201,11 +202,11 @@ export default function Deals() {
     enabled: !!activePipelineId,
   });
 
-  // Filtered deals by eignung
-  const filteredDeals = deals?.filter((d) => {
+  // Filtered deals by eignung — Roadshow-Eignung wird nicht client-seitig geladen,
+  // daher gelten alle Deals als "grau" (offen).
+  const filteredDeals = deals?.filter(() => {
     if (eignungFilter === "all") return true;
-    const eignung = roadshowMap?.get(d.id) ?? "grau";
-    return eignung === eignungFilter;
+    return eignungFilter === "grau";
   });
 
   // Move deal mutation
@@ -538,7 +539,7 @@ export default function Deals() {
         </div>
       )}
 
-      <CreateDealSheet open={sheetOpen} onOpenChange={handleSheetChange} defaultContactId={contactParam ?? undefined} />
+      <CreateDealSheet open={sheetOpen} onOpenChange={handleSheetChange} defaultContactId={contactParam ?? undefined} defaultPipelineId={activePipelineId || undefined} />
       <LostReasonDialog
         dealId={lostDialog.dealId} dealTitle={lostDialog.dealTitle} stageId={lostDialog.stageId}
         open={lostDialog.open} onOpenChange={(open) => setLostDialog((p) => ({ ...p, open }))}
