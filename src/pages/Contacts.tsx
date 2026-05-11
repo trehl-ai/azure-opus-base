@@ -147,7 +147,7 @@ export default function Contacts() {
             contacts.map((contact) => {
               const owner = contact.owner as { id: string; first_name: string; last_name: string } | null;
               const company = getPrimaryCompany(contact);
-              const initials = `${contact.first_name[0]}${contact.last_name[0]}`.toUpperCase();
+              const initials = `${contact.first_name?.[0] ?? ""}${contact.last_name?.[0] ?? ""}`.toUpperCase() || "?";
               return (
                 <MobileCard
                   key={contact.id}
