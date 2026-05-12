@@ -9,6 +9,7 @@ import { EditDealSheet } from "@/components/deals/EditDealSheet";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
+import { WerteRaumLeitfadenButton } from "@/components/deals/WerteRaumLeitfaden";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
@@ -248,6 +249,7 @@ export default function DealDetail() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <WerteRaumLeitfadenButton pipelineId={deal.pipeline_id} />
           {canWriteDeals && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>}
           {deal.status === "open" && canWriteDeals && (
             <>
