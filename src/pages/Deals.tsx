@@ -111,7 +111,7 @@ export default function Deals() {
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
       let q = supabase
         .from("deals")
-        .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)")
+        .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)")
         .eq("pipeline_id", activePipelineId)
         .is("deleted_at", null);
       if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
@@ -137,7 +137,7 @@ export default function Deals() {
         { header: "Wahrscheinlichkeit %", accessor: (r: any) => r.probability_percent },
         { header: "Unternehmen", accessor: (r: any) => (r.company as any)?.name ?? "" },
         { header: "Kontakt", accessor: (r: any) => { const c = r.primary_contact as any; return c ? `${c.first_name} ${c.last_name}` : ""; } },
-        { header: "Owner", accessor: (r: any) => { const o = r.owner as any; return o ? `${o.first_name} ${o.last_name}` : ""; } },
+        { header: "Owner", accessor: (r: any) => { const o = users?.find((u) => u.id === r.owner_user_id); return o ? `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim() : ""; } },
         { header: "Status", accessor: (r: any) => r.status },
         { header: "Erstellt am", accessor: (r: any) => r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : "" },
       ], `deals_${todayString()}.xlsx`);
