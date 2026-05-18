@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
@@ -20,9 +21,35 @@ import { CreateTaskSheet } from "@/components/tasks/CreateTaskSheet";
 
 const priorityDot: Record<string, string> = { low: "bg-muted-foreground", medium: "bg-warning", high: "bg-destructive" };
 
+type Source = "task" | "activity";
+type UnifiedTodo = {
+  id: string;
+  source: Source;
+  title: string;
+  due_date: string | null;
+  owner_user_id: string | null;
+  type: string | null;       // task_type or activity_type
+  status: string;
+  company: string | null;
+  project_title: string | null;
+  deal_id: string | null;
+  deal_title: string | null;
+  priority: string | null;
+};
+
+const sourceBadge: Record<Source, string> = {
+  task: "bg-primary/10 text-primary",
+  activity: "bg-warning/10 text-warning",
+};
+const sourceLabel: Record<Source, string> = {
+  task: "Task",
+  activity: "Aktivität",
+};
+
 export default function Tasks() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { data: users } = useUsers();
   const { user } = useAuth();
@@ -52,29 +79,86 @@ export default function Tasks() {
     open: false, taskId: "", currentStatus: "",
   });
 
-  // Tasks-Query — Owner nur via owner_user_id, Auflösung clientseitig via useUsers() (RLS-bypass via list_team_members).
-  // Kunde wird über project.company aufgelöst (project_id ist FK, companies via embed).
-  const { data: tasks } = useQuery({
+  // Tasks-Query
+  const { data: tasksRaw } = useQuery({
     queryKey: ["all-tasks"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, title, status, priority, due_date, task_type, assigned_user_id, project_id, created_at, project:projects!tasks_project_id_fkey(id, title, company:companies(name))")
-        .is("parent_task_id", null)
-        .order("due_date", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false });
+        .select("id, title, status, priority, due_date, task_type, assigned_user_id, project_id, deal_id, project:projects!tasks_project_id_fkey(title, company:companies(name)), deal:deals!tasks_deal_id_fkey(title, company:companies(name))")
+        .is("parent_task_id", null);
       if (error) throw error;
       return data;
     },
   });
 
-  // Distinct Aufgabenarten aus der DB (für Filter-Dropdown)
-  const distinctTaskTypes = useMemo(() => {
-    if (!tasks) return [];
+  // Deal-Activities-Query — nur offene
+  const { data: activitiesRaw } = useQuery({
+    queryKey: ["open-activities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deal_activities")
+        .select("id, title, status, due_date, activity_type, owner_user_id, deal_id, deal:deals(title, company:companies(name))")
+        .or("status.eq.open,status.is.null");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Client-side merge nach UnifiedTodo
+  const unified: UnifiedTodo[] = useMemo(() => {
+    const out: UnifiedTodo[] = [];
+    (tasksRaw ?? []).forEach((t) => {
+      const project = t.project as { title: string | null; company: { name: string } | null } | null;
+      const deal = t.deal as { title: string | null; company: { name: string } | null } | null;
+      out.push({
+        id: t.id,
+        source: "task",
+        title: t.title,
+        due_date: t.due_date ?? null,
+        owner_user_id: t.assigned_user_id ?? null,
+        type: t.task_type ?? null,
+        status: t.status,
+        company: deal?.company?.name ?? project?.company?.name ?? null,
+        project_title: project?.title ?? null,
+        deal_id: t.deal_id ?? null,
+        deal_title: deal?.title ?? null,
+        priority: t.priority ?? null,
+      });
+    });
+    (activitiesRaw ?? []).forEach((a) => {
+      const deal = a.deal as { title: string | null; company: { name: string } | null } | null;
+      out.push({
+        id: a.id,
+        source: "activity",
+        title: a.title,
+        due_date: a.due_date ?? null,
+        owner_user_id: a.owner_user_id ?? null,
+        type: a.activity_type ?? null,
+        status: a.status ?? "open",
+        company: deal?.company?.name ?? null,
+        project_title: null,
+        deal_id: a.deal_id ?? null,
+        deal_title: deal?.title ?? null,
+        priority: null,
+      });
+    });
+    // due_date ASC NULLS LAST
+    out.sort((a, b) => {
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+      return 0;
+    });
+    return out;
+  }, [tasksRaw, activitiesRaw]);
+
+  // Distinct Aufgabenarten (vereint aus task_type + activity_type)
+  const distinctTypes = useMemo(() => {
     const set = new Set<string>();
-    tasks.forEach((t) => { if (t.task_type) set.add(t.task_type); });
+    unified.forEach((u) => { if (u.type) set.add(u.type); });
     return Array.from(set).sort();
-  }, [tasks]);
+  }, [unified]);
 
   const moveTaskMutation = useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
@@ -93,16 +177,15 @@ export default function Tasks() {
   });
 
   const filtered = useMemo(() => {
-    if (!tasks) return [];
-    return tasks.filter((t) => {
-      if (filterUser !== "all" && t.assigned_user_id !== filterUser) return false;
-      if (filterStatus !== "all" && t.status !== filterStatus) return false;
+    return unified.filter((u) => {
+      if (filterUser !== "all" && u.owner_user_id !== filterUser) return false;
+      if (filterStatus !== "all" && u.status !== filterStatus) return false;
       if (filterType !== "all") {
-        if (filterType === "__none__" ? t.task_type : t.task_type !== filterType) return false;
+        if (filterType === "__none__" ? u.type : u.type !== filterType) return false;
       }
       return true;
     });
-  }, [tasks, filterUser, filterStatus, filterType]);
+  }, [unified, filterUser, filterStatus, filterType]);
 
   const today = startOfDay(new Date());
   const dueState = (due: string | null, status: string): "overdue" | "today" | "future" | "none" => {
@@ -124,6 +207,22 @@ export default function Tasks() {
     today: "text-warning font-medium",
     future: "text-foreground",
     none: "text-muted-foreground",
+  };
+
+  const handleRowClick = (item: UnifiedTodo) => {
+    if (item.source === "task") setSelectedTaskId(item.id);
+    else if (item.deal_id) navigate(`/deals/${item.deal_id}`);
+  };
+
+  const renderStatusBadge = (item: UnifiedTodo) => {
+    if (item.source === "activity") {
+      return <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium bg-muted text-muted-foreground">{item.status}</span>;
+    }
+    return (
+      <span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-medium", statusBadge[item.status])}>
+        {taskStatusLabel[item.status] ?? item.status}
+      </span>
+    );
   };
 
   return (
@@ -163,7 +262,7 @@ export default function Tasks() {
           <SelectTrigger className="w-full min-h-[44px] bg-card"><SelectValue placeholder="Aufgabenart" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="min-h-[44px]">Alle Aufgabenarten</SelectItem>
-            {distinctTaskTypes.map((t) => (
+            {distinctTypes.map((t) => (
               <SelectItem key={t} value={t} className="min-h-[44px]">{t}</SelectItem>
             ))}
             <SelectItem value="__none__" className="min-h-[44px]">Ohne Aufgabenart</SelectItem>
@@ -171,36 +270,41 @@ export default function Tasks() {
         </Select>
       </div>
 
-      {/* Mobile: Card-Liste (kein Kanban mehr — Liste auch hier) */}
+      {/* Mobile: Card-Liste */}
       {isMobile ? (
         <div className="space-y-2">
           {filtered.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Keine Tasks gefunden.</p>
-          ) : filtered.map((task) => {
-            const project = task.project as { id: string; title: string; company: { name: string } | null } | null;
-            const company = project?.company?.name ?? null;
-            const owner = users?.find((u) => u.id === task.assigned_user_id) ?? null;
-            const ds = dueState(task.due_date, task.status);
+            <p className="text-center text-muted-foreground py-8">Keine Einträge gefunden.</p>
+          ) : filtered.map((item) => {
+            const owner = users?.find((u) => u.id === item.owner_user_id) ?? null;
+            const ds = dueState(item.due_date, item.status);
+            const subtitle = item.company ?? item.deal_title ?? item.project_title ?? undefined;
             return (
               <MobileCard
-                key={task.id}
-                onClick={() => setSelectedTaskId(task.id)}
-                title={task.title}
-                subtitle={company ?? project?.title ?? undefined}
-                className={cn(task.status === doneSlug && "opacity-60", ds === "overdue" && "border-destructive/30", ds === "today" && "border-warning/40")}
+                key={`${item.source}-${item.id}`}
+                onClick={() => handleRowClick(item)}
+                title={item.title}
+                subtitle={subtitle}
+                className={cn(item.status === doneSlug && "opacity-60", ds === "overdue" && "border-destructive/30", ds === "today" && "border-warning/40")}
                 badge={
-                  <button
-                    onClick={(e) => { e.stopPropagation(); if (canWriteTasks) setStatusChangeSheet({ open: true, taskId: task.id, currentStatus: task.status }); }}
-                    className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", statusBadge[task.status])}
-                  >
-                    {taskStatusLabel[task.status] ?? task.status}
-                  </button>
+                  item.source === "task" ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (canWriteTasks) setStatusChangeSheet({ open: true, taskId: item.id, currentStatus: item.status }); }}
+                      className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", statusBadge[item.status])}
+                    >
+                      {taskStatusLabel[item.status] ?? item.status}
+                    </button>
+                  ) : (
+                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", sourceBadge.activity)}>
+                      {sourceLabel.activity}
+                    </span>
+                  )
                 }
                 rightContent={
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    {task.priority && <span className={cn("h-2 w-2 rounded-full", priorityDot[task.priority] ?? priorityDot.medium)} />}
-                    {task.due_date && (
-                      <span className={cn("text-[11px]", dueLabelClass[ds])}>{format(new Date(task.due_date), "dd.MM")}</span>
+                    {item.priority && <span className={cn("h-2 w-2 rounded-full", priorityDot[item.priority] ?? priorityDot.medium)} />}
+                    {item.due_date && (
+                      <span className={cn("text-[11px]", dueLabelClass[ds])}>{format(new Date(item.due_date), "dd.MM")}</span>
                     )}
                     {owner && (
                       <span className="text-[10px] text-muted-foreground">{owner.first_name?.[0]}{owner.last_name?.[0]}</span>
@@ -227,41 +331,46 @@ export default function Tasks() {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Keine Tasks gefunden.</TableCell></TableRow>
-              ) : filtered.map((task) => {
-                const project = task.project as { id: string; title: string; company: { name: string } | null } | null;
-                const company = project?.company?.name ?? null;
-                const owner = users?.find((u) => u.id === task.assigned_user_id) ?? null;
-                const ds = dueState(task.due_date, task.status);
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Keine Einträge gefunden.</TableCell></TableRow>
+              ) : filtered.map((item) => {
+                const owner = users?.find((u) => u.id === item.owner_user_id) ?? null;
+                const ds = dueState(item.due_date, item.status);
                 return (
                   <TableRow
-                    key={task.id}
-                    className={cn("cursor-pointer h-[56px]", rowBg[ds], task.status === doneSlug && "opacity-60")}
-                    onClick={() => setSelectedTaskId(task.id)}
+                    key={`${item.source}-${item.id}`}
+                    className={cn("cursor-pointer h-[56px]", rowBg[ds], item.status === doneSlug && "opacity-60")}
+                    onClick={() => handleRowClick(item)}
                   >
-                    <TableCell className={cn("font-medium", task.status === doneSlug && "line-through")}>{task.title}</TableCell>
+                    <TableCell className={cn("font-medium", item.status === doneSlug && "line-through")}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide", sourceBadge[item.source])}>
+                          {sourceLabel[item.source]}
+                        </span>
+                        <span className="truncate">{item.title}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
-                      {company ? (
+                      {item.company ? (
                         <div className="leading-tight">
-                          <div className="font-medium text-foreground">{company}</div>
-                          {project?.title && <div className="text-[11px] text-muted-foreground">{project.title}</div>}
+                          <div className="font-medium text-foreground">{item.company}</div>
+                          {(item.deal_title || item.project_title) && (
+                            <div className="text-[11px] text-muted-foreground">
+                              {item.deal_title ?? item.project_title}
+                            </div>
+                          )}
                         </div>
-                      ) : project?.title ? (
-                        <span className="text-muted-foreground">{project.title}</span>
+                      ) : item.deal_title ?? item.project_title ? (
+                        <span className="text-muted-foreground">{item.deal_title ?? item.project_title}</span>
                       ) : (
                         <span className="text-muted-foreground">–</span>
                       )}
                     </TableCell>
                     <TableCell className={dueLabelClass[ds]}>
-                      {task.due_date ? format(new Date(task.due_date), "dd.MM.yyyy") : "–"}
+                      {item.due_date ? format(new Date(item.due_date), "dd.MM.yyyy") : "–"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{task.task_type ?? "–"}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.type ?? "–"}</TableCell>
                     <TableCell>{owner ? `${owner.first_name ?? ""} ${owner.last_name ?? ""}`.trim() : "–"}</TableCell>
-                    <TableCell>
-                      <span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-medium", statusBadge[task.status])}>
-                        {taskStatusLabel[task.status] ?? task.status}
-                      </span>
-                    </TableCell>
+                    <TableCell>{renderStatusBadge(item)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -270,7 +379,7 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* Status-Change Bottom-Sheet (Mobile) */}
+      {/* Status-Change Bottom-Sheet (Mobile) — nur für Tasks */}
       <Sheet open={statusChangeSheet.open} onOpenChange={(open) => setStatusChangeSheet((p) => ({ ...p, open }))}>
         <SheetContent side="bottom" className="rounded-t-2xl">
           <SheetHeader><SheetTitle className="text-left">Status ändern</SheetTitle></SheetHeader>
