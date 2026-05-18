@@ -1,0 +1,49 @@
+name: Issue Alert (Telegram)
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    steps:
+      - name: Send Telegram alert
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
+        run: |
+          escape_html() {
+            printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+          }
+
+          TITLE_H=$(escape_html "${ISSUE_TITLE}")
+          BODY_H=$(escape_html "${ISSUE_BODY:-_(kein Body)_}")
+          LABELS_H=$(escape_html "${ISSUE_LABELS:-keine}")
+
+          MESSAGE=$(cat <<EOF
+          🐛 <b>Issue #${ISSUE_NUMBER}</b>
+          <b>${TITLE_H}</b>
+
+          ${BODY_H}
+
+          Labels: ${LABELS_H}
+
+          ${ISSUE_URL}
+          EOF
+          )
+
+          PAYLOAD=$(jq -n \
+            --arg chat "6299105090" \
+            --arg text "${MESSAGE}" \
+            '{chat_id: $chat, text: $text, parse_mode: "HTML", disable_web_page_preview: true}')
+
+          curl -sS -X POST \
+            "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}"
