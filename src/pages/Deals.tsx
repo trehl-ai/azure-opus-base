@@ -186,7 +186,7 @@ export default function Deals() {
     queryFn: async () => {
       let q = supabase
         .from("deals")
-        .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile)")
+        .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile)")
         .eq("pipeline_id", activePipelineId)
         .is("deleted_at", null);
 
@@ -464,7 +464,6 @@ export default function Deals() {
           <div className="space-y-2">
             {mobileDeals.map((deal) => {
               const company = deal.company as { name: string } | null;
-              const owner = deal.owner as { first_name: string; last_name: string } | null;
               return (
                 <MobileCard
                   key={deal.id}
@@ -514,7 +513,7 @@ export default function Deals() {
                   <div className="flex-1 space-y-1.5 min-h-[40px]">
                     {stageDeals.map((deal) => {
                       const company = deal.company as { name: string } | null;
-                      const owner = deal.owner as { first_name: string; last_name: string } | null;
+                      const owner = users?.find((u) => u.id === deal.owner_user_id) ?? null;
                       const contact = deal.primary_contact as { phone: string | null; mobile: string | null } | null;
                       const dealPhone = contact?.phone || contact?.mobile || null;
                       return (
