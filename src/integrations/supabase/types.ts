@@ -4395,6 +4395,7 @@ export type Database = {
           sort_order: number | null
           start_date: string | null
           status: string
+          task_type: string | null
           title: string
           updated_at: string
         }
@@ -4413,6 +4414,7 @@ export type Database = {
           sort_order?: number | null
           start_date?: string | null
           status?: string
+          task_type?: string | null
           title: string
           updated_at?: string
         }
@@ -4431,6 +4433,7 @@ export type Database = {
           sort_order?: number | null
           start_date?: string | null
           status?: string
+          task_type?: string | null
           title?: string
           updated_at?: string
         }
