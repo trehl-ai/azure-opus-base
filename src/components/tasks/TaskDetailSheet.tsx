@@ -43,8 +43,11 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("medium");
   const [assignedUserId, setAssignedUserId] = useState("");
+  const [taskType, setTaskType] = useState("");
   const [startDate, setStartDate] = useState<Date>();
   const [dueDate, setDueDate] = useState<Date>();
+
+  const TASK_TYPES = ["Briefing", "Casting", "Follow-up", "Nachbereitung", "Angebot", "Sonstiges"];
   const [commentText, setCommentText] = useState("");
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
@@ -100,6 +103,7 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
       setStatus(task.status);
       setPriority(task.priority ?? "medium");
       setAssignedUserId(task.assigned_user_id ?? "");
+      setTaskType(task.task_type ?? "");
       setStartDate(task.start_date ? new Date(task.start_date) : undefined);
       setDueDate(task.due_date ? new Date(task.due_date) : undefined);
       setDirty(false);
@@ -118,6 +122,7 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
       const updates: Record<string, unknown> = {
         title: title.trim(), description: description.trim() || null,
         status, priority, assigned_user_id: assignedUserId || null,
+        task_type: taskType || null,
         start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
         due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
       };
@@ -237,6 +242,14 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
               <Select value={assignedUserId} onValueChange={(v) => { setAssignedUserId(v); markDirty(); }}>
                 <SelectTrigger><SelectValue placeholder="Zuweisen" /></SelectTrigger>
                 <SelectContent>{users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Aufgabenart</Label>
+              <Select value={taskType} onValueChange={(v) => { setTaskType(v); markDirty(); }}>
+                <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                <SelectContent>{TASK_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 

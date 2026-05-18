@@ -35,7 +35,10 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
+  const [taskType, setTaskType] = useState("");
   const [dueDate, setDueDate] = useState<Date>();
+
+  const TASK_TYPES = ["Briefing", "Casting", "Follow-up", "Nachbereitung", "Angebot", "Sonstiges"];
 
   const { data: projects } = useQuery({
     queryKey: ["projects-list"],
@@ -50,7 +53,7 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setStatus(""); setPriority("medium");
-    setProjectId(""); setAssignedUserId(""); setDueDate(undefined);
+    setProjectId(""); setAssignedUserId(""); setTaskType(""); setDueDate(undefined);
   };
 
   const createMutation = useMutation({
@@ -62,6 +65,7 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
         status: status || defaultStatus,
         priority,
         assigned_user_id: assignedUserId || null,
+        task_type: taskType || null,
         due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
         created_by_user_id: user?.id ?? null,
       });
@@ -123,6 +127,13 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
             <Select value={assignedUserId} onValueChange={setAssignedUserId}>
               <SelectTrigger><SelectValue placeholder="Zuweisen" /></SelectTrigger>
               <SelectContent>{users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Aufgabenart</Label>
+            <Select value={taskType} onValueChange={setTaskType}>
+              <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+              <SelectContent>{TASK_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
