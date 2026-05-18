@@ -99,6 +99,6 @@ jobs:
             MSG="💭 Kein automatischer Fix\n\n<b>#${{ github.event.issue.number }}: ${{ github.event.issue.title }}</b>\n\nAnalyse am Issue.\n\n${ISSUE_URL}"
           fi
 
-          curl -s -X POST "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\":\"6299105090\",\"text\":\"${MSG}\",\"parse_mode\":\"HTML\",\"disable_web_page_preview\":true}"

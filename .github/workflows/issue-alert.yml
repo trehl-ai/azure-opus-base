@@ -44,6 +44,6 @@ jobs:
             '{chat_id: $chat, text: $text, parse_mode: "HTML", disable_web_page_preview: true}')
 
           curl -sS -X POST \
-            "https://api.telegram.org/bot8439088713:AAGmj1hZN_Z6kXEC9jMl3LDaK-GrprhUYC0/sendMessage" \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}"
