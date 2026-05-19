@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EditDealSheet } from "@/components/deals/EditDealSheet";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
+import { EditActivitySheet } from "@/components/activities/EditActivitySheet";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
 import { WerteRaumLeitfadenButton } from "@/components/deals/WerteRaumLeitfaden";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
@@ -23,6 +24,9 @@ import {
 import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { Database } from "@/integrations/supabase/types";
+
+type DealActivityRow = Database["public"]["Tables"]["deal_activities"]["Row"];
 
 const cardClass = "rounded-2xl border border-border bg-card p-6";
 
@@ -63,6 +67,8 @@ export default function DealDetail() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
+  const [editActivity, setEditActivity] = useState<DealActivityRow | null>(null);
+  const [editActivityOpen, setEditActivityOpen] = useState(false);
   const { canWrite } = usePermission();
   const canWriteDeals = canWrite("deals");
 
@@ -377,13 +383,13 @@ export default function DealDetail() {
           {openActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold">Offen</p>
-              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} />)}
+              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
             </div>
           )}
           {doneActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold text-muted-foreground">Erledigt</p>
-              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} />)}
+              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
             </div>
           )}
         </TabsContent>
@@ -442,6 +448,12 @@ export default function DealDetail() {
 
       <EditDealSheet deal={deal} open={editOpen} onOpenChange={setEditOpen} />
       <AddActivityDialog dealId={id!} open={activityOpen} onOpenChange={setActivityOpen} />
+      <EditActivitySheet
+        activity={editActivity}
+        open={editActivityOpen}
+        onClose={() => setEditActivityOpen(false)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["deal-activities", id] })}
+      />
       {lostStage && (
         <LostReasonDialog
           dealId={id!} dealTitle={deal.title} stageId={lostStage.id}
@@ -462,7 +474,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function ActivityRow({ activity, onToggle }: { activity: any; onToggle: (checked: boolean) => void }) {
+function ActivityRow({ activity, onToggle, onEdit }: { activity: any; onToggle: (checked: boolean) => void; onEdit?: () => void }) {
   const Icon = activityIcons[activity.activity_type] ?? StickyNote;
   const owner = activity.owner as { first_name: string; last_name: string } | null;
   const isDone = !!activity.completed_at;
@@ -483,6 +495,17 @@ function ActivityRow({ activity, onToggle }: { activity: any; onToggle: (checked
           {activity.completed_at && <span>Erledigt: {format(new Date(activity.completed_at), "dd.MM.yyyy")}</span>}
         </div>
       </div>
+      {onEdit && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={onEdit}
+          aria-label="Aktivität bearbeiten"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      )}
     </div>
   );
 }
