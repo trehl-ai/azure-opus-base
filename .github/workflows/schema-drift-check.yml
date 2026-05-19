@@ -53,7 +53,8 @@ jobs:
           http_code=$(printf '%s' "$response" | tail -n1)
           body=$(printf '%s' "$response" | sed '$d')
 
-          if [ "$http_code" != "200" ]; then
+          # Supabase Management API returns 200 or 201 for successful queries.
+          if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
             echo "::error::Supabase Management API returned HTTP $http_code"
             echo "$body"
             exit 1
