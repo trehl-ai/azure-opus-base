@@ -72,7 +72,7 @@ export default function DealDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
-        .select("*, company:companies(id, name), contact:contacts!deals_primary_contact_id_fkey(id, first_name, last_name), owner:users!deals_owner_user_id_fkey(first_name, last_name), pipeline:pipelines(name)")
+        .select("*, company:companies(id, name), contact:contacts!deals_primary_contact_id_fkey(id, first_name, last_name, phone), owner:users!deals_owner_user_id_fkey(first_name, last_name), pipeline:pipelines(name)")
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -225,7 +225,7 @@ export default function DealDetail() {
   if (!deal) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Deal nicht gefunden.</p></div>;
 
   const company = deal.company as { id: string; name: string } | null;
-  const contact = deal.contact as { id: string; first_name: string; last_name: string } | null;
+  const contact = deal.contact as { id: string; first_name: string; last_name: string; phone: string | null } | null;
   const owner = deal.owner as { first_name: string; last_name: string } | null;
   const pipeline = deal.pipeline as { name: string } | null;
   const currentNotes = notes ?? deal.description ?? "";
@@ -338,7 +338,17 @@ export default function DealDetail() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
               <Field label="Deal-Name" value={deal.title} />
               <Field label="Unternehmen" value={company ? <Link to={`/companies/${company.id}`} className="text-primary hover:underline">{company.name}</Link> : "–"} />
-              <Field label="Hauptkontakt" value={contact ? <Link to={`/contacts/${contact.id}`} className="text-primary hover:underline">{contact.first_name} {contact.last_name}</Link> : "–"} />
+              <Field label="Hauptkontakt" value={contact ? (
+                <>
+                  <Link to={`/contacts/${contact.id}`} className="text-primary hover:underline">{contact.first_name} {contact.last_name}</Link>
+                  {contact.phone && (
+                    <a href={`tel:${contact.phone}`} className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                      <Phone className="w-3 h-3" />
+                      {contact.phone}
+                    </a>
+                  )}
+                </>
+              ) : "–"} />
               <Field label="Pipeline" value={pipeline?.name ?? "–"} />
               <Field label="Stage" value={stages?.find((s) => s.id === deal.pipeline_stage_id)?.name ?? "–"} />
               <Field label="Deal-Wert" value={<span className="text-lg font-semibold">{fmt(deal.value_amount, deal.currency)}</span>} />
