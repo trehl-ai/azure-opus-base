@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColor, getInitials } from "@/lib/utils";
 import { Phone } from "lucide-react";
 
 interface DealCardData {
@@ -9,8 +9,7 @@ interface DealCardData {
   value_amount: number | null;
   currency: string | null;
   priority: string | null;
-  owner_first_name: string | null;
-  owner_last_name: string | null;
+  ownerName: string | null;
   phone?: string | null;
 }
 
@@ -26,9 +25,7 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
   const formatCurrency = (v: number | null, c: string | null) =>
     v != null ? new Intl.NumberFormat("de-DE", { style: "currency", currency: c || "EUR", maximumFractionDigits: 0 }).format(v) : "";
 
-  const initials = deal.owner_first_name && deal.owner_last_name
-    ? `${deal.owner_first_name[0]}${deal.owner_last_name[0]}`.toUpperCase()
-    : null;
+  const ownerName = deal.ownerName?.trim() || null;
 
   return (
     <div
@@ -64,10 +61,16 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
         {deal.value_amount ? (
           <span className="text-[11px] font-semibold text-foreground">{formatCurrency(deal.value_amount, deal.currency)}</span>
         ) : <span />}
-        {initials && (
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary">
-            {initials}
-          </span>
+        {ownerName && (
+          <div
+            title={ownerName}
+            className={cn(
+              "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium text-white",
+              getAvatarColor(ownerName),
+            )}
+          >
+            {getInitials(ownerName)}
+          </div>
         )}
       </div>
     </div>
