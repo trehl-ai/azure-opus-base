@@ -1,0 +1,116 @@
+name: Schema Drift Check
+
+# Detects when Supabase DB has migrations that aren't in this repo (Lovable
+# bypass risk) or vice versa. Compares versions in supabase/migrations/*.sql
+# filenames against supabase_migrations.schema_migrations.version on the live
+# project ttgvhqygmgtnjgwunuwz.
+#
+# Required GitHub Actions secret:
+#   SUPABASE_ACCESS_TOKEN — Supabase Management API PAT with read access to
+#   the project's database query endpoint. Set via:
+#   Repo → Settings → Secrets and variables → Actions → New secret.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_REF: ttgvhqygmgtnjgwunuwz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify SUPABASE_ACCESS_TOKEN secret is configured
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is not configured."
+            echo "Add the Supabase Management API PAT via Repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Fetch migration versions from live DB
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"SELECT version FROM supabase_migrations.schema_migrations ORDER BY version"}')
+
+          http_code=$(printf '%s' "$response" | tail -n1)
+          body=$(printf '%s' "$response" | sed '$d')
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Supabase Management API returned HTTP $http_code"
+            echo "$body"
+            exit 1
+          fi
+
+          printf '%s' "$body" | jq -r '.[].version' | sort -u > db_versions.txt
+          echo "DB migrations: $(wc -l < db_versions.txt)"
+
+      - name: List repo migration versions
+        run: |
+          set -euo pipefail
+          if [ ! -d supabase/migrations ]; then
+            echo "::error::supabase/migrations/ directory is missing."
+            exit 1
+          fi
+          # Extract leading 14-digit version prefix from each filename.
+          find supabase/migrations -maxdepth 1 -type f -name '*.sql' \
+            | sed -E 's|.*/([0-9]{14})_.*\.sql$|\1|' \
+            | grep -E '^[0-9]{14}$' \
+            | sort -u > repo_versions.txt
+          echo "Repo migrations: $(wc -l < repo_versions.txt)"
+
+      - name: Detect drift
+        run: |
+          set -euo pipefail
+          # DB_ONLY: in DB but not in repo → Lovable bypass / out-of-band migration → FAIL
+          comm -23 db_versions.txt repo_versions.txt > db_only.txt
+          # REPO_ONLY: in repo but not (yet) in DB → pending migration → WARNING
+          comm -13 db_versions.txt repo_versions.txt > repo_only.txt
+
+          fail=0
+
+          if [ -s db_only.txt ]; then
+            echo "::error::DRIFT — migrations exist in DB but not in repo (possible out-of-band/Lovable bypass):"
+            while IFS= read -r v; do
+              echo "  - $v"
+              echo "::error file=supabase/migrations,title=Missing migration file::Version $v exists in supabase_migrations.schema_migrations but no matching supabase/migrations/${v}_*.sql file in repo."
+            done < db_only.txt
+            fail=1
+          fi
+
+          if [ -s repo_only.txt ]; then
+            echo "::warning::Migrations in repo not yet applied to live DB (expected on open PR before merge):"
+            while IFS= read -r v; do
+              echo "  - $v"
+              echo "::warning file=supabase/migrations/${v}_*.sql::Repo file exists, no matching supabase_migrations.schema_migrations entry."
+            done < repo_only.txt
+          fi
+
+          if [ "$fail" -eq 1 ]; then
+            echo ""
+            echo "How to fix:"
+            echo "  1. Identify the source of the out-of-band migration (Lovable, Dashboard SQL Editor, supabase CLI)."
+            echo "  2. Add the migration file under supabase/migrations/<version>_<name>.sql with the SQL that produces the current DB state."
+            echo "  3. Re-open this PR to re-run the check."
+            exit 1
+          fi
+
+          echo ""
+          echo "OK: no drift between repo and live DB schema_migrations."
