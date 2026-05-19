@@ -16,10 +16,14 @@ function getInitials(name: string) {
 }
 
 export function PresenceAvatars({ users, max = 5 }: PresenceAvatarsProps) {
-  if (users.length === 0) return null;
+  const uniqueUsers = Array.from(
+    new Map(users.map((u) => [u.user_id, u])).values(),
+  );
 
-  const visible = users.slice(0, max);
-  const overflow = users.length - max;
+  if (uniqueUsers.length === 0) return null;
+
+  const visible = uniqueUsers.slice(0, max);
+  const overflow = uniqueUsers.length - max;
 
   return (
     <div className="flex items-center gap-1">
