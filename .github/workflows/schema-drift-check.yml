@@ -77,41 +77,69 @@ jobs:
             | sort -u > repo_versions.txt
           echo "Repo migrations: $(wc -l < repo_versions.txt)"
 
+      - name: Load historical-drift baseline
+        run: |
+          set -euo pipefail
+          BASELINE=.github/schema-drift-baseline.txt
+          if [ -f "$BASELINE" ]; then
+            # Strip comments + blank lines, keep only 14-digit version lines.
+            grep -E '^[0-9]{14}$' "$BASELINE" | sort -u > baseline_versions.txt
+          else
+            : > baseline_versions.txt
+          fi
+          echo "Baseline (tolerated historical DB_ONLY): $(wc -l < baseline_versions.txt)"
+
       - name: Detect drift
         run: |
           set -euo pipefail
-          # DB_ONLY: in DB but not in repo → Lovable bypass / out-of-band migration → FAIL
+          # DB_ONLY = in DB but not in repo. Includes both historical drift
+          # (tolerated via baseline) and out-of-band post-baseline drift (FAIL).
           comm -23 db_versions.txt repo_versions.txt > db_only.txt
-          # REPO_ONLY: in repo but not (yet) in DB → pending migration → WARNING
+          # REPO_ONLY = in repo but not (yet) in DB → pending migration → WARNING.
           comm -13 db_versions.txt repo_versions.txt > repo_only.txt
+
+          # NEW_DB_ONLY = DB_ONLY minus baseline (anything not already known).
+          comm -23 db_only.txt baseline_versions.txt > new_db_only.txt
+          # STILL_TOLERATED = DB_ONLY entries that ARE in the baseline.
+          comm -12 db_only.txt baseline_versions.txt > tolerated.txt
+
+          echo "DB_ONLY total: $(wc -l < db_only.txt)"
+          echo "  tolerated (baseline): $(wc -l < tolerated.txt)"
+          echo "  NEW (not in baseline): $(wc -l < new_db_only.txt)"
+          echo "REPO_ONLY: $(wc -l < repo_only.txt)"
 
           fail=0
 
-          if [ -s db_only.txt ]; then
-            echo "::error::DRIFT — migrations exist in DB but not in repo (possible out-of-band/Lovable bypass):"
+          if [ -s new_db_only.txt ]; then
+            echo "::error::DRIFT — NEW migrations exist in DB but not in repo (possible out-of-band/Lovable bypass):"
             while IFS= read -r v; do
               echo "  - $v"
-              echo "::error file=supabase/migrations,title=Missing migration file::Version $v exists in supabase_migrations.schema_migrations but no matching supabase/migrations/${v}_*.sql file in repo."
-            done < db_only.txt
+              echo "::error file=supabase/migrations,title=Missing migration file::Version $v exists in supabase_migrations.schema_migrations but no matching supabase/migrations/${v}_*.sql file in repo, and is not in .github/schema-drift-baseline.txt."
+            done < new_db_only.txt
             fail=1
           fi
 
           if [ -s repo_only.txt ]; then
-            echo "::warning::Migrations in repo not yet applied to live DB (expected on open PR before merge):"
+            echo "::warning::Migrations in repo not yet applied to live DB (expected on open PR before merge, or historical Lovable-pre-DB-reset files):"
             while IFS= read -r v; do
               echo "  - $v"
-              echo "::warning file=supabase/migrations/${v}_*.sql::Repo file exists, no matching supabase_migrations.schema_migrations entry."
             done < repo_only.txt
           fi
 
           if [ "$fail" -eq 1 ]; then
             echo ""
-            echo "How to fix:"
-            echo "  1. Identify the source of the out-of-band migration (Lovable, Dashboard SQL Editor, supabase CLI)."
-            echo "  2. Add the migration file under supabase/migrations/<version>_<name>.sql with the SQL that produces the current DB state."
-            echo "  3. Re-open this PR to re-run the check."
+            echo "How to fix a NEW DB_ONLY drift:"
+            echo "  1. Identify the source (Lovable, Dashboard SQL Editor, supabase CLI direct apply)."
+            echo "  2. Either backfill the migration as a supabase/migrations/<version>_<name>.sql file"
+            echo "     with the SQL that produces the current DB state,"
+            echo "  3. OR (if the migration is intentional historical work) add the version to"
+            echo "     .github/schema-drift-baseline.txt — but prefer (2) for any new drift."
             exit 1
           fi
 
           echo ""
-          echo "OK: no drift between repo and live DB schema_migrations."
+          if [ -s tolerated.txt ]; then
+            echo "OK: $(wc -l < tolerated.txt) tolerated baseline DB_ONLY entries, 0 new drift."
+          else
+            echo "OK: no drift between repo and live DB schema_migrations."
+          fi
