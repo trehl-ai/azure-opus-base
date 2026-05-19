@@ -22,14 +22,17 @@ export function usePresence(page: string) {
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<PresenceUser>();
+        const seen = new Set<string>();
         const users: PresenceUser[] = [];
-        Object.values(state).forEach((presences) => {
-          presences.forEach((p) => {
-            if (p.user_id !== user.id && p.page === page) {
-              users.push(p);
-            }
+        Object.values(state)
+          .flat()
+          .forEach((p) => {
+            if (p.user_id === user.id) return;
+            if (p.page !== page) return;
+            if (seen.has(p.user_id)) return;
+            seen.add(p.user_id);
+            users.push(p);
           });
-        });
         setOnlineUsers(users);
       })
       .subscribe(async (status) => {
