@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Globe, Rocket, FileBarChart, Plus, ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getValidUrl } from "@/lib/utils";
 
 interface Resource {
   id: string;
@@ -107,7 +107,7 @@ export function MainProjectResources({ mainProjectId }: Props) {
     try {
       let filePath: string | null = editingResource?.file_path ?? null;
       let fileName: string | null = editingResource?.file_name ?? null;
-      let url: string | null = formUrl || null;
+      let url: string | null = formUrl.trim() || null;
 
       if (formFile) {
         const ext = formFile.name.split(".").pop();
@@ -158,7 +158,7 @@ export function MainProjectResources({ mainProjectId }: Props) {
 
   const openResource = async (r: Resource) => {
     if (r.url) {
-      window.open(r.url, "_blank", "noopener,noreferrer");
+      window.open(getValidUrl(r.url), "_blank", "noopener,noreferrer");
     } else if (r.file_path) {
       const { data } = await supabase.storage
         .from("main-project-resources")

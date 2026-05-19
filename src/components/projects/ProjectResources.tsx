@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Globe, Rocket, BarChart3, ExternalLink, Pencil, Trash2, Plus, Upload, Loader2, Paperclip } from "lucide-react";
+import { getValidUrl } from "@/lib/utils";
 
 const LEITFADEN_BUCKET = "project-files";
 const LEITFADEN_ACCEPT = ".pdf,.docx,.pptx";
@@ -222,7 +223,7 @@ export function ProjectResources({ projectId }: { projectId: string }) {
 
   const openResource = async (resource: Resource) => {
     if (resource.url) {
-      window.open(resource.url, "_blank", "noopener,noreferrer");
+      window.open(getValidUrl(resource.url), "_blank", "noopener,noreferrer");
     } else if (resource.file_path) {
       const { data } = await supabase.storage.from("project-resources").createSignedUrl(resource.file_path, 3600);
       if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
