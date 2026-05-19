@@ -21,7 +21,7 @@ import { CalendarIcon, Plus, ArrowRightLeft, Download, Trash2 } from "lucide-rea
 import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColor, getInitials } from "@/lib/utils";
 import { exportToExcel, todayString } from "@/lib/excelExport";
 
 const eur = (v: number) =>
@@ -403,7 +403,26 @@ export default function Deals() {
           <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="min-h-[44px]">Alle Owner</SelectItem>
-            {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
+            {users?.map((u) => {
+              const name = `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim();
+              return (
+                <SelectItem key={u.id} value={u.id} className="min-h-[44px]">
+                  <span className="flex items-center gap-2">
+                    {name && (
+                      <span
+                        className={cn(
+                          "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium text-white",
+                          getAvatarColor(name),
+                        )}
+                      >
+                        {getInitials(name)}
+                      </span>
+                    )}
+                    <span>{name || u.id}</span>
+                  </span>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
         {!isMobile && (
@@ -522,8 +541,8 @@ export default function Deals() {
                           deal={{
                             id: deal.id, title: deal.title, company_name: company?.name ?? null,
                             value_amount: deal.value_amount, currency: deal.currency,
-                            priority: deal.priority, owner_first_name: owner?.first_name ?? null,
-                            owner_last_name: owner?.last_name ?? null,
+                            priority: deal.priority,
+                            ownerName: owner ? `${owner.first_name ?? ""} ${owner.last_name ?? ""}`.trim() || null : null,
                             phone: dealPhone,
                           }}
                           onDragStart={handleDragStart}
