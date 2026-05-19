@@ -61,6 +61,7 @@ export default function DealDetail() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<any | null>(null);
   const [lostOpen, setLostOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
   const { canWrite } = usePermission();
@@ -377,13 +378,13 @@ export default function DealDetail() {
           {openActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold">Offen</p>
-              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} />)}
+              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} canEdit={canWriteDeals} onEdit={() => setEditingActivity(a)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} />)}
             </div>
           )}
           {doneActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold text-muted-foreground">Erledigt</p>
-              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} />)}
+              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} canEdit={canWriteDeals} onEdit={() => setEditingActivity(a)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} />)}
             </div>
           )}
         </TabsContent>
@@ -442,6 +443,12 @@ export default function DealDetail() {
 
       <EditDealSheet deal={deal} open={editOpen} onOpenChange={setEditOpen} />
       <AddActivityDialog dealId={id!} open={activityOpen} onOpenChange={setActivityOpen} />
+      <AddActivityDialog
+        dealId={id!}
+        open={!!editingActivity}
+        onOpenChange={(open) => { if (!open) setEditingActivity(null); }}
+        activity={editingActivity}
+      />
       {lostStage && (
         <LostReasonDialog
           dealId={id!} dealTitle={deal.title} stageId={lostStage.id}
@@ -462,7 +469,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function ActivityRow({ activity, onToggle }: { activity: any; onToggle: (checked: boolean) => void }) {
+function ActivityRow({ activity, canEdit, onEdit, onToggle }: { activity: any; canEdit?: boolean; onEdit?: () => void; onToggle: (checked: boolean) => void }) {
   const Icon = activityIcons[activity.activity_type] ?? StickyNote;
   const owner = activity.owner as { first_name: string; last_name: string } | null;
   const isDone = !!activity.completed_at;
@@ -483,6 +490,11 @@ function ActivityRow({ activity, onToggle }: { activity: any; onToggle: (checked
           {activity.completed_at && <span>Erledigt: {format(new Date(activity.completed_at), "dd.MM.yyyy")}</span>}
         </div>
       </div>
+      {canEdit && onEdit && (
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onEdit} aria-label="Aktivität bearbeiten">
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      )}
     </div>
   );
 }

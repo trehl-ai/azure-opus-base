@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,21 +27,50 @@ const ACTIVITY_TYPE_OPTIONS = [
   { value: "absage",        label: "❌ Absage erhalten" },
 ] as const;
 
+interface ActivityData {
+  id: string;
+  activity_type: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  owner_user_id: string | null;
+}
+
 interface Props {
   dealId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  activity?: ActivityData | null;
 }
 
-export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
+export function AddActivityDialog({ dealId, open, onOpenChange, activity }: Props) {
   const { user } = useAuth();
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const isEdit = !!activity;
+
   const [form, setForm] = useState({ activity_type: "call", title: "", description: "", owner_user_id: "" });
   const [outcome, setOutcome] = useState("");
   const [dueDate, setDueDate] = useState<Date>();
+
+  useEffect(() => {
+    if (open && activity) {
+      setForm({
+        activity_type: activity.activity_type,
+        title: activity.title ?? "",
+        description: activity.description ?? "",
+        owner_user_id: activity.owner_user_id ?? "",
+      });
+      setOutcome("");
+      setDueDate(activity.due_date ? new Date(activity.due_date) : undefined);
+    } else if (open && !activity) {
+      setForm({ activity_type: "call", title: "", description: "", owner_user_id: "" });
+      setOutcome("");
+      setDueDate(undefined);
+    }
+  }, [open, activity]);
 
   const u = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
@@ -53,20 +82,32 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
       const finalDescription = outcomeText
         ? (description ? `${description}\n\nErgebnis: ${outcomeText}` : `Ergebnis: ${outcomeText}`)
         : (description || null);
-      const { error } = await supabase.from("deal_activities").insert({
-        deal_id: dealId,
-        activity_type: form.activity_type,
-        title: form.title.trim() || fallbackTitle,
-        description: finalDescription,
-        due_date: dueDate ? dueDate.toISOString() : null,
-        owner_user_id: form.owner_user_id || user?.id || null,
-        created_by_user_id: user?.id ?? null,
-        completed_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+
+      if (isEdit && activity) {
+        const { error } = await supabase.from("deal_activities").update({
+          activity_type: form.activity_type,
+          title: form.title.trim() || fallbackTitle,
+          description: finalDescription,
+          due_date: dueDate ? dueDate.toISOString() : null,
+          owner_user_id: form.owner_user_id || null,
+        }).eq("id", activity.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("deal_activities").insert({
+          deal_id: dealId,
+          activity_type: form.activity_type,
+          title: form.title.trim() || fallbackTitle,
+          description: finalDescription,
+          due_date: dueDate ? dueDate.toISOString() : null,
+          owner_user_id: form.owner_user_id || user?.id || null,
+          created_by_user_id: user?.id ?? null,
+          completed_at: new Date().toISOString(),
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      toast({ title: "Aktivität erstellt" });
+      toast({ title: isEdit ? "Aktivität aktualisiert" : "Aktivität erstellt" });
       qc.invalidateQueries({ queryKey: ["deal-activities", dealId] });
       qc.invalidateQueries({ queryKey: ["activity-stats"] });
       qc.invalidateQueries({ queryKey: ["dashboard_activities"] });
@@ -81,7 +122,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Neue Aktivität</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? "Aktivität bearbeiten" : "Neue Aktivität"}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Typ</Label>
@@ -98,15 +139,17 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
             <Label>Beschreibung</Label>
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={3} />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="outcome">Ergebnis / Outcome (optional)</Label>
-            <Input
-              id="outcome"
-              placeholder="z.B. Rückruf vereinbart, Angebot angefordert, kein Interesse..."
-              value={outcome}
-              onChange={(e) => setOutcome(e.target.value)}
-            />
-          </div>
+          {!isEdit && (
+            <div className="space-y-2">
+              <Label htmlFor="outcome">Ergebnis / Outcome (optional)</Label>
+              <Input
+                id="outcome"
+                placeholder="z.B. Rückruf vereinbart, Angebot angefordert, kein Interesse..."
+                value={outcome}
+                onChange={(e) => setOutcome(e.target.value)}
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Fälligkeitsdatum</Label>
             <Popover>
