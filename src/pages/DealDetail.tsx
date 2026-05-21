@@ -22,6 +22,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -70,6 +72,13 @@ export default function DealDetail() {
   const [notes, setNotes] = useState<string | null>(null);
   const [editActivity, setEditActivity] = useState<DealActivityRow | null>(null);
   const [editActivityOpen, setEditActivityOpen] = useState(false);
+  const [followupOpen, setFollowupOpen] = useState(false);
+  const defaultFollowupDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d;
+  };
+  const [followupDate, setFollowupDate] = useState<Date>(defaultFollowupDate);
   const { canWrite } = usePermission();
   const canWriteDeals = canWrite("deals");
   const { data: users } = useUsers();
@@ -223,6 +232,31 @@ export default function DealDetail() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["deal-activities", id] }),
+  });
+
+  // "Infomaterial auf Wiedervorlage" — scheduled follow-up, default due_date is
+  // today+7d (user picks date in the popover before saving). description holds
+  // the note text since deal_activities has no `notes` column.
+  const infomaterialFollowupMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("deal_activities").insert({
+        deal_id: id!,
+        activity_type: "follow_up",
+        title: "Infomaterial auf Wiedervorlage",
+        description: "Infomaterial auf Wiedervorlage",
+        due_date: followupDate.toISOString(),
+        owner_user_id: user?.id ?? null,
+        created_by_user_id: user?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Wiedervorlage angelegt", description: format(followupDate, "dd.MM.yyyy") });
+      qc.invalidateQueries({ queryKey: ["deal-activities", id] });
+      setFollowupOpen(false);
+      setFollowupDate(defaultFollowupDate());
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
   if (isLoading) return (
@@ -386,7 +420,36 @@ export default function DealDetail() {
 
         {/* Activities */}
         <TabsContent value="activities" className="space-y-4 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {canWriteDeals && (
+              <Popover open={followupOpen} onOpenChange={setFollowupOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <CalendarCheck className="h-3.5 w-3.5" /> Infomaterial auf Wiedervorlage
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <div className="p-3 space-y-2">
+                    <p className="text-label font-medium px-1">Fällig am</p>
+                    <Calendar
+                      mode="single"
+                      selected={followupDate}
+                      onSelect={(d) => d && setFollowupDate(d)}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      onClick={() => infomaterialFollowupMutation.mutate()}
+                      disabled={infomaterialFollowupMutation.isPending}
+                    >
+                      {infomaterialFollowupMutation.isPending ? "Anlegen…" : "Anlegen"}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
             <Button size="sm" onClick={() => setActivityOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Aktivität</Button>
           </div>
           {openActivities.length === 0 && doneActivities.length === 0 && (
