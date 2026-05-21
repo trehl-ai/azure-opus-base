@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { usePermission } from "@/hooks/usePermission";
+import { useUsers } from "@/hooks/useUsers";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -69,8 +72,26 @@ export default function DealDetail() {
   const [notes, setNotes] = useState<string | null>(null);
   const [editActivity, setEditActivity] = useState<DealActivityRow | null>(null);
   const [editActivityOpen, setEditActivityOpen] = useState(false);
+  const [followupOpen, setFollowupOpen] = useState(false);
+  const defaultFollowupDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d;
+  };
+  const [followupDate, setFollowupDate] = useState<Date>(defaultFollowupDate);
   const { canWrite } = usePermission();
   const canWriteDeals = canWrite("deals");
+  const { data: users } = useUsers();
+
+  // Resolve owner_user_id -> "First Last" via SECURITY DEFINER list_team_members RPC.
+  // Direct PostgREST `users!fkey(...)` embeds silently return null under RLS for
+  // non-admin viewers, hiding the owner on cards and activity rows.
+  const resolveOwnerName = (uid: string | null | undefined): string | null => {
+    if (!uid) return null;
+    const u = users?.find((x) => x.id === uid);
+    if (!u) return null;
+    return `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || null;
+  };
 
   // Deal
   const { data: deal, isLoading } = useQuery({
@@ -78,7 +99,7 @@ export default function DealDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deals")
-        .select("*, company:companies(id, name), contact:contacts!deals_primary_contact_id_fkey(id, first_name, last_name, phone), owner:users!deals_owner_user_id_fkey(first_name, last_name), pipeline:pipelines(name)")
+        .select("*, company:companies(id, name), contact:contacts!deals_primary_contact_id_fkey(id, first_name, last_name, phone), pipeline:pipelines(name)")
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -104,7 +125,7 @@ export default function DealDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deal_activities")
-        .select("*, owner:users!deal_activities_owner_user_id_fkey(first_name, last_name)")
+        .select("*")
         .eq("deal_id", id!)
         .order("completed_at", { ascending: true, nullsFirst: true })
         .order("due_date", { ascending: true, nullsFirst: false });
@@ -213,6 +234,31 @@ export default function DealDetail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["deal-activities", id] }),
   });
 
+  // "Infomaterial auf Wiedervorlage" — scheduled follow-up, default due_date is
+  // today+7d (user picks date in the popover before saving). description holds
+  // the note text since deal_activities has no `notes` column.
+  const infomaterialFollowupMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("deal_activities").insert({
+        deal_id: id!,
+        activity_type: "follow_up",
+        title: "Infomaterial auf Wiedervorlage",
+        description: "Infomaterial auf Wiedervorlage",
+        due_date: followupDate.toISOString(),
+        owner_user_id: user?.id ?? null,
+        created_by_user_id: user?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Wiedervorlage angelegt", description: format(followupDate, "dd.MM.yyyy") });
+      qc.invalidateQueries({ queryKey: ["deal-activities", id] });
+      setFollowupOpen(false);
+      setFollowupDate(defaultFollowupDate());
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
+  });
+
   if (isLoading) return (
     <div className="space-y-6">
       <div className="h-8 w-64 animate-pulse rounded bg-[hsl(228,33%,91%)]" />
@@ -232,7 +278,7 @@ export default function DealDetail() {
 
   const company = deal.company as { id: string; name: string } | null;
   const contact = deal.contact as { id: string; first_name: string; last_name: string; phone: string | null } | null;
-  const owner = deal.owner as { first_name: string; last_name: string } | null;
+  const ownerName = resolveOwnerName(deal.owner_user_id);
   const pipeline = deal.pipeline as { name: string } | null;
   const currentNotes = notes ?? deal.description ?? "";
   const lostStage = stages?.find((s) => s.is_lost_stage);
@@ -363,7 +409,7 @@ export default function DealDetail() {
               <Field label="Wahrscheinlichkeit" value={`${deal.probability_percent ?? 0}%`} />
               <Field label="Priorität" value={<span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-medium", priorityColors[deal.priority ?? "medium"])}>{deal.priority ?? "medium"}</span>} />
               <Field label="Quelle" value={deal.source ?? "–"} />
-              <Field label="Owner" value={owner ? `${owner.first_name} ${owner.last_name}` : "–"} />
+              <Field label="Owner" value={ownerName ?? "–"} />
               {deal.description && <div className="col-span-2"><Field label="Beschreibung" value={deal.description} /></div>}
               {deal.won_at && <Field label="Gewonnen am" value={format(new Date(deal.won_at), "dd.MM.yyyy HH:mm")} />}
               {deal.lost_at && <Field label="Verloren am" value={format(new Date(deal.lost_at), "dd.MM.yyyy HH:mm")} />}
@@ -374,7 +420,36 @@ export default function DealDetail() {
 
         {/* Activities */}
         <TabsContent value="activities" className="space-y-4 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {canWriteDeals && (
+              <Popover open={followupOpen} onOpenChange={setFollowupOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <CalendarCheck className="h-3.5 w-3.5" /> Infomaterial auf Wiedervorlage
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <div className="p-3 space-y-2">
+                    <p className="text-label font-medium px-1">Fällig am</p>
+                    <Calendar
+                      mode="single"
+                      selected={followupDate}
+                      onSelect={(d) => d && setFollowupDate(d)}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      onClick={() => infomaterialFollowupMutation.mutate()}
+                      disabled={infomaterialFollowupMutation.isPending}
+                    >
+                      {infomaterialFollowupMutation.isPending ? "Anlegen…" : "Anlegen"}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
             <Button size="sm" onClick={() => setActivityOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Aktivität</Button>
           </div>
           {openActivities.length === 0 && doneActivities.length === 0 && (
@@ -383,13 +458,13 @@ export default function DealDetail() {
           {openActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold">Offen</p>
-              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
+              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
             </div>
           )}
           {doneActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold text-muted-foreground">Erledigt</p>
-              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
+              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
             </div>
           )}
         </TabsContent>
@@ -474,9 +549,8 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function ActivityRow({ activity, onToggle, onEdit }: { activity: any; onToggle: (checked: boolean) => void; onEdit?: () => void }) {
+function ActivityRow({ activity, ownerName, onToggle, onEdit }: { activity: any; ownerName: string | null; onToggle: (checked: boolean) => void; onEdit?: () => void }) {
   const Icon = activityIcons[activity.activity_type] ?? StickyNote;
-  const owner = activity.owner as { first_name: string; last_name: string } | null;
   const isDone = !!activity.completed_at;
 
   return (
@@ -491,7 +565,7 @@ function ActivityRow({ activity, onToggle, onEdit }: { activity: any; onToggle: 
         <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
           <span>{activityLabels[activity.activity_type] ?? activity.activity_type}</span>
           {activity.due_date && <span>Fällig: {format(new Date(activity.due_date), "dd.MM.yyyy")}</span>}
-          {owner && <span>{owner.first_name} {owner.last_name}</span>}
+          {ownerName && <span>{ownerName}</span>}
           {activity.completed_at && <span>Erledigt: {format(new Date(activity.completed_at), "dd.MM.yyyy")}</span>}
         </div>
       </div>
