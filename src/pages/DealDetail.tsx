@@ -241,12 +241,14 @@ export default function DealDetail() {
     mutationFn: async () => {
       const { error } = await supabase.from("deal_activities").insert({
         deal_id: id!,
-        activity_type: "follow_up",
+        activity_type: "task",
         title: "Infomaterial auf Wiedervorlage",
         description: "Infomaterial auf Wiedervorlage",
         due_date: followupDate.toISOString(),
         owner_user_id: user?.id ?? null,
         created_by_user_id: user?.id ?? null,
+        status: "open",
+        completed_at: null,
       });
       if (error) throw error;
     },
