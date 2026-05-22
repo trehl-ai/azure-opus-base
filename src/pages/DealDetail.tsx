@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink, CheckSquare, ClipboardList, Clapperboard } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -45,14 +45,19 @@ const priorityColors: Record<string, string> = {
   high: "bg-destructive/10 text-destructive",
 };
 
+// Includes legacy types (follow_up, wiedervorlage, notiz, angebot, absage) for
+// historical rows — those values are no longer creatable via the UI but may
+// exist in older deal_activities records.
 const activityIcons: Record<string, typeof Phone> = {
-  call: Phone, email: Mail, meeting: Users, follow_up: CalendarCheck, wiedervorlage: CalendarCheck,
-  note: StickyNote, notiz: StickyNote, angebot: Mail, absage: XCircle,
+  call: Phone, email: Mail, meeting: Users, task: CheckSquare, briefing: ClipboardList, casting: Clapperboard,
+  note: StickyNote,
+  follow_up: CalendarCheck, wiedervorlage: CalendarCheck, notiz: StickyNote, angebot: Mail, absage: XCircle,
 };
 
 const activityLabels: Record<string, string> = {
-  call: "📞 Anruf", email: "📧 E-Mail", meeting: "🤝 Meeting", follow_up: "🔄 Follow-Up",
-  wiedervorlage: "🔄 Wiedervorlage", note: "📝 Notiz", notiz: "📝 Notiz",
+  call: "📞 Anruf", email: "📧 E-Mail", meeting: "🤝 Meeting", task: "✅ Aufgabe",
+  briefing: "📋 Briefing", casting: "🎬 Casting", note: "📝 Notiz",
+  follow_up: "🔄 Follow-Up", wiedervorlage: "🔄 Wiedervorlage", notiz: "📝 Notiz",
   angebot: "📄 Angebot", absage: "❌ Absage",
 };
 
