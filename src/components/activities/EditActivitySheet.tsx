@@ -12,15 +12,16 @@ import type { Database } from "@/integrations/supabase/types";
 
 type DealActivity = Database["public"]["Tables"]["deal_activities"]["Row"];
 
+// Must match CHECK constraint on deal_activities.activity_type:
+// ('call','email','note','meeting','task','briefing','casting')
 const ACTIVITY_TYPE_OPTIONS = [
-  { value: "call",          label: "📞 Anruf" },
-  { value: "email",         label: "📧 E-Mail" },
-  { value: "meeting",       label: "🤝 Meeting" },
-  { value: "follow_up",     label: "🔄 Follow-Up" },
-  { value: "wiedervorlage", label: "🔄 Wiedervorlage" },
-  { value: "note",          label: "📝 Notiz" },
-  { value: "angebot",       label: "📄 Angebot versendet" },
-  { value: "absage",        label: "❌ Absage erhalten" },
+  { value: "call",     label: "📞 Anruf" },
+  { value: "email",    label: "📧 E-Mail" },
+  { value: "meeting",  label: "🤝 Meeting" },
+  { value: "task",     label: "✅ Aufgabe" },
+  { value: "note",     label: "📝 Notiz" },
+  { value: "briefing", label: "📋 Briefing" },
+  { value: "casting",  label: "🎬 Casting" },
 ] as const;
 
 const STATUS_OPTIONS = [

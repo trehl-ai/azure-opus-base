@@ -16,15 +16,16 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+// Must match CHECK constraint on deal_activities.activity_type:
+// ('call','email','note','meeting','task','briefing','casting')
 const ACTIVITY_TYPE_OPTIONS = [
-  { value: "call",          label: "📞 Anruf" },
-  { value: "email",         label: "📧 E-Mail" },
-  { value: "meeting",       label: "🤝 Meeting" },
-  { value: "follow_up",     label: "🔄 Follow-Up" },
-  { value: "wiedervorlage", label: "🔄 Wiedervorlage" },
-  { value: "note",          label: "📝 Notiz" },
-  { value: "angebot",       label: "📄 Angebot versendet" },
-  { value: "absage",        label: "❌ Absage erhalten" },
+  { value: "call",     label: "📞 Anruf" },
+  { value: "email",    label: "📧 E-Mail" },
+  { value: "meeting",  label: "🤝 Meeting" },
+  { value: "task",     label: "✅ Aufgabe" },
+  { value: "note",     label: "📝 Notiz" },
+  { value: "briefing", label: "📋 Briefing" },
+  { value: "casting",  label: "🎬 Casting" },
 ] as const;
 
 interface Props {
@@ -61,7 +62,8 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
         due_date: dueDate ? dueDate.toISOString() : null,
         owner_user_id: form.owner_user_id || user?.id || null,
         created_by_user_id: user?.id ?? null,
-        completed_at: new Date().toISOString(),
+        status: "open",
+        completed_at: null,
       });
       if (error) throw error;
     },
