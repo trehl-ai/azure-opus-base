@@ -310,13 +310,6 @@ export default function Deals() {
         </div>
       </div>
 
-      {/* WerteRaum Ressourcen — floating panel, top-right, only for the "Werteraum - Schulen" pipeline */}
-      {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
-        <div className="mb-4 flex justify-end">
-          <WerteRaumRessourcen className="w-full sm:w-72" />
-        </div>
-      )}
-
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
         <Select value={activePipelineId} onValueChange={setSelectedPipelineId}>
@@ -390,6 +383,11 @@ export default function Deals() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* WerteRaum Ressourcen — slim horizontal strip above the board, only for the "Werteraum - Schulen" pipeline */}
+      {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
+        <WerteRaumRessourcen className="mb-4" />
+      )}
 
       {/* Mobile: Stage selector + card list */}
       {isMobile ? (
