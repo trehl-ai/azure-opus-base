@@ -39,18 +39,22 @@ function useTopLeads() {
   });
 }
 
-type ActivityRow = { id: string; title: string; created_at: string };
+type ActivityRow = {
+  title: string;
+  created_at: string;
+  first_name: string | null;
+  last_name: string | null;
+  company_name: string | null;
+  activity_type: string | null;
+};
 
 function useActivities() {
   return useQuery({
-    queryKey: ["eic", "deal_activities", "werteraum"],
+    queryKey: ["eic", "outreach_activities", "werteraum"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
-        .from("deal_activities")
-        .select("id,title,created_at")
-        .or("title.ilike.%Outreach%,title.ilike.%WerteRaum%,title.ilike.%Landing Page%")
-        .order("created_at", { ascending: false })
-        .limit(20);
+      // deal_activities ist nicht anon-lesbar (RLS) — supabaseEIC läuft sessionlos als anon.
+      // Daher der SECURITY-DEFINER-RPC get_outreach_activities (analog get_outreach_stats).
+      const { data, error } = await supabaseEIC.rpc("get_outreach_activities", { p_limit: 20 });
       if (error) throw error;
       return (data ?? []) as ActivityRow[];
     },
@@ -252,11 +256,11 @@ export default function CampaignWerteraum() {
           )}
           {activitiesQ.data && (
             <ul className="space-y-3">
-              {activitiesQ.data.map((a) => (
-                <li key={a.id} className="border-l-2 border-primary/30 pl-3">
+              {activitiesQ.data.map((a, i) => (
+                <li key={i} className="border-l-2 border-primary/30 pl-3">
                   <p className="text-sm font-medium leading-tight">{a.title}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {formatRelative(a.created_at)}
+                    {[a.company_name, formatRelative(a.created_at)].filter(Boolean).join(" · ")}
                   </p>
                 </li>
               ))}
