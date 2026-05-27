@@ -2,14 +2,9 @@ import { useState } from "react";
 import { supabaseEIC } from "@/lib/supabaseEIC";
 import { useToast } from "@/hooks/use-toast";
 
-// Storage notes:
-// - Per request this uses `supabaseEIC` (the EIC project client) for storage.
-//   The rest of the app reaches the "project-files" bucket via the main
-//   `@/integrations/supabase/client` (see Deals.tsx + ProjectResources.tsx),
-//   and supabaseEIC.ts itself warns "do NOT use outside Campaigns". The two
-//   referenced files must therefore live in the EIC project's "project-files"
-//   bucket for these rows to resolve. Swapping the client below is a one-liner
-//   if that turns out to be the wrong project.
+// Storage: uses `supabaseEIC` (the EIC project, ttgvhqygmgtnjgwunuwz) — the
+// WerteRaum resource files live in that project's "project-files" bucket.
+// (Confirmed; this is intentionally NOT the main `@/integrations/supabase/client`.)
 const STORAGE_BUCKET = "project-files";
 const SIGNED_URL_TTL = 3600;
 const WEBSITE_URL = "https://werteraum-schule.de";
@@ -21,16 +16,15 @@ const viewerUrl = (signedUrl: string, embedded: boolean) =>
 
 type ResourceRow =
   | { kind: "link"; icon: string; label: string; href: string }
-  | { kind: "doc"; icon: string; label: string; path: string };
+  | { kind: "doc"; icon: string; label: string; path: string }
+  | { kind: "soon"; icon: string; label: string };
 
 const ROWS: ResourceRow[] = [
   { kind: "link", icon: "🌐", label: "Webseite", href: WEBSITE_URL },
   { kind: "link", icon: "📄", label: "Landingpage", href: WEBSITE_URL },
-  // NOTE: Gesprächsleitfaden path is an assumption — the existing upload in
-  // Deals.tsx stores under `werteraum/leitfaden/<dynamic-filename>`. Adjust if
-  // the canonical file lives elsewhere.
-  { kind: "doc", icon: "📋", label: "Briefanschreiben", path: "werteraum/briefanschreiben.pdf" },
-  { kind: "doc", icon: "📖", label: "Gesprächsleitfaden", path: "werteraum/gespraechsleitfaden.docx" },
+  // TODO: upload briefanschreiben.pdf to project-files/werteraum/
+  { kind: "soon", icon: "📋", label: "Briefanschreiben" },
+  { kind: "doc", icon: "📖", label: "Gesprächsleitfaden", path: "werteraum/leitfaden/Gespraechsleitfaden_Werteraum_Calls_v3.docx" },
 ];
 
 export function WerteRaumRessourcen() {
@@ -57,6 +51,7 @@ export function WerteRaumRessourcen() {
       window.open(row.href, "_blank", "noopener,noreferrer");
       return;
     }
+    if (row.kind !== "doc") return;
     const url = await getSignedUrl(row.path);
     if (url) window.open(viewerUrl(url, false), "_blank", "noopener,noreferrer");
   };
@@ -74,6 +69,21 @@ export function WerteRaumRessourcen() {
       {/* Resource rows */}
       <div className="space-y-1">
         {ROWS.map((row) => {
+          // Disabled placeholder — document not in storage yet.
+          if (row.kind === "soon") {
+            return (
+              <div
+                key={row.label}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-foreground opacity-50 cursor-not-allowed"
+                aria-disabled="true"
+              >
+                <span className="text-base leading-none">{row.icon}</span>
+                <span className="flex-1 font-medium">{row.label}</span>
+                <span className="text-xs text-muted-foreground">Folgt</span>
+              </div>
+            );
+          }
+
           const path = row.kind === "doc" ? row.path : null;
           const showPreview = !!path && hoveredPath === path && !!signedUrls[path];
 
