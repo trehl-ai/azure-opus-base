@@ -546,6 +546,7 @@ export default function Deals() {
                             phone: dealPhone,
                           }}
                           onDragStart={handleDragStart}
+                          isWerteraum={activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e"}
                         />
                       );
                     })}
