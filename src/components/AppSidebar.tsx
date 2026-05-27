@@ -16,6 +16,7 @@ import {
   LogOut,
   Lightbulb,
   Shield,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -33,6 +34,7 @@ const navSections = [
       { label: "Contacts", icon: Users, path: "/contacts", module: "contacts" },
       { label: "Companies", icon: Building2, path: "/companies", module: "companies" },
       { label: "Deals", icon: Handshake, path: "/deals", module: "deals" },
+      { label: "Kampagnen", icon: Megaphone, path: "/campaigns", module: "deals" },
     ],
   },
   {

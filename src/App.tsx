@@ -18,6 +18,8 @@ import CompanyDetail from "./pages/CompanyDetail.tsx";
 import ContactDetail from "./pages/ContactDetail.tsx";
 import Deals from "./pages/Deals.tsx";
 import DealDetail from "./pages/DealDetail.tsx";
+import Campaigns from "./pages/Campaigns.tsx";
+import CampaignWerteraum from "./pages/CampaignWerteraum.tsx";
 import Projects from "./pages/Projects.tsx";
 import ProjectDetail from "./pages/ProjectDetail.tsx";
 import Tasks from "./pages/Tasks.tsx";
@@ -83,6 +85,8 @@ const App = () => (
               <Route path="/companies/:id" element={<P><CompanyDetail /></P>} />
               <Route path="/deals" element={<P><Deals /></P>} />
               <Route path="/deals/:id" element={<P><DealDetail /></P>} />
+              <Route path="/campaigns" element={<P><Campaigns /></P>} />
+              <Route path="/campaigns/werteraum" element={<P><CampaignWerteraum /></P>} />
               <Route path="/projects" element={<P><Projects /></P>} />
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
