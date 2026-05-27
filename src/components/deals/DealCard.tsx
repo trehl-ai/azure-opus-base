@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { cn, getAvatarColor, getInitials } from "@/lib/utils";
 import { Phone } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { openWerteraumLeitfaden, WERTERAUM_WEBSITE_URL } from "@/lib/werteraumResources";
 
 interface DealCardData {
   id: string;
@@ -19,8 +21,9 @@ const priorityDot: Record<string, string> = {
   high: "bg-destructive",
 };
 
-export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStart: (e: React.DragEvent, dealId: string) => void }) {
+export function DealCard({ deal, onDragStart, isWerteraum = false }: { deal: DealCardData; onDragStart: (e: React.DragEvent, dealId: string) => void; isWerteraum?: boolean }) {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const formatCurrency = (v: number | null, c: string | null) =>
     v != null ? new Intl.NumberFormat("de-DE", { style: "currency", currency: c || "EUR", maximumFractionDigits: 0 }).format(v) : "";
@@ -73,6 +76,32 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
           </div>
         )}
       </div>
+      {isWerteraum && (
+        <div className="mt-1.5 flex items-center gap-2 border-t border-border pt-1.5">
+          <a
+            href={WERTERAUM_WEBSITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title="Webseite"
+            className="text-[13px] leading-none transition-opacity hover:opacity-60"
+          >
+            🌐
+          </a>
+          <button
+            type="button"
+            title="Gesprächsleitfaden"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const ok = await openWerteraumLeitfaden();
+              if (!ok) toast({ variant: "destructive", title: "Leitfaden konnte nicht geladen werden" });
+            }}
+            className="text-[13px] leading-none transition-opacity hover:opacity-60"
+          >
+            📖
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,8 +11,6 @@ import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
 import { EditActivitySheet } from "@/components/activities/EditActivitySheet";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
-import { WerteRaumLeitfadenButton } from "@/components/deals/WerteRaumLeitfaden";
-import { WerteRaumRessourcen } from "@/components/deals/WerteRaumRessourcen";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
@@ -309,7 +307,6 @@ export default function DealDetail() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <WerteRaumLeitfadenButton pipelineId={deal.pipeline_id} />
           {canWriteDeals && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>}
           {deal.status === "open" && canWriteDeals && (
             <>
@@ -370,9 +367,7 @@ export default function DealDetail() {
         </TabsList>
 
         {/* Overview */}
-        <TabsContent value="overview" className="mt-4">
-          <div className={cn("grid gap-6", isWerteraumSchulen && "lg:grid-cols-3")}>
-          <div className={cn("space-y-6", isWerteraumSchulen && "lg:col-span-2")}>
+        <TabsContent value="overview" className="space-y-6 mt-4">
           {/* Stage Progress */}
           {stages && stages.length > 0 && (
             <div className={cardClass}>
@@ -425,14 +420,6 @@ export default function DealDetail() {
               {deal.lost_at && <Field label="Verloren am" value={format(new Date(deal.lost_at), "dd.MM.yyyy HH:mm")} />}
               {deal.lost_reason && <div className="col-span-2"><Field label="Verlustgrund" value={deal.lost_reason} /></div>}
             </div>
-          </div>
-          </div>
-          {/* WerteRaum Ressourcen — right column, only for the "Werteraum - Schulen" pipeline */}
-          {isWerteraumSchulen && (
-            <div className="space-y-6">
-              <WerteRaumRessourcen />
-            </div>
-          )}
           </div>
         </TabsContent>
 
