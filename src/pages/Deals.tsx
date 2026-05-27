@@ -10,6 +10,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
+import { WerteRaumRessourcen } from "@/components/deals/WerteRaumRessourcen";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { MobileStageSelector, StageChangeSheet } from "@/components/shared/MobileStageSelector";
@@ -393,6 +394,13 @@ export default function Deals() {
         </div>
       </div>
 
+      {/* WerteRaum Ressourcen — floating panel, top-right, only for the "Werteraum - Schulen" pipeline */}
+      {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
+        <div className="mb-4 flex justify-end">
+          <WerteRaumRessourcen className="w-full sm:w-72" />
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
         <Select value={activePipelineId} onValueChange={setSelectedPipelineId}>
@@ -546,7 +554,6 @@ export default function Deals() {
                             phone: dealPhone,
                           }}
                           onDragStart={handleDragStart}
-                          isWerteraum={activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e"}
                         />
                       );
                     })}
