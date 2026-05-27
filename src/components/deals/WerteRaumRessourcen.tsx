@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Globe, Rocket, FileText, File as FileIcon, BarChart3, ExternalLink, Pencil, Trash2, Plus, Upload, Loader2 } from "lucide-react";
+import { Globe, Rocket, FileText, File as FileIcon, BarChart3, Pencil, Trash2, Plus, Upload, Loader2 } from "lucide-react";
 import { cn, getValidUrl } from "@/lib/utils";
 
 // All DB + storage operations go through supabaseEIC (EIC project ttgvhqygmgtnjgwunuwz).
@@ -157,48 +157,52 @@ export function WerteRaumRessourcen({ className }: { className?: string }) {
   };
 
   return (
-    <div className={cn("rounded-2xl border border-border bg-card p-6 space-y-4", className)}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Ressourcen</h3>
-        {canEdit && (
-          <Button variant="outline" size="sm" onClick={openAdd}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Hinzufügen
-          </Button>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        {resources?.map((r) => {
-          const Icon = typeConfig[r.type]?.icon ?? Globe;
-          const sub = typeConfig[r.type]?.label ?? r.type;
-          return (
-            <div key={r.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5">
-              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{r.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {sub}{r.storage_path ? ` · ${r.storage_path.split("/").pop()}` : r.url ? ` · ${r.url}` : ""}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openResource(r)}>
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
+    <div className={cn("rounded-lg border border-border bg-card/50 px-6 py-3", className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2">
+          {resources?.map((r) => {
+            const Icon = typeConfig[r.type]?.icon ?? Globe;
+            return (
+              <div
+                key={r.id}
+                className="group relative flex w-[120px] items-center rounded-md border border-border bg-background px-2 py-1.5"
+              >
+                <button
+                  onClick={() => openResource(r)}
+                  title={r.name}
+                  className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-sm">{r.name}</span>
+                </button>
                 {canEdit && (
-                  <>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => confirmDelete(r)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </>
+                  <div className="absolute right-1 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded bg-background pl-1 group-hover:flex">
+                    <button
+                      onClick={() => openEdit(r)}
+                      className="text-muted-foreground hover:text-foreground"
+                      title="Bearbeiten"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(r)}
+                      className="text-muted-foreground hover:text-destructive"
+                      title="Löschen"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
               </div>
-            </div>
-          );
-        })}
-        {resources && resources.length === 0 && (
+            );
+          })}
+        </div>
+        {canEdit && (
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={openAdd}>
+            <Plus className="mr-1 h-3 w-3" /> Hinzufügen
+          </Button>
+        )}
+        {resources && resources.length === 0 && !canEdit && (
           <p className="text-[11px] text-muted-foreground">Noch keine Ressourcen.</p>
         )}
       </div>
