@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Globe, Rocket, BarChart3, ExternalLink, Pencil, Trash2, Plus, Upload, Loader2, Paperclip } from "lucide-react";
-import { getValidUrl } from "@/lib/utils";
+import { getValidUrl, sanitizeStorageKey } from "@/lib/utils";
 
 const LEITFADEN_BUCKET = "project-files";
 const LEITFADEN_ACCEPT = ".pdf,.docx,.pptx";
@@ -93,7 +93,9 @@ export function ProjectResources({ projectId }: { projectId: string }) {
         if (!allowed.includes(ext)) throw new Error("Nur PDF, PPT, PPTX erlaubt");
         if (selectedFile.size > 50 * 1024 * 1024) throw new Error("Max. 50 MB");
 
-        filePath = `${projectId}/${Date.now()}_${selectedFile.name}`;
+        // file_name keeps original display string; storage path is sanitized
+        // (Supabase Storage rejects Umlauts/accents/spaces with "Invalid key").
+        filePath = `${projectId}/${Date.now()}_${sanitizeStorageKey(selectedFile.name)}`;
         fileName = selectedFile.name;
         const { error: upErr } = await supabase.storage
           .from("project-resources")
@@ -160,12 +162,16 @@ export function ProjectResources({ projectId }: { projectId: string }) {
     setLeitfadenError(null);
     setLeitfadenUploading(true);
     try {
-      const newPath = `${projectId}/gespraechsleitfaden/${file.name}`;
+      // gespraechsleitfaden_name keeps the original (display) string in DB;
+      // every storage-path construction goes through sanitizeStorageKey so
+      // Umlauts/accents don't trip Supabase's "Invalid key" validation and
+      // delete-on-rename hits the actually-stored sanitized path.
+      const newPath = `${projectId}/gespraechsleitfaden/${sanitizeStorageKey(file.name)}`;
       const previousName = projectFile?.gespraechsleitfaden_name ?? null;
       if (previousName && previousName !== file.name) {
         await supabase.storage
           .from(LEITFADEN_BUCKET)
-          .remove([`${projectId}/gespraechsleitfaden/${previousName}`]);
+          .remove([`${projectId}/gespraechsleitfaden/${sanitizeStorageKey(previousName)}`]);
       }
       const { error: upErr } = await supabase.storage
         .from(LEITFADEN_BUCKET)
@@ -196,7 +202,7 @@ export function ProjectResources({ projectId }: { projectId: string }) {
   const handleLeitfadenDelete = async () => {
     if (!projectFile?.gespraechsleitfaden_name) return;
     try {
-      const path = `${projectId}/gespraechsleitfaden/${projectFile.gespraechsleitfaden_name}`;
+      const path = `${projectId}/gespraechsleitfaden/${sanitizeStorageKey(projectFile.gespraechsleitfaden_name)}`;
       await supabase.storage.from(LEITFADEN_BUCKET).remove([path]);
       const { error } = await (supabase as any)
         .from("projects")
