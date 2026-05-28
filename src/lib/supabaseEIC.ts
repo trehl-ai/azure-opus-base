@@ -20,6 +20,7 @@ export type OutreachStats = {
   pending: number;
   email_sent: number;
   link_clicked: number;
+  replied: number;
   terminated: number;
   cluster_a: number;
   cluster_b: number;
