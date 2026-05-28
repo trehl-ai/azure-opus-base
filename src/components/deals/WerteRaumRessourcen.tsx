@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Globe, Rocket, FileText, File as FileIcon, BarChart3, Pencil, Trash2, Plus, Upload, Loader2 } from "lucide-react";
-import { cn, getValidUrl } from "@/lib/utils";
+import { cn, getValidUrl, sanitizeStorageKey } from "@/lib/utils";
 
 // All DB + storage operations go through supabaseEIC (EIC project ttgvhqygmgtnjgwunuwz).
 const STORAGE_BUCKET = "project-files";
@@ -61,9 +61,13 @@ export function WerteRaumRessourcen({ className }: { className?: string }) {
 
   const nextPosition = (resources?.reduce((m, r) => Math.max(m, r.position ?? 0), 0) ?? 0) + 1;
 
-  // Uploads the selected file to project-files/werteraum/<name>, returns its storage_path.
+  // Uploads the selected file to project-files/werteraum/<sanitized-name>, returns its
+  // storage_path. file.name is sanitized because Supabase Storage rejects Umlauts /
+  // non-ASCII / spaces with "Invalid key". The user-visible Resource.name keeps the
+  // original input (set separately in the form), so display stays unchanged.
   const uploadFile = async (file: File): Promise<string> => {
-    const path = `${STORAGE_PREFIX}/${file.name}`;
+    const safeName = sanitizeStorageKey(file.name);
+    const path = `${STORAGE_PREFIX}/${safeName}`;
     const { error } = await supabaseEIC.storage
       .from(STORAGE_BUCKET)
       .upload(path, file, { upsert: true, contentType: file.type });
