@@ -27,11 +27,15 @@ export type ActivityStats = {
   kw_nr_letzte: number;
   calls_diese_woche: number;
   calls_letzte_woche: number;
+  briefe_diese_kw: number;
+  briefe_letzte_kw: number;
+  emails_diese_kw: number;
+  emails_letzte_kw: number;
   stage_infos_diese_kw: number;
-  stage_wiedervorlage_diese_kw: number;
-  lost_diese_kw: number;
   stage_infos_letzte_kw: number;
+  stage_wiedervorlage_diese_kw: number;
   stage_wiedervorlage_letzte_kw: number;
+  lost_diese_kw: number;
   lost_letzte_kw: number;
   funnel_kw: FunnelKwBucket[];
   funnel_bestand: FunnelBestandStage[];
