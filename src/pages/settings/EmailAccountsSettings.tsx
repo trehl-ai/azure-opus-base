@@ -60,18 +60,9 @@ export default function EmailAccountsSettings() {
     staleTime: 60_000,
   });
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-        <ShieldOff className="h-12 w-12 text-muted-foreground" />
-        <h2 className="text-xl font-semibold">Zugriff verweigert</h2>
-        <p className="text-muted-foreground">Du musst eingeloggt sein, um E-Mail-Konten zu verwalten.</p>
-      </div>
-    );
-  }
-
+  // All hooks must run on every render — guard rendering on `user`, not the hook calls.
   const { data: accounts = [], isLoading } = useQuery({
-    queryKey: ["email-accounts"],
+    queryKey: ["email-accounts", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("email_accounts")
@@ -80,10 +71,12 @@ export default function EmailAccountsSettings() {
       if (error) throw error;
       return data;
     },
+    enabled: !!user,
   });
 
   const setDefaultMutation = useMutation({
     mutationFn: async (accountId: string) => {
+      if (!user) throw new Error("Nicht eingeloggt");
       await supabase
         .from("email_accounts")
         .update({ is_default: false })
@@ -114,6 +107,16 @@ export default function EmailAccountsSettings() {
     },
     onError: () => toast.error("Fehler beim Trennen des Kontos"),
   });
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
+        <ShieldOff className="h-12 w-12 text-muted-foreground" />
+        <h2 className="text-xl font-semibold">Zugriff verweigert</h2>
+        <p className="text-muted-foreground">Du musst eingeloggt sein, um E-Mail-Konten zu verwalten.</p>
+      </div>
+    );
+  }
 
   const handleConnectGoogle = async () => {
     setConnectingGoogle(true);

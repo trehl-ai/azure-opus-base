@@ -80,8 +80,11 @@ export default function Deals() {
 
       let exportData = data ?? [];
       if (eignungFilter !== "all") {
-        // Roadshow-Eignung lebt in deal_roadshow_details und wird hier nicht geladen — Filter ignoriert "Offen" nicht.
-        exportData = exportData.filter(() => eignungFilter === "grau");
+        // Roadshow-Eignung lebt in deal_roadshow_details. Falls nicht geladen, gilt der Deal als "grau" (Offen).
+        exportData = exportData.filter((r: any) => {
+          const eignung = (r.deal_roadshow_details as { eignung?: string } | null | undefined)?.eignung ?? "grau";
+          return eignung === eignungFilter;
+        });
       }
 
       const pipelineName = pipelines?.find(p => p.id === activePipelineId)?.name ?? "";
@@ -160,11 +163,12 @@ export default function Deals() {
     enabled: !!activePipelineId,
   });
 
-  // Filtered deals by eignung — Roadshow-Eignung wird nicht client-seitig geladen,
-  // daher gelten alle Deals als "grau" (offen).
-  const filteredDeals = deals?.filter(() => {
+  // Filtered deals by eignung — Roadshow-Eignung lebt in deal_roadshow_details.
+  // Falls nicht geladen, gilt der Deal als "grau" (offen).
+  const filteredDeals = deals?.filter((d: any) => {
     if (eignungFilter === "all") return true;
-    return eignungFilter === "grau";
+    const eignung = (d.deal_roadshow_details as { eignung?: string } | null | undefined)?.eignung ?? "grau";
+    return eignung === eignungFilter;
   });
 
   // Move deal mutation
