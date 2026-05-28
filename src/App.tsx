@@ -1,6 +1,8 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,28 +13,38 @@ import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login.tsx";
 import ForgotPassword from "./pages/ForgotPassword.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
 import Contacts from "./pages/Contacts.tsx";
 import Companies from "./pages/Companies.tsx";
 import CompanyDetail from "./pages/CompanyDetail.tsx";
 import ContactDetail from "./pages/ContactDetail.tsx";
-import Deals from "./pages/Deals.tsx";
-import DealDetail from "./pages/DealDetail.tsx";
 import Campaigns from "./pages/Campaigns.tsx";
 import CampaignWerteraum from "./pages/CampaignWerteraum.tsx";
 import Projects from "./pages/Projects.tsx";
 import ProjectDetail from "./pages/ProjectDetail.tsx";
 import Tasks from "./pages/Tasks.tsx";
-import Import from "./pages/Import.tsx";
 import Intake from "./pages/Intake.tsx";
 import SettingsPage from "./pages/Settings.tsx";
-import Compose from "./pages/Compose.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import AuthCallback from "./pages/AuthCallback.tsx";
 import Ideas from "./pages/Ideas.tsx";
 import OutlookAdminConsent from "./pages/settings/OutlookAdminConsent.tsx";
 import Dsgvo from "./pages/Dsgvo.tsx";
 import NotFound from "./pages/NotFound.tsx";
+
+// Heavy routes — split into separate chunks to keep the initial bundle small.
+// Dashboard pulls in recharts; Deals/Import/Compose/DealDetail are the largest trees,
+// and Deals depends on xlsx via the export handler.
+const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
+const Deals = lazy(() => import("./pages/Deals.tsx"));
+const DealDetail = lazy(() => import("./pages/DealDetail.tsx"));
+const Import = lazy(() => import("./pages/Import.tsx"));
+const Compose = lazy(() => import("./pages/Compose.tsx"));
+
+const RouteFallback = () => (
+  <div className="flex h-full min-h-[400px] items-center justify-center">
+    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  </div>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +80,7 @@ const App = () => (
       <ErrorBoundary>
         <BrowserRouter>
           <AuthProvider>
+            <Suspense fallback={<RouteFallback />}>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
@@ -100,6 +113,7 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </ErrorBoundary>
