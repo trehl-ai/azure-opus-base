@@ -75,7 +75,8 @@ export default function CampaignWerteraum() {
         { label: "Pending", value: stats.pending, color: "#9ca3af" },
         { label: "Email versendet", value: stats.email_sent, color: "#378ADD" },
         { label: "Link geklickt", value: stats.link_clicked, color: "#1D9E75" },
-        { label: "Terminiert", value: stats.terminated, color: "#7c3aed" },
+        { label: "Geantwortet", value: stats.replied, color: "#16a34a" },
+        { label: "Opt-Out", value: stats.terminated, color: "#7c3aed" },
       ]
     : [];
   const funnelMax = Math.max(1, ...funnel.map((f) => f.value));
@@ -108,19 +109,40 @@ export default function CampaignWerteraum() {
       )}
 
       {/* BLOCK 1 — KPI */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
-        {[
-          { label: "Gesamt", value: total },
-          { label: "Versendet", value: stats?.email_sent ?? 0 },
-          { label: "Link geklickt", value: stats?.link_clicked ?? 0 },
-          { label: "Terminiert", value: stats?.terminated ?? 0 },
-          { label: "Conversion", value: `${conversion.toFixed(1)}%` },
-        ].map((k) => (
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-6">
+        {(
+          [
+            { label: "Gesamt", value: total },
+            { label: "Versendet", value: stats?.email_sent ?? 0 },
+            { label: "Link geklickt", value: stats?.link_clicked ?? 0 },
+            { label: "Geantwortet", value: stats?.replied ?? 0, tone: "success" as const },
+            { label: "Opt-Out", value: stats?.terminated ?? 0, subtitle: "Nicht kontaktieren" },
+            { label: "Conversion", value: `${conversion.toFixed(1)}%` },
+          ] satisfies {
+            label: string;
+            value: number | string;
+            subtitle?: string;
+            tone?: "success";
+          }[]
+        ).map((k) => (
           <Card key={k.label} className="p-4">
-            <p className="text-[12px] font-medium text-muted-foreground tracking-wider uppercase">{k.label}</p>
-            <p className="text-[28px] font-semibold mt-1">
+            <p
+              className={`text-[12px] font-medium tracking-wider uppercase ${
+                k.tone === "success" ? "text-success" : "text-muted-foreground"
+              }`}
+            >
+              {k.label}
+            </p>
+            <p
+              className={`text-[28px] font-semibold mt-1 ${
+                k.tone === "success" ? "text-success" : ""
+              }`}
+            >
               {statsQ.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : k.value}
             </p>
+            {k.subtitle && (
+              <p className="text-[11px] text-muted-foreground mt-1">{k.subtitle}</p>
+            )}
           </Card>
         ))}
       </div>
