@@ -135,12 +135,14 @@ export default function Dashboard() {
 
   const totalsThisKw =
     (activityStats?.calls_diese_woche ?? 0) +
-    (activityStats?.stage_infos_diese_kw ?? 0) +
+    (activityStats?.briefe_diese_kw ?? 0) +
+    (activityStats?.emails_diese_kw ?? 0) +
     (activityStats?.stage_wiedervorlage_diese_kw ?? 0) +
     (activityStats?.lost_diese_kw ?? 0);
   const totalsLastKw =
     (activityStats?.calls_letzte_woche ?? 0) +
-    (activityStats?.stage_infos_letzte_kw ?? 0) +
+    (activityStats?.briefe_letzte_kw ?? 0) +
+    (activityStats?.emails_letzte_kw ?? 0) +
     (activityStats?.stage_wiedervorlage_letzte_kw ?? 0) +
     (activityStats?.lost_letzte_kw ?? 0);
 
@@ -455,10 +457,16 @@ export default function Dashboard() {
                 current={activityStats?.calls_diese_woche ?? 0}
               />
               <ComparisonRow
+                icon="✉️"
+                label="Briefe versendet"
+                previous={activityStats?.briefe_letzte_kw ?? 0}
+                current={activityStats?.briefe_diese_kw ?? 0}
+              />
+              <ComparisonRow
                 icon="📧"
-                label="Infomaterial versandt"
-                previous={activityStats?.stage_infos_letzte_kw ?? 0}
-                current={activityStats?.stage_infos_diese_kw ?? 0}
+                label="E-Mails versendet"
+                previous={activityStats?.emails_letzte_kw ?? 0}
+                current={activityStats?.emails_diese_kw ?? 0}
               />
               <ComparisonRow
                 icon="🔄"
