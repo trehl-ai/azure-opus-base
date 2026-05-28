@@ -93,7 +93,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { stats, loading } = useDashboardStats();
   const { activityStats } = useActivityStats();
-  const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet" | "anzahl">("gesamt");
+  const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet">("gesamt");
 
   const today = useMemo(
     () => format(new Date(), "EEEE, d. MMMM yyyy", { locale: de }),
@@ -145,13 +145,14 @@ export default function Dashboard() {
     (activityStats?.lost_letzte_kw ?? 0);
 
   const wonCompanies = stats?.hover_won_companies ?? [];
+  const wonDealCount = stats?.won_deal_count ?? 0;
   const wonSubtext = !stats
     ? undefined
-    : wonCompanies.length === 0
+    : wonDealCount === 0
       ? "Noch keine gewonnenen Deals"
-      : wonCompanies.length === 1
+      : wonDealCount === 1
         ? `${wonCompanies[0]?.company_name ?? "—"} abgeschlossen`
-        : `${wonCompanies.length} Deals gewonnen`;
+        : `${wonDealCount.toLocaleString("de-DE")} Deals gewonnen`;
 
   return (
     <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-canvas p-4 md:p-6 lg:p-8 space-y-6">
@@ -238,10 +239,8 @@ export default function Dashboard() {
             </h2>
             <p className="text-[12px] text-muted-foreground mt-0.5">
               {chartMode === "gesamt"
-                ? "Summe der Deal-Werte je Pipeline"
-                : chartMode === "gewichtet"
-                ? "Erwarteter Wert (Wert × Wahrscheinlichkeit)"
-                : "Anzahl aktiver Deals je Pipeline"}
+                ? "Summe der gewonnenen Deals je Pipeline"
+                : "Gewichteter Forecast je Pipeline (offen × Wahrscheinlichkeit)"}
             </p>
           </div>
           <div role="tablist" aria-label="Chart-Modus" className="flex gap-1 shrink-0">
@@ -273,20 +272,6 @@ export default function Dashboard() {
             >
               Gewichtet
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={chartMode === "anzahl"}
-              onClick={() => setChartMode("anzahl")}
-              className={cn(
-                "rounded-md px-3 py-1 text-sm transition-colors",
-                chartMode === "anzahl"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200",
-              )}
-            >
-              Anzahl
-            </button>
           </div>
         </div>
         {loading ? (
@@ -303,19 +288,13 @@ export default function Dashboard() {
                 data={[...stats.pipeline_breakdown].sort((a, b) =>
                   chartMode === "gewichtet"
                     ? (b.weighted_value ?? 0) - (a.weighted_value ?? 0)
-                    : chartMode === "anzahl"
-                    ? (b.deal_count ?? 0) - (a.deal_count ?? 0)
                     : (b.total_value ?? 0) - (a.total_value ?? 0),
                 )}
                 margin={{ top: 8, right: 24, bottom: 8, left: 8 }}
               >
                 <XAxis
                   type="number"
-                  tickFormatter={(v: number) =>
-                    chartMode === "anzahl"
-                      ? `${v} ${v === 1 ? "Deal" : "Deals"}`
-                      : eurCompactFormatter.format(v)
-                  }
+                  tickFormatter={(v: number) => eurCompactFormatter.format(v)}
                   tick={{ fontSize: 11, fill: "#6b7280" }}
                   allowDecimals={false}
                 />
@@ -327,13 +306,7 @@ export default function Dashboard() {
                 />
                 <Tooltip content={<PipelineTooltip mode={chartMode} />} />
                 <Bar
-                  dataKey={
-                    chartMode === "gewichtet"
-                      ? "weighted_value"
-                      : chartMode === "anzahl"
-                      ? "deal_count"
-                      : "total_value"
-                  }
+                  dataKey={chartMode === "gewichtet" ? "weighted_value" : "total_value"}
                   radius={[0, 4, 4, 0]}
                 >
                   {stats.pipeline_breakdown.map((entry) => (
@@ -895,7 +868,7 @@ function PipelineTooltip({
   active,
   payload,
   mode,
-}: TooltipProps<number, string> & { mode: "gesamt" | "gewichtet" | "anzahl" }) {
+}: TooltipProps<number, string> & { mode: "gesamt" | "gewichtet" }) {
   if (!active || !payload || payload.length === 0) return null;
   const item = payload[0].payload as {
     name: string;
@@ -906,30 +879,21 @@ function PipelineTooltip({
   return (
     <div className="rounded-md border border-border bg-card px-3 py-2 shadow-md text-[12px]">
       <p className="font-semibold text-foreground mb-1">{item.name}</p>
-      {mode === "anzahl" ? (
+      <p className="text-muted-foreground">
+        {mode === "gewichtet" ? "Forecast" : "Gewonnen"}:{" "}
+        <span className="text-foreground font-medium tabular-nums">
+          {eurFormatter.format(
+            (mode === "gewichtet" ? item.weighted_value : item.total_value) ?? 0,
+          )}
+        </span>
+      </p>
+      {mode === "gewichtet" && (
         <p className="text-muted-foreground">
-          Deals:{" "}
+          Offene Deals:{" "}
           <span className="text-foreground font-medium tabular-nums">
             {item.deal_count}
           </span>
         </p>
-      ) : (
-        <>
-          <p className="text-muted-foreground">
-            {mode === "gewichtet" ? "Erwartet" : "Wert"}:{" "}
-            <span className="text-foreground font-medium tabular-nums">
-              {eurFormatter.format(
-                (mode === "gewichtet" ? item.weighted_value : item.total_value) ?? 0,
-              )}
-            </span>
-          </p>
-          <p className="text-muted-foreground">
-            Deals:{" "}
-            <span className="text-foreground font-medium tabular-nums">
-              {item.deal_count}
-            </span>
-          </p>
-        </>
       )}
     </div>
   );
