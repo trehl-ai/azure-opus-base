@@ -127,6 +127,20 @@ export default function Deals() {
   const [selectedPipelineId, setSelectedPipelineId] = useState("");
   const activePipelineId = selectedPipelineId || pipelines?.find((p) => p.is_default)?.id || pipelines?.[0]?.id || "";
 
+  // Initial load: restore pipeline selection from ?pipeline=<id>
+  useEffect(() => {
+    const pipelineFromUrl = searchParams.get("pipeline");
+    if (pipelineFromUrl) setSelectedPipelineId(pipelineFromUrl);
+  }, []);
+
+  // Pipeline switch: keep state logic, mirror selection into the URL so a
+  // DealDetail navigate(-1) returns to /deals?pipeline=<id> (correct pipeline).
+  const handlePipelineChange = (pipelineId: string) => {
+    setSelectedPipelineId(pipelineId);
+    searchParams.set("pipeline", pipelineId);
+    setSearchParams(searchParams, { replace: true });
+  };
+
   // Stages
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", activePipelineId],
@@ -316,7 +330,7 @@ export default function Deals() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
-        <Select value={activePipelineId} onValueChange={setSelectedPipelineId}>
+        <Select value={activePipelineId} onValueChange={handlePipelineChange}>
           <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]"><SelectValue placeholder="Pipeline" /></SelectTrigger>
           <SelectContent>{pipelines?.map((p) => <SelectItem key={p.id} value={p.id} className="min-h-[44px]">{p.name}</SelectItem>)}</SelectContent>
         </Select>
