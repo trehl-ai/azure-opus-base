@@ -1,0 +1,15 @@
+title = "Trehl AI gitleaks config"
+
+# WICHTIG: useDefault lädt das komplette gitleaks-Default-Ruleset. Ohne diesen
+# Block würde diese Config die Defaults ERSETZEN → 0 Regeln → Scanner findet
+# nichts mehr (verifiziert 2026-05-29). Allowlist unten greift on-top.
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Public-by-design frontend values (anon keys, Azure Client/Tenant IDs)"
+  paths = [
+    "src/lib/supabaseEIC.ts",
+    "src/lib/msalConfig.ts",
+    "src/pages/settings/OutlookAdminConsent.tsx"
+  ]
