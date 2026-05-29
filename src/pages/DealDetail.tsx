@@ -300,7 +300,7 @@ export default function DealDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/deals")}><ArrowLeft className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/deals"))}><ArrowLeft className="h-5 w-5" /></Button>
           <h1 className="text-[28px] font-semibold text-foreground">{deal.title}</h1>
           <span className={cn("rounded-full px-3 py-1 text-[12px] font-medium", statusColors[deal.status] ?? statusColors.open)}>
             {deal.status.toUpperCase()}
