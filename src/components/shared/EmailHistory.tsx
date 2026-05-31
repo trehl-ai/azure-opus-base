@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail } from "lucide-react";
+import { Mail, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -15,6 +15,7 @@ type EmailActivity = {
   id: string;
   title: string | null;
   description: string | null;
+  mail_entwurf: string | null;
   completed_at: string | null;
   created_at: string | null;
   auto_generated: boolean | null;
@@ -25,13 +26,73 @@ type EmailActivity = {
 };
 
 const ACTIVITY_FIELDS =
-  "id, title, description, completed_at, created_at, auto_generated, metadata, contact_id, deal_id, activity_type";
+  "id, title, description, mail_entwurf, completed_at, created_at, auto_generated, metadata, contact_id, deal_id, activity_type";
 
 function senderOf(email: EmailActivity): string {
   const inbound = email.auto_generated === true;
   const meta = (email.metadata ?? {}) as Record<string, unknown>;
   const sender = typeof meta.sender_email === "string" ? meta.sender_email : null;
   return inbound ? sender ?? "Eingehend" : "Ausgehend";
+}
+
+function EmailDetail({ email }: { email: EmailActivity }) {
+  const [showMail, setShowMail] = useState(false);
+  const inbound = email.auto_generated === true;
+  const fromLabel = senderOf(email);
+  const timestamp = email.completed_at ?? email.created_at;
+  const hasMail = typeof email.mail_entwurf === "string" && email.mail_entwurf.trim() !== "";
+
+  return (
+    <>
+      <SheetHeader>
+        <SheetTitle className="text-left pr-8">
+          {email.title || "(Kein Betreff)"}
+        </SheetTitle>
+      </SheetHeader>
+
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Von:</span> {fromLabel}
+            </p>
+            {timestamp && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Datum:</span>{" "}
+                {format(new Date(timestamp), "dd.MM.yyyy HH:mm")}
+              </p>
+            )}
+          </div>
+          <Badge variant={inbound ? "default" : "secondary"} className="text-[10px] shrink-0">
+            {inbound ? "Eingehend" : "Ausgehend"}
+          </Badge>
+        </div>
+
+        <div className="rounded-md border border-border bg-muted/30 p-4 text-sm whitespace-pre-wrap break-words">
+          {email.description?.trim() || "(Kein Inhalt)"}
+        </div>
+
+        {hasMail && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowMail((v) => !v)}
+              aria-expanded={showMail}
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              {showMail ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showMail ? "E-Mail ausblenden" : "E-Mail anzeigen"}
+            </button>
+            {showMail && (
+              <pre className="mt-2 max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-4 font-mono text-xs leading-relaxed text-foreground">
+                {email.mail_entwurf}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
@@ -184,44 +245,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
         }}
       >
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-          {selectedEmail && (() => {
-            const inbound = selectedEmail.auto_generated === true;
-            const fromLabel = senderOf(selectedEmail);
-            const timestamp = selectedEmail.completed_at ?? selectedEmail.created_at;
-
-            return (
-              <>
-                <SheetHeader>
-                  <SheetTitle className="text-left pr-8">
-                    {selectedEmail.title || "(Kein Betreff)"}
-                  </SheetTitle>
-                </SheetHeader>
-
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">Von:</span> {fromLabel}
-                      </p>
-                      {timestamp && (
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground">Datum:</span>{" "}
-                          {format(new Date(timestamp), "dd.MM.yyyy HH:mm")}
-                        </p>
-                      )}
-                    </div>
-                    <Badge variant={inbound ? "default" : "secondary"} className="text-[10px] shrink-0">
-                      {inbound ? "Eingehend" : "Ausgehend"}
-                    </Badge>
-                  </div>
-
-                  <div className="rounded-md border border-border bg-muted/30 p-4 text-sm whitespace-pre-wrap break-words">
-                    {selectedEmail.description?.trim() || "(Kein Inhalt)"}
-                  </div>
-                </div>
-              </>
-            );
-          })()}
+          {selectedEmail && <EmailDetail key={selectedEmail.id} email={selectedEmail} />}
         </SheetContent>
       </Sheet>
     </>
