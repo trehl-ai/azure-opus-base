@@ -50,7 +50,7 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
         title: activity.title,
         description: activity.description ?? "",
         activity_type: activity.activity_type,
-        status: activity.status ?? "open",
+        
         due_date: activity.due_date ? toLocalInputValue(activity.due_date) : "",
       });
     }
