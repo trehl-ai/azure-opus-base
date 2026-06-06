@@ -64,7 +64,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
         due_date: dueDate ? dueDate.toISOString() : null,
         owner_user_id: form.owner_user_id || authorId,
         created_by_user_id: authorId,
-        status: "open",
+        
         completed_at: null,
       });
       if (error) throw error;
