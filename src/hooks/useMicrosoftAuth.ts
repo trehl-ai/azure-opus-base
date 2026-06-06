@@ -66,13 +66,16 @@ export function useMicrosoftAuth() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data } = await supabase
-      .from("user_oauth_tokens")
-      .select("email, display_name")
+      .from("email_accounts")
+      .select("email_address, display_name")
       .eq("user_id", user.id)
       .eq("provider", "microsoft")
       .maybeSingle();
     if (data) {
-      setOutlookAccount({ email: data.email, displayName: data.display_name });
+      setOutlookAccount({
+        email: data.email_address,
+        displayName: data.display_name ?? "",
+      });
     }
   };
 
@@ -84,19 +87,19 @@ export function useMicrosoftAuth() {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const graphUser = await graphRes.json();
-    const email = graphUser.mail || graphUser.userPrincipalName;
-    const displayName = graphUser.displayName;
+    const email: string = graphUser.mail || graphUser.userPrincipalName;
+    const displayName: string = graphUser.displayName;
 
     const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
 
-    await supabase.from("user_oauth_tokens").upsert({
+    await supabase.from("email_accounts").upsert({
       user_id: user.id,
       provider: "microsoft",
-      access_token: accessToken,
-      refresh_token: null,
-      expires_at: expiresAt,
-      email,
+      email_address: email,
       display_name: displayName,
+      access_token_encrypted: accessToken,
+      refresh_token_encrypted: null,
+      token_expires_at: expiresAt,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,provider" });
 
@@ -118,7 +121,7 @@ export function useMicrosoftAuth() {
   const disconnect = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from("user_oauth_tokens")
+    await supabase.from("email_accounts")
       .delete()
       .eq("user_id", user.id)
       .eq("provider", "microsoft");
@@ -143,9 +146,9 @@ export function useMicrosoftAuth() {
       const result = await msalInstance.acquireTokenSilent(silentRequest);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from("user_oauth_tokens").update({
-          access_token: result.accessToken,
-          expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+        await supabase.from("email_accounts").update({
+          access_token_encrypted: result.accessToken,
+          token_expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
           updated_at: new Date().toISOString(),
         }).eq("user_id", user.id).eq("provider", "microsoft");
       }

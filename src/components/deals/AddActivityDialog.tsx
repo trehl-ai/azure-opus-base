@@ -64,7 +64,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
         due_date: dueDate ? dueDate.toISOString() : null,
         owner_user_id: form.owner_user_id || authorId,
         created_by_user_id: authorId,
-        status: "open",
+        
         completed_at: null,
       });
       if (error) throw error;
@@ -126,7 +126,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
             <Label>Verantwortlich</Label>
             <Select value={form.owner_user_id} onValueChange={(v) => u("owner_user_id", v)}>
               <SelectTrigger><SelectValue placeholder="Zuweisen" /></SelectTrigger>
-              <SelectContent>{users?.map((usr) => <SelectItem key={usr.id} value={usr.id}>{usr.full_name || `${usr.first_name || ''} ${usr.last_name || ''}`.trim() || usr.email}</SelectItem>)}</SelectContent>
+              <SelectContent>{users?.map((usr) => <SelectItem key={usr.id} value={usr.id}>{`${usr.first_name || ''} ${usr.last_name || ''}`.trim() || usr.email}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="flex gap-3">

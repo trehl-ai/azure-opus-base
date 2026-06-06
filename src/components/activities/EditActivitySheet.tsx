@@ -24,13 +24,6 @@ const ACTIVITY_TYPE_OPTIONS = [
   { value: "casting",  label: "🎬 Casting" },
 ] as const;
 
-const STATUS_OPTIONS = [
-  { value: "open",      label: "Offen" },
-  { value: "completed", label: "Erledigt" },
-  { value: "sent",      label: "Versendet" },
-  { value: "cancelled", label: "Storniert" },
-] as const;
-
 interface EditActivitySheetProps {
   activity: DealActivity | null;
   open: boolean;
@@ -44,7 +37,7 @@ const toLocalInputValue = (iso: string): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-const emptyForm = { title: "", description: "", activity_type: "call", status: "open", due_date: "" };
+const emptyForm = { title: "", description: "", activity_type: "call", due_date: "" };
 
 export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActivitySheetProps) {
   const { toast } = useToast();
@@ -57,7 +50,7 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
         title: activity.title,
         description: activity.description ?? "",
         activity_type: activity.activity_type,
-        status: activity.status ?? "open",
+        
         due_date: activity.due_date ? toLocalInputValue(activity.due_date) : "",
       });
     }
@@ -75,7 +68,7 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
           title: form.title.trim(),
           description: form.description.trim() || null,
           activity_type: form.activity_type,
-          status: form.status,
+          
           due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
         })
         .eq("id", activity.id);
@@ -107,13 +100,6 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
             <Select value={form.activity_type} onValueChange={(v) => u("activity_type", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{ACTIVITY_TYPE_OPTIONS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-label">Status</Label>
-            <Select value={form.status} onValueChange={(v) => u("status", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">

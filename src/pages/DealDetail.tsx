@@ -253,7 +253,7 @@ export default function DealDetail() {
         due_date: followupDate.toISOString(),
         owner_user_id: authorId,
         created_by_user_id: authorId,
-        status: "open",
+        
         completed_at: null,
       });
       if (error) throw error;
