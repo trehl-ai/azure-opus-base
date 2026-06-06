@@ -103,13 +103,6 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-label">Status</Label>
-            <Select value={form.status} onValueChange={(v) => u("status", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
             <Label className="text-label">Beschreibung</Label>
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={4} />
           </div>
