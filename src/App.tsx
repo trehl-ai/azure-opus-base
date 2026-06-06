@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
@@ -72,6 +72,19 @@ const P = ({ children, requiredRoles, requiredModule, requiredAction }: {
   </ProtectedRoute>
 );
 
+const RESTRICTED_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+
+const DashboardGate = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (user?.id === RESTRICTED_USER_ID) return <Navigate to="/deals" replace />;
+  return <>{children}</>;
+};
+
+const RootRedirect = () => {
+  const { user } = useAuth();
+  return <Navigate to={user?.id === RESTRICTED_USER_ID ? "/deals" : "/dashboard"} replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -90,8 +103,8 @@ const App = () => (
               <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* Protected routes with AppLayout */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<P><Dashboard /></P>} />
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="/dashboard" element={<P><DashboardGate><Dashboard /></DashboardGate></P>} />
               <Route path="/contacts" element={<P><Contacts /></P>} />
               <Route path="/contacts/:id" element={<P><ContactDetail /></P>} />
               <Route path="/companies" element={<P><Companies /></P>} />

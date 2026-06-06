@@ -79,6 +79,13 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
+  const RESTRICTED_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+  const hideDashboard = user?.id === RESTRICTED_USER_ID;
+  const filteredSections = navSections.map(section => ({
+    ...section,
+    items: section.items.filter(item => !(hideDashboard && item.path === "/dashboard")),
+  }));
+
   const handleClick = () => {
     onNavigate?.();
   };
@@ -131,7 +138,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
       )}
 
       <nav className={cn("flex-1 overflow-y-auto space-y-1", collapsed ? "px-1.5" : "px-3")}>
-        {navSections.map((section, sIdx) => {
+        {filteredSections.map((section, sIdx) => {
           const visibleItems = section.items.filter(item => hasPermission(role, item.module, "read"));
           if (visibleItems.length === 0) return null;
           return (
