@@ -26,6 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink, CheckSquare, ClipboardList, Clapperboard } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { resolveActivityAuthorId } from "@/lib/activityAuthor";
 import type { Database } from "@/integrations/supabase/types";
 
 type DealActivityRow = Database["public"]["Tables"]["deal_activities"]["Row"];
