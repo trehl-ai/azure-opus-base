@@ -37,7 +37,7 @@ const toLocalInputValue = (iso: string): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-const emptyForm = { title: "", description: "", activity_type: "call", status: "open", due_date: "" };
+const emptyForm = { title: "", description: "", activity_type: "call", due_date: "" };
 
 export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActivitySheetProps) {
   const { toast } = useToast();
