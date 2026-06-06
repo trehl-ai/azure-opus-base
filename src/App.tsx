@@ -103,8 +103,8 @@ const App = () => (
               <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* Protected routes with AppLayout */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<P><Dashboard /></P>} />
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="/dashboard" element={<P><DashboardGate><Dashboard /></DashboardGate></P>} />
               <Route path="/contacts" element={<P><Contacts /></P>} />
               <Route path="/contacts/:id" element={<P><ContactDetail /></P>} />
               <Route path="/companies" element={<P><Companies /></P>} />
