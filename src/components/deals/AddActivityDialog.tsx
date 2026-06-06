@@ -15,6 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { resolveActivityAuthorId } from "@/lib/activityAuthor";
 
 // Must match CHECK constraint on deal_activities.activity_type:
 // ('call','email','note','meeting','task','briefing','casting')
