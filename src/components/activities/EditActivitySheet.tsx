@@ -68,7 +68,7 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
           title: form.title.trim(),
           description: form.description.trim() || null,
           activity_type: form.activity_type,
-          status: form.status,
+          
           due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
         })
         .eq("id", activity.id);
