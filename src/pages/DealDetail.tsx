@@ -244,14 +244,15 @@ export default function DealDetail() {
   // the note text since deal_activities has no `notes` column.
   const infomaterialFollowupMutation = useMutation({
     mutationFn: async () => {
+      const authorId = resolveActivityAuthorId(user?.id);
       const { error } = await supabase.from("deal_activities").insert({
         deal_id: id!,
         activity_type: "task",
         title: "Infomaterial auf Wiedervorlage",
         description: "Infomaterial auf Wiedervorlage",
         due_date: followupDate.toISOString(),
-        owner_user_id: user?.id ?? null,
-        created_by_user_id: user?.id ?? null,
+        owner_user_id: authorId,
+        created_by_user_id: authorId,
         status: "open",
         completed_at: null,
       });
