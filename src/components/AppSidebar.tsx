@@ -138,7 +138,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
       )}
 
       <nav className={cn("flex-1 overflow-y-auto space-y-1", collapsed ? "px-1.5" : "px-3")}>
-        {navSections.map((section, sIdx) => {
+        {filteredSections.map((section, sIdx) => {
           const visibleItems = section.items.filter(item => hasPermission(role, item.module, "read"));
           if (visibleItems.length === 0) return null;
           return (
