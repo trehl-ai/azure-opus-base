@@ -55,14 +55,15 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
       const finalDescription = outcomeText
         ? (description ? `${description}\n\nErgebnis: ${outcomeText}` : `Ergebnis: ${outcomeText}`)
         : (description || null);
+      const authorId = resolveActivityAuthorId(user?.id);
       const { error } = await supabase.from("deal_activities").insert({
         deal_id: dealId,
         activity_type: form.activity_type,
         title: form.title.trim() || fallbackTitle,
         description: finalDescription,
         due_date: dueDate ? dueDate.toISOString() : null,
-        owner_user_id: form.owner_user_id || user?.id || null,
-        created_by_user_id: user?.id ?? null,
+        owner_user_id: form.owner_user_id || authorId,
+        created_by_user_id: authorId,
         status: "open",
         completed_at: null,
       });
