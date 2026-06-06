@@ -79,6 +79,13 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
+  const RESTRICTED_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+  const hideDashboard = user?.id === RESTRICTED_USER_ID;
+  const filteredSections = navSections.map(section => ({
+    ...section,
+    items: section.items.filter(item => !(hideDashboard && item.path === "/dashboard")),
+  }));
+
   const handleClick = () => {
     onNavigate?.();
   };
