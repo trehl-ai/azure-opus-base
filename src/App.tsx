@@ -72,6 +72,19 @@ const P = ({ children, requiredRoles, requiredModule, requiredAction }: {
   </ProtectedRoute>
 );
 
+const RESTRICTED_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+
+const DashboardGate = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (user?.id === RESTRICTED_USER_ID) return <Navigate to="/deals" replace />;
+  return <>{children}</>;
+};
+
+const RootRedirect = () => {
+  const { user } = useAuth();
+  return <Navigate to={user?.id === RESTRICTED_USER_ID ? "/deals" : "/dashboard"} replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
