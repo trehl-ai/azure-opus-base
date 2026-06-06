@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -15,32 +15,17 @@ type EmailActivity = {
   id: string;
   title: string | null;
   description: string | null;
-  mail_entwurf: string | null;
   completed_at: string | null;
   created_at: string | null;
-  auto_generated: boolean | null;
-  metadata: Record<string, unknown> | null;
-  contact_id: string | null;
   deal_id: string | null;
   activity_type: string;
 };
 
 const ACTIVITY_FIELDS =
-  "id, title, description, mail_entwurf, completed_at, created_at, auto_generated, metadata, contact_id, deal_id, activity_type";
-
-function senderOf(email: EmailActivity): string {
-  const inbound = email.auto_generated === true;
-  const meta = (email.metadata ?? {}) as Record<string, unknown>;
-  const sender = typeof meta.sender_email === "string" ? meta.sender_email : null;
-  return inbound ? sender ?? "Eingehend" : "Ausgehend";
-}
+  "id, title, description, completed_at, created_at, deal_id, activity_type";
 
 function EmailDetail({ email }: { email: EmailActivity }) {
-  const [showMail, setShowMail] = useState(false);
-  const inbound = email.auto_generated === true;
-  const fromLabel = senderOf(email);
   const timestamp = email.completed_at ?? email.created_at;
-  const hasMail = typeof email.mail_entwurf === "string" && email.mail_entwurf.trim() !== "";
 
   return (
     <>
@@ -53,9 +38,6 @@ function EmailDetail({ email }: { email: EmailActivity }) {
       <div className="mt-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Von:</span> {fromLabel}
-            </p>
             {timestamp && (
               <p className="text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">Datum:</span>{" "}
@@ -63,33 +45,14 @@ function EmailDetail({ email }: { email: EmailActivity }) {
               </p>
             )}
           </div>
-          <Badge variant={inbound ? "default" : "secondary"} className="text-[10px] shrink-0">
-            {inbound ? "Eingehend" : "Ausgehend"}
+          <Badge variant="secondary" className="text-[10px] shrink-0">
+            E-Mail
           </Badge>
         </div>
 
         <div className="rounded-md border border-border bg-muted/30 p-4 text-sm whitespace-pre-wrap break-words">
           {email.description?.trim() || "(Kein Inhalt)"}
         </div>
-
-        {hasMail && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowMail((v) => !v)}
-              aria-expanded={showMail}
-              className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              {showMail ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              {showMail ? "E-Mail ausblenden" : "E-Mail anzeigen"}
-            </button>
-            {showMail && (
-              <pre className="mt-2 max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-4 font-mono text-xs leading-relaxed text-foreground">
-                {email.mail_entwurf}
-              </pre>
-            )}
-          </div>
-        )}
       </div>
     </>
   );
@@ -115,23 +78,12 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
       }
 
       if (contactId) {
-        const { data: directActs, error: e1 } = await supabase
-          .from("deal_activities")
-          .select(ACTIVITY_FIELDS)
-          .eq("contact_id", contactId)
-          .in("activity_type", ["email", "email_sent"])
-          .order("completed_at", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false })
-          .limit(50);
-        if (e1) throw e1;
-
-        // Pull emails attached only to a deal whose primary_contact_id is this contact
+        // deal_activities has no contact_id column — fetch only emails attached
+        // to deals whose primary_contact_id is this contact.
         const { data: relatedDeals } = await supabase
           .from("deals")
           .select("id")
           .eq("primary_contact_id", contactId);
-
-        let merged: EmailActivity[] = (directActs ?? []) as EmailActivity[];
 
         if (relatedDeals?.length) {
           const dealIds = relatedDeals.map((d) => d.id);
@@ -140,29 +92,12 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
             .select(ACTIVITY_FIELDS)
             .in("deal_id", dealIds)
             .in("activity_type", ["email", "email_sent"])
-            .is("contact_id", null)
             .order("completed_at", { ascending: false, nullsFirst: false })
             .order("created_at", { ascending: false })
-            .limit(100);
-
-          if (dealActs?.length) {
-            const seen = new Set(merged.map((a) => a.id));
-            for (const a of dealActs as EmailActivity[]) {
-              if (!seen.has(a.id)) {
-                merged.push(a);
-                seen.add(a.id);
-              }
-            }
-            merged.sort((a, b) => {
-              const ta = new Date(a.completed_at ?? a.created_at ?? 0).getTime();
-              const tb = new Date(b.completed_at ?? b.created_at ?? 0).getTime();
-              return tb - ta;
-            });
-            merged = merged.slice(0, 50);
-          }
+            .limit(50);
+          return (dealActs ?? []) as EmailActivity[];
         }
-
-        return merged;
+        return [];
       }
 
       return [];
@@ -193,8 +128,6 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
     <>
       <div className="space-y-2">
         {emails.map((email) => {
-          const inbound = email.auto_generated === true;
-          const fromLabel = senderOf(email);
           const timestamp = email.completed_at ?? email.created_at;
           const preview = (email.description ?? "").trim().slice(0, 150);
 
@@ -210,9 +143,6 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
                   <p className="text-sm font-medium text-foreground truncate">
                     {email.title || "(Kein Betreff)"}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    Von: {fromLabel}
-                  </p>
                   {preview && (
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                       {preview}
@@ -220,11 +150,8 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
                     </p>
                   )}
                 </div>
-                <Badge
-                  variant={inbound ? "default" : "secondary"}
-                  className="text-[10px] shrink-0"
-                >
-                  {inbound ? "Eingehend" : "Ausgehend"}
+                <Badge variant="secondary" className="text-[10px] shrink-0">
+                  E-Mail
                 </Badge>
               </div>
 
