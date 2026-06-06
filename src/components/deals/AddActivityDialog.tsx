@@ -15,6 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { resolveActivityAuthorId } from "@/lib/activityAuthor";
 
 // Must match CHECK constraint on deal_activities.activity_type:
 // ('call','email','note','meeting','task','briefing','casting')
@@ -54,14 +55,15 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
       const finalDescription = outcomeText
         ? (description ? `${description}\n\nErgebnis: ${outcomeText}` : `Ergebnis: ${outcomeText}`)
         : (description || null);
+      const authorId = resolveActivityAuthorId(user?.id);
       const { error } = await supabase.from("deal_activities").insert({
         deal_id: dealId,
         activity_type: form.activity_type,
         title: form.title.trim() || fallbackTitle,
         description: finalDescription,
         due_date: dueDate ? dueDate.toISOString() : null,
-        owner_user_id: form.owner_user_id || user?.id || null,
-        created_by_user_id: user?.id ?? null,
+        owner_user_id: form.owner_user_id || authorId,
+        created_by_user_id: authorId,
         status: "open",
         completed_at: null,
       });
