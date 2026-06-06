@@ -24,13 +24,6 @@ const ACTIVITY_TYPE_OPTIONS = [
   { value: "casting",  label: "🎬 Casting" },
 ] as const;
 
-const STATUS_OPTIONS = [
-  { value: "open",      label: "Offen" },
-  { value: "completed", label: "Erledigt" },
-  { value: "sent",      label: "Versendet" },
-  { value: "cancelled", label: "Storniert" },
-] as const;
-
 interface EditActivitySheetProps {
   activity: DealActivity | null;
   open: boolean;
