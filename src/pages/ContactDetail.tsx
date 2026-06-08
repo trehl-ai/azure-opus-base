@@ -16,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Pencil, Trash2, Plus, ExternalLink, Mail, Check } from "lucide-react";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 const cardClass = "rounded-2xl border border-border bg-card p-6";
 const relationshipLabels: Record<string, string> = { main_contact: "Hauptkontakt", billing: "Buchhaltung", operational: "Operativ", decision_maker: "Entscheider" };
@@ -63,7 +62,7 @@ export default function ContactDetail() {
   const { data: deals } = useQuery({
     queryKey: ["contact-deals", id],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("deals")
         .select("*, stage:pipeline_stages(name), deal_company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
         .eq("primary_contact_id", id!)

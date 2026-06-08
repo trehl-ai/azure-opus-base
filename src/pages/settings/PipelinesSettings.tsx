@@ -25,7 +25,6 @@ import {
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 interface StageRow {
   id?: string;
@@ -79,7 +78,7 @@ export default function PipelinesSettings() {
   const { data: pipelines = [], isLoading } = useQuery({
     queryKey: ["pipelines-all"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.from("pipelines").select("*").order("name");
+      const { data, error } = await (supabase as any).from("pipelines").select("*").order("name");
       if (error) throw error;
       return data;
     },
@@ -88,7 +87,7 @@ export default function PipelinesSettings() {
   const { data: stagesMap = {} } = useQuery({
     queryKey: ["pipeline-stages-all"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.from("pipeline_stages").select("*").order("position");
+      const { data, error } = await (supabase as any).from("pipeline_stages").select("*").order("position");
       if (error) throw error;
       const map: Record<string, any[]> = {};
       data.forEach(s => { (map[s.pipeline_id] ??= []).push(s); });
@@ -99,7 +98,7 @@ export default function PipelinesSettings() {
   const { data: dealCounts = {} } = useQuery({
     queryKey: ["deal-counts-by-pipeline"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.from("deals").select("pipeline_id, pipeline_stage_id, status");
+      const { data, error } = await (supabase as any).from("deals").select("pipeline_id, pipeline_stage_id, status");
       if (error) throw error;
       const byPipeline: Record<string, number> = {};
       const byStage: Record<string, number> = {};
@@ -194,20 +193,20 @@ export default function PipelinesSettings() {
     try {
       // Pipeline upsert
       if (form.is_default) {
-        await supabaseEIC.from("pipelines").update({ is_default: false }).neq("id", form.id ?? "");
+        await (supabase as any).from("pipelines").update({ is_default: false }).neq("id", form.id ?? "");
       }
       let pipelineId = form.id;
       if (pipelineId) {
-        await supabaseEIC.from("pipelines").update({ name: form.name, is_default: form.is_default, is_active: form.is_active }).eq("id", pipelineId);
+        await (supabase as any).from("pipelines").update({ name: form.name, is_default: form.is_default, is_active: form.is_active }).eq("id", pipelineId);
       } else {
-        const { data, error } = await supabaseEIC.from("pipelines").insert({ name: form.name, is_default: form.is_default, is_active: form.is_active }).select().single();
+        const { data, error } = await (supabase as any).from("pipelines").insert({ name: form.name, is_default: form.is_default, is_active: form.is_active }).select().single();
         if (error) throw error;
         pipelineId = data.id;
       }
 
       // Stages: delete removed
       const deletedIds = form.stages.filter(s => s._deleted && s.id).map(s => s.id!);
-      if (deletedIds.length) await supabaseEIC.from("pipeline_stages").delete().in("id", deletedIds);
+      if (deletedIds.length) await (supabase as any).from("pipeline_stages").delete().in("id", deletedIds);
 
       // Stages: upsert active
       for (let i = 0; i < activeStages.length; i++) {
@@ -218,9 +217,9 @@ export default function PipelinesSettings() {
           is_lost_stage: s.is_lost_stage, position: i + 1,
         };
         if (s.id) {
-          await supabaseEIC.from("pipeline_stages").update(payload).eq("id", s.id);
+          await (supabase as any).from("pipeline_stages").update(payload).eq("id", s.id);
         } else {
-          await supabaseEIC.from("pipeline_stages").insert(payload);
+          await (supabase as any).from("pipeline_stages").insert(payload);
         }
       }
 
@@ -237,7 +236,7 @@ export default function PipelinesSettings() {
 
   const openDeleteDialog = async (pipeline: any) => {
     // Check deal count before showing dialog
-    const { count } = await supabaseEIC
+    const { count } = await (supabase as any)
       .from("deals")
       .select("id", { count: "exact", head: true })
       .eq("pipeline_id", pipeline.id)
@@ -250,7 +249,7 @@ export default function PipelinesSettings() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      const { error } = await supabaseEIC.from("pipelines").update({ is_active: false }).eq("id", deleteTarget.id);
+      const { error } = await (supabase as any).from("pipelines").update({ is_active: false }).eq("id", deleteTarget.id);
       if (error) throw error;
       toast.success("Pipeline archiviert – bestehende Deals bleiben erhalten.");
       setDeleteTarget(null);
@@ -267,17 +266,17 @@ export default function PipelinesSettings() {
     setDeleteLoading(true);
     try {
       // Hard-delete any soft-deleted deals still referencing this pipeline (FK cleanup)
-      await supabaseEIC
+      await (supabase as any)
         .from("deals")
         .delete()
         .eq("pipeline_id", deleteTarget.id)
         .not("deleted_at", "is", null);
 
-      const { error: stagesErr } = await supabaseEIC
+      const { error: stagesErr } = await (supabase as any)
         .from("pipeline_stages").delete().eq("pipeline_id", deleteTarget.id);
       if (stagesErr) throw stagesErr;
 
-      const { error: pipeErr } = await supabaseEIC
+      const { error: pipeErr } = await (supabase as any)
         .from("pipelines").delete().eq("id", deleteTarget.id);
       if (pipeErr) throw pipeErr;
 
@@ -295,7 +294,7 @@ export default function PipelinesSettings() {
   };
 
   const toggleActive = async (p: any) => {
-    await supabaseEIC.from("pipelines").update({ is_active: !p.is_active }).eq("id", p.id);
+    await (supabase as any).from("pipelines").update({ is_active: !p.is_active }).eq("id", p.id);
     queryClient.invalidateQueries({ queryKey: ["pipelines-all"] });
   };
 

@@ -6,7 +6,6 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 interface EntitySearchSelectProps {
   entityType: "contact" | "deal";
@@ -38,7 +37,7 @@ export function EntitySearchSelect({ entityType, value, onChange, placeholder, d
   const { data: deals = [] } = useQuery({
     queryKey: ["entity-search-deals"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("deals")
         .select("id, title, primary_contact_id, company:companies(name)")
         .is("deleted_at", null)

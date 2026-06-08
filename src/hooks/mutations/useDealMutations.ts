@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { queryKeys } from "@/lib/queryKeys";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 export function useMoveDeal() {
   const qc = useQueryClient();
@@ -17,7 +16,7 @@ export function useMoveDeal() {
         updates.status = "won";
         updates.won_at = new Date().toISOString();
       }
-      const { error } = await supabaseEIC.from("deals").update(updates as any).eq("id", dealId);
+      const { error } = await (supabase as any).from("deals").update(updates as any).eq("id", dealId);
       if (error) throw error;
       if (isWon) {
         await new Promise((r) => setTimeout(r, 500));
@@ -71,7 +70,7 @@ export function useDeleteDeal() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabaseEIC.from("deals").delete().eq("id", id);
+      const { error } = await (supabase as any).from("deals").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -95,7 +94,7 @@ export function useWonDeal(id: string) {
         won_at: new Date().toISOString(),
       };
       if (wonStageId) updates.pipeline_stage_id = wonStageId;
-      const { error } = await supabaseEIC.from("deals").update(updates as any).eq("id", id);
+      const { error } = await (supabase as any).from("deals").update(updates as any).eq("id", id);
       if (error) throw error;
       await new Promise((r) => setTimeout(r, 500));
       const { data: project } = await supabase

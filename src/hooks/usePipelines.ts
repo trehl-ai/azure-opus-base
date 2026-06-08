@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 interface Pipeline {
   id: string;
@@ -26,7 +25,7 @@ export function usePipelines({ onlyWithDeals = false }: UsePipelinesOptions = {}
         let from = 0;
         const ids = new Set<string>();
         while (true) {
-          const { data: page, error } = await supabaseEIC
+          const { data: page, error } = await (supabase as any)
             .from("deals")
             .select("pipeline_id")
             .is("deleted_at", null)
@@ -46,7 +45,7 @@ export function usePipelines({ onlyWithDeals = false }: UsePipelinesOptions = {}
           return;
         }
 
-        const { data } = await supabaseEIC
+        const { data } = await (supabase as any)
           .from("pipelines")
           .select("id, name, is_default")
           .in("id", Array.from(ids))
@@ -54,7 +53,7 @@ export function usePipelines({ onlyWithDeals = false }: UsePipelinesOptions = {}
           .order("name");
         setPipelines(data ?? []);
       } else {
-        const { data } = await supabaseEIC
+        const { data } = await (supabase as any)
           .from("pipelines")
           .select("id, name, is_default")
           .eq("is_active", true)

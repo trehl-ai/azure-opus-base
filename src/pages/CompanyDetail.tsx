@@ -32,7 +32,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft, Pencil, Trash2, Plus, ExternalLink, Check } from "lucide-react";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 const cardClass = "rounded-2xl border border-border bg-card p-6";
 
@@ -102,7 +101,7 @@ export default function CompanyDetail() {
   const { data: deals } = useQuery({
     queryKey: ["company-deals", id],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("deals")
         .select("*, stage:pipeline_stages(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
         .eq("company_id", id!)

@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 const currencies = ["EUR", "USD", "CHF", "GBP"];
 const dateFormats = ["DD.MM.YYYY", "MM/DD/YYYY", "YYYY-MM-DD"];
@@ -54,7 +53,7 @@ export default function GeneralSettings() {
   const { data: pipelines = [] } = useQuery({
     queryKey: ["pipelines-active"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("pipelines")
         .select("id, name")
         .eq("is_active", true)
@@ -99,7 +98,7 @@ export default function GeneralSettings() {
   const { data: deletedDeals = [] } = useQuery({
     queryKey: ["deleted-deals"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.from("deals").select("id, title, deleted_at").not("deleted_at", "is", null).gte("deleted_at", thirtyDaysAgoISO).order("deleted_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("deals").select("id, title, deleted_at").not("deleted_at", "is", null).gte("deleted_at", thirtyDaysAgoISO).order("deleted_at", { ascending: false });
       if (error) throw error;
       return data;
     },
