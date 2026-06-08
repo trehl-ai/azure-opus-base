@@ -144,7 +144,7 @@ export default function Deals() {
     queryKey: ["user-pipeline-restrictions", user?.id],
     queryFn: async () => {
       if (!user?.id) return [] as string[];
-      const { data, error } = await (supabaseEIC as any)
+      const { data, error } = await (supabase as any)
         .from("user_pipeline_restrictions")
         .select("pipeline_id")
         .eq("user_id", user.id);
