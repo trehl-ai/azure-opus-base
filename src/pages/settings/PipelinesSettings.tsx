@@ -23,9 +23,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-import { supabaseEIC } from "@/lib/supabaseEIC";
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 interface StageRow {
   id?: string;
