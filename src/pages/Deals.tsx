@@ -56,8 +56,12 @@ export default function Deals() {
       setSearchParams(searchParams, { replace: true });
     }
   };
-  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
-  const [showAll, setShowAll] = useState(!showOwnerToggle);
+  // Umut's deals are owned by Tomas in the DB, so "Meine Deals" would always be
+  // empty for him. Default the toggle OFF for this user.
+  const UMUT_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+  const isUmut = user?.id === UMUT_USER_ID;
+  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle && !isUmut ? (user?.id ?? "all") : "all");
+  const [showAll, setShowAll] = useState(!showOwnerToggle || isUmut);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
   const [eignungFilter, setEignungFilter] = useState<string>("all");
@@ -133,6 +137,30 @@ export default function Deals() {
     const pipelineFromUrl = searchParams.get("pipeline");
     if (pipelineFromUrl) setSelectedPipelineId(pipelineFromUrl);
   }, []);
+
+  // Per-user pipeline restrictions (EIC). If the user has exactly one allowed
+  // pipeline, auto-select it on first load.
+  const { data: allowedPipelineIds } = useQuery({
+    queryKey: ["user-pipeline-restrictions", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as string[];
+      const { data, error } = await (supabaseEIC as any)
+        .from("user_pipeline_restrictions")
+        .select("pipeline_id")
+        .eq("user_id", user.id);
+      if (error) return [] as string[];
+      return (data ?? []).map((r: any) => r.pipeline_id as string);
+    },
+    enabled: !!user?.id,
+  });
+
+  useEffect(() => {
+    if (selectedPipelineId) return;
+    if (searchParams.get("pipeline")) return;
+    if (allowedPipelineIds && allowedPipelineIds.length === 1) {
+      setSelectedPipelineId(allowedPipelineIds[0]);
+    }
+  }, [allowedPipelineIds, selectedPipelineId, searchParams]);
 
   // Pipeline switch: keep state logic, mirror selection into the URL so a
   // DealDetail navigate(-1) returns to /deals?pipeline=<id> (correct pipeline).
