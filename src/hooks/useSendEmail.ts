@@ -20,7 +20,7 @@ export function useSendEmail() {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("user_email_messages").insert({
+      await (supabase as any).from("user_email_messages").insert({
         user_id: user.id,
         subject,
         body: bodyHtml,

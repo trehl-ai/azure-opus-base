@@ -158,7 +158,7 @@ export default function Contacts() {
                   badge={
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <ContactStatusBadge status={contact.status} />
-                      <LeadScoreBadge score={contact.lead_score} />
+                      <LeadScoreBadge score={(contact as any).lead_score} />
                     </div>
                   }
                   meta={owner ? <p className="text-[12px] text-muted-foreground">Owner: {owner.first_name} {owner.last_name[0]}.</p> : undefined}
@@ -201,7 +201,7 @@ export default function Contacts() {
                       <TableCell className="text-body text-muted-foreground">{company?.name ?? "–"}</TableCell>
                       <TableCell className="text-body text-muted-foreground">{contact.job_title ?? "–"}</TableCell>
                       <TableCell><ContactStatusBadge status={contact.status} /></TableCell>
-                      <TableCell><LeadScoreBadge score={contact.lead_score} /></TableCell>
+                      <TableCell><LeadScoreBadge score={(contact as any).lead_score} /></TableCell>
                       <TableCell className="text-body text-muted-foreground">{owner ? `${owner.first_name} ${owner.last_name}` : "–"}</TableCell>
                     </TableRow>
                   );

@@ -294,7 +294,7 @@ function DsgvoContent() {
   const { data: documents, isLoading: docsLoading } = useQuery<LegalDocument[]>({
     queryKey: ["legal_documents"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("legal_documents")
         .select(
           "id, name, description, storage_path, version, status, signed_at, created_at",

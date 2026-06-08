@@ -200,7 +200,7 @@ export default function Deals() {
       isReopen?: boolean;
     }) => {
       if (isReopen) {
-        const { error } = await supabase.rpc("set_deal_reopen", {
+        const { error } = await (supabase as any).rpc("set_deal_reopen", {
           p_deal_id: dealId,
           p_target_stage_id: stageId,
         });
@@ -238,7 +238,7 @@ export default function Deals() {
         });
         return;
       }
-      if (result) {
+      if (result && "title" in result) {
         toast({
           title: "Deal gewonnen! Projekt wurde automatisch erstellt. 🎉",
           description: result.title,
@@ -423,7 +423,7 @@ export default function Deals() {
           </p>
           <div className="space-y-2">
             {mobileDeals.map((deal) => {
-              const company = deal.company as { name: string } | null;
+              const company = deal.company as unknown as { name: string } | null;
               return (
                 <MobileCard
                   key={deal.id}
@@ -472,9 +472,9 @@ export default function Deals() {
                   </div>
                   <div className="flex-1 space-y-1.5 min-h-[40px]">
                     {stageDeals.map((deal) => {
-                      const company = deal.company as { name: string } | null;
+                      const company = deal.company as unknown as { name: string } | null;
                       const owner = users?.find((u) => u.id === deal.owner_user_id) ?? null;
-                      const contact = deal.primary_contact as { phone: string | null; mobile: string | null } | null;
+                      const contact = deal.primary_contact as unknown as { phone: string | null; mobile: string | null } | null;
                       const dealPhone = contact?.phone || contact?.mobile || null;
                       return (
                         <DealCard

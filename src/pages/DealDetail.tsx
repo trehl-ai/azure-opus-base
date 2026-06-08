@@ -208,7 +208,7 @@ export default function DealDetail() {
   // Reopen — flip won/lost back to open via RPC (nulls won_at/lost_at/lost_reason)
   const reopenMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("set_deal_reopen", { p_deal_id: id! });
+      const { error } = await (supabase as any).rpc("set_deal_reopen", { p_deal_id: id! });
       if (error) throw error;
     },
     onSuccess: () => {
