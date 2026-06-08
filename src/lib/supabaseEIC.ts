@@ -2,13 +2,12 @@
 // by the Campaigns pages. Do NOT use for any other feature; the main app uses
 // `@/integrations/supabase/client`.
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 
 const EIC_SUPABASE_URL = "https://ttgvhqygmgtnjgwunuwz.supabase.co";
 const EIC_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Z3ZocXlnbWd0bmpnd3VudXd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NDE3MTQsImV4cCI6MjA5MjUxNzcxNH0.be9sR4ayWvHROA9CL_GRroDXorsJ_6dz07crZSUnlP8";
 
-export const supabaseEIC = createClient<Database>(EIC_SUPABASE_URL, EIC_SUPABASE_ANON_KEY, {
+export const supabaseEIC = createClient(EIC_SUPABASE_URL, EIC_SUPABASE_ANON_KEY, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
