@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { parseEmailBody, cleanSubject, splitFullName, type ExtractionSource } from "@/lib/intakeParser";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 const statusBadge: Record<string, string> = {
   new: "bg-secondary text-secondary-foreground",
@@ -371,7 +372,7 @@ function ReviewSheet({ messageId, open, onOpenChange }: { messageId: string | nu
       }
 
       if (createDeal && form.deal_title && selectedPipelineId && selectedStageId) {
-        const { data, error } = await supabase.from("deals").insert({
+        const { data, error } = await supabaseEIC.from("deals").insert({
           title: form.deal_title, value_amount: form.deal_value ? parseFloat(form.deal_value) : 0,
           company_id: companyId, primary_contact_id: contactId,
           pipeline_id: selectedPipelineId, pipeline_stage_id: selectedStageId,

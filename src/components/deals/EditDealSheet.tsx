@@ -17,6 +17,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 interface DealData {
   id: string;
@@ -75,7 +76,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", form.pipeline_id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("pipeline_stages").select("*").eq("pipeline_id", form.pipeline_id).order("position");
+      const { data, error } = await supabaseEIC.from("pipeline_stages").select("*").eq("pipeline_id", form.pipeline_id).order("position");
       if (error) throw error;
       return data;
     },
@@ -100,7 +101,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("deals").update({
+      const { error } = await supabaseEIC.from("deals").update({
         title: form.title.trim(),
         value_amount: form.value_amount ? parseFloat(form.value_amount) : 0,
         currency: form.currency,

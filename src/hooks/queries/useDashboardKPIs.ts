@@ -2,12 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/queryKeys";
 import { format, startOfDay } from "date-fns";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 export function useDashboardDeals() {
   return useQuery({
     queryKey: queryKeys.dashboard.deals,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseEIC
         .from("deals")
         .select("id, title, status, value_amount, won_at, pipeline_stage_id, company_id, pipeline_id, companies:companies!deals_company_id_fkey(name), stage:pipeline_stages!deals_pipeline_stage_id_fkey(name, position)")
         .in("status", ["open", "won"])
@@ -69,7 +70,7 @@ export function useDashboardOpenActivities() {
   return useQuery({
     queryKey: queryKeys.dashboard.openActivities,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseEIC
         .from("deal_activities")
         .select("deal_id")
         .is("completed_at", null);
@@ -83,9 +84,9 @@ export function useDashboardDefaultStages() {
   return useQuery({
     queryKey: queryKeys.dashboard.defaultStages,
     queryFn: async () => {
-      const { data: pipeline } = await supabase.from("pipelines").select("id").eq("is_default", true).single();
+      const { data: pipeline } = await supabaseEIC.from("pipelines").select("id").eq("is_default", true).single();
       if (!pipeline) return [];
-      const { data, error } = await supabase.from("pipeline_stages").select("id, name, position").eq("pipeline_id", pipeline.id).order("position");
+      const { data, error } = await supabaseEIC.from("pipeline_stages").select("id, name, position").eq("pipeline_id", pipeline.id).order("position");
       if (error) throw error;
       return data;
     },

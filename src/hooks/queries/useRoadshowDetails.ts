@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 type RoadshowDetailsRow = Database["public"]["Tables"]["deal_roadshow_details"]["Row"];
 type RoadshowDetailsUpdate = Database["public"]["Tables"]["deal_roadshow_details"]["Update"];
@@ -15,7 +16,7 @@ export function useRoadshowDetails(dealId: string | undefined) {
     enabled: !!dealId,
     queryFn: async () => {
       if (!dealId) return null;
-      const { data, error } = await supabase
+      const { data, error } = await supabaseEIC
         .from("deal_roadshow_details")
         .select("*")
         .eq("deal_id", dealId)
@@ -28,7 +29,7 @@ export function useRoadshowDetails(dealId: string | undefined) {
   const mutation = useMutation({
     mutationFn: async (fields: RoadshowDetailsUpdate) => {
       if (!dealId) throw new Error("dealId fehlt");
-      const { error } = await supabase
+      const { error } = await supabaseEIC
         .from("deal_roadshow_details")
         .upsert({ ...fields, deal_id: dealId }, { onConflict: "deal_id" });
       if (error) throw error;
