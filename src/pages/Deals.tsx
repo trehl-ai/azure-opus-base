@@ -24,6 +24,7 @@ import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn, getAvatarColor, getInitials } from "@/lib/utils";
 import { exportToExcel, todayString } from "@/lib/excelExport";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 const eur = (v: number) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
@@ -67,7 +68,7 @@ export default function Deals() {
     setExporting(true);
     try {
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
-      let q = supabase
+      let q = supabaseEIC
         .from("deals")
         .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)")
         .eq("pipeline_id", activePipelineId)
@@ -145,7 +146,7 @@ export default function Deals() {
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", activePipelineId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("pipeline_stages").select("*").eq("pipeline_id", activePipelineId).order("position");
+      const { data, error } = await supabaseEIC.from("pipeline_stages").select("*").eq("pipeline_id", activePipelineId).order("position");
       if (error) throw error;
       return data;
     },
@@ -159,7 +160,7 @@ export default function Deals() {
   const { data: deals } = useQuery({
     queryKey: ["deals-board", activePipelineId, ownerFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
     queryFn: async () => {
-      let q = supabase
+      let q = supabaseEIC
         .from("deals")
         .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile)")
         .eq("pipeline_id", activePipelineId)
@@ -224,7 +225,7 @@ export default function Deals() {
         }
         return null;
       }
-      const { error } = await supabase.from("deals").update({ pipeline_stage_id: stageId }).eq("id", dealId);
+      const { error } = await supabaseEIC.from("deals").update({ pipeline_stage_id: stageId }).eq("id", dealId);
       if (error) throw error;
       return null;
     },

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 type ExcelStep = "upload" | "preview" | "importing" | "result";
 
@@ -228,8 +229,8 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
     );
 
     // Load pipelines & stages for deal matching
-    const { data: pipelines } = await supabase.from("pipelines").select("id, name, is_default").eq("is_active", true);
-    const { data: allStages } = await supabase.from("pipeline_stages").select("id, name, pipeline_id, position").order("position");
+    const { data: pipelines } = await supabaseEIC.from("pipelines").select("id, name, is_default").eq("is_active", true);
+    const { data: allStages } = await supabaseEIC.from("pipeline_stages").select("id, name, pipeline_id, position").order("position");
     const defaultPipeline = pipelines?.find(p => p.is_default) ?? pipelines?.[0];
 
     // ─── 1) COMPANIES ───
@@ -385,7 +386,7 @@ export default function ExcelMultiSheetImport({ onClose }: Props) {
             }
           }
 
-          const { data, error } = await supabase.from("deals").insert({
+          const { data, error } = await supabaseEIC.from("deals").insert({
             title: mapped.title,
             company_id: companyId,
             primary_contact_id: primaryContactId,

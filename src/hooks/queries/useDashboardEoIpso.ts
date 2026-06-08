@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 const CAMPAIGN_TAG_NAMES = ["WerteRaum Potential", "PLSC 2025", "SMM 2025", "Markenfestival"] as const;
 
@@ -40,14 +41,14 @@ export function useEoIpsoKpis() {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
       const [activeDeals, contacts, companies, lost, werteraumTag] = await Promise.all([
-        supabase
+        supabaseEIC
           .from("deals")
           .select("id", { count: "exact", head: true })
           .is("deleted_at", null)
           .not("status", "in", "(lost,won)"),
         supabase.from("contacts").select("id", { count: "exact", head: true }).is("deleted_at", null),
         supabase.from("companies").select("id", { count: "exact", head: true }).is("deleted_at", null),
-        supabase
+        supabaseEIC
           .from("deals")
           .select("id", { count: "exact", head: true })
           .eq("status", "lost")
@@ -80,13 +81,13 @@ export function useEoIpsoPipelines() {
   return useQuery({
     queryKey: ["eoipso", "pipelines"],
     queryFn: async (): Promise<PipelineTile[]> => {
-      const { data: pipelines, error: pErr } = await supabase
+      const { data: pipelines, error: pErr } = await supabaseEIC
         .from("pipelines")
         .select("id, name")
         .eq("is_active", true);
       if (pErr) throw pErr;
 
-      const { data: deals, error: dErr } = await supabase
+      const { data: deals, error: dErr } = await supabaseEIC
         .from("deals")
         .select("pipeline_id, status")
         .is("deleted_at", null);
@@ -158,7 +159,7 @@ export function useEoIpsoRecentDeals() {
   return useQuery({
     queryKey: ["eoipso", "recent-deals"],
     queryFn: async (): Promise<RecentDeal[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseEIC
         .from("deals")
         .select(
           "id, title, created_at, company:companies(name), pipeline:pipelines!deals_pipeline_id_fkey(name)"

@@ -18,6 +18,7 @@ import { format, isBefore, isSameDay, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
 import { CreateTaskSheet } from "@/components/tasks/CreateTaskSheet";
+import { supabaseEIC } from "@/lib/supabaseEIC";
 
 const priorityDot: Record<string, string> = { low: "bg-muted-foreground", medium: "bg-warning", high: "bg-destructive" };
 
@@ -96,7 +97,7 @@ export default function Tasks() {
   const { data: activitiesRaw } = useQuery({
     queryKey: ["open-activities"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseEIC
         .from("deal_activities")
         .select("id, title, status, due_date, activity_type, owner_user_id, deal_id, deal:deals(title, company:companies(name))")
         .or("status.eq.open,status.is.null");
