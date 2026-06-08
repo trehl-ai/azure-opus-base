@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/queryKeys";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 export function usePipelines() {
   return useQuery({
     queryKey: queryKeys.pipelines.all,
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("pipelines")
         .select("*")
         .eq("is_active", true)
@@ -22,7 +21,7 @@ export function usePipelineStages(pipelineId: string | undefined) {
   return useQuery({
     queryKey: queryKeys.pipelines.stages(pipelineId ?? ""),
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("pipeline_stages")
         .select("*")
         .eq("pipeline_id", pipelineId!)

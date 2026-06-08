@@ -28,7 +28,6 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { resolveActivityAuthorId } from "@/lib/activityAuthor";
 import type { Database } from "@/integrations/supabase/types";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 type DealActivityRow = Database["public"]["Tables"]["deal_activities"]["Row"];
 
@@ -103,7 +102,7 @@ export default function DealDetail() {
   const { data: deal, isLoading } = useQuery({
     queryKey: ["deal", id],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("deals")
         .select("*, company:companies(id, name), contact:contacts!deals_primary_contact_id_fkey(id, first_name, last_name, phone), pipeline:pipelines(name)")
         .eq("id", id!)
@@ -118,7 +117,7 @@ export default function DealDetail() {
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", deal?.pipeline_id],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.from("pipeline_stages").select("*").eq("pipeline_id", deal!.pipeline_id).order("position");
+      const { data, error } = await (supabase as any).from("pipeline_stages").select("*").eq("pipeline_id", deal!.pipeline_id).order("position");
       if (error) throw error;
       return data;
     },
@@ -129,7 +128,7 @@ export default function DealDetail() {
   const { data: activities } = useQuery({
     queryKey: ["deal-activities", id],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
+      const { data, error } = await (supabase as any)
         .from("deal_activities")
         .select("*")
         .eq("deal_id", id!)
@@ -155,7 +154,7 @@ export default function DealDetail() {
   // Soft-delete
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabaseEIC.from("deals").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
+      const { error } = await (supabase as any).from("deals").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -223,7 +222,7 @@ export default function DealDetail() {
   // Notes
   const notesMutation = useMutation({
     mutationFn: async (text: string) => {
-      const { error } = await supabaseEIC.from("deals").update({ description: text.trim() || null }).eq("id", id!);
+      const { error } = await (supabase as any).from("deals").update({ description: text.trim() || null }).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => { toast({ title: "Notizen gespeichert" }); qc.invalidateQueries({ queryKey: ["deal", id] }); },
@@ -232,7 +231,7 @@ export default function DealDetail() {
   // Toggle activity
   const toggleActivityMutation = useMutation({
     mutationFn: async ({ actId, completed }: { actId: string; completed: boolean }) => {
-      const { error } = await supabaseEIC.from("deal_activities").update({
+      const { error } = await (supabase as any).from("deal_activities").update({
         completed_at: completed ? new Date().toISOString() : null,
       }).eq("id", actId);
       if (error) throw error;
@@ -246,7 +245,7 @@ export default function DealDetail() {
   const infomaterialFollowupMutation = useMutation({
     mutationFn: async () => {
       const authorId = resolveActivityAuthorId(user?.id);
-      const { error } = await supabaseEIC.from("deal_activities").insert({
+      const { error } = await (supabase as any).from("deal_activities").insert({
         deal_id: id!,
         activity_type: "task",
         title: "Infomaterial auf Wiedervorlage",

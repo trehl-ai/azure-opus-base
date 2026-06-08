@@ -5,7 +5,6 @@ import { Mail } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 interface EmailHistoryProps {
   contactId?: string;
@@ -66,7 +65,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
     queryKey: ["email-history", contactId, dealId],
     queryFn: async () => {
       if (dealId) {
-        const { data, error } = await supabaseEIC
+        const { data, error } = await (supabase as any)
           .from("deal_activities")
           .select(ACTIVITY_FIELDS)
           .eq("deal_id", dealId)
@@ -81,14 +80,14 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
       if (contactId) {
         // deal_activities has no contact_id column — fetch only emails attached
         // to deals whose primary_contact_id is this contact.
-        const { data: relatedDeals } = await supabaseEIC
+        const { data: relatedDeals } = await (supabase as any)
           .from("deals")
           .select("id")
           .eq("primary_contact_id", contactId);
 
         if (relatedDeals?.length) {
           const dealIds = relatedDeals.map((d) => d.id);
-          const { data: dealActs } = await supabaseEIC
+          const { data: dealActs } = await (supabase as any)
             .from("deal_activities")
             .select(ACTIVITY_FIELDS)
             .in("deal_id", dealIds)

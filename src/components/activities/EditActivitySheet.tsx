@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Database } from "@/integrations/supabase/types";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 type DealActivity = Database["public"]["Tables"]["deal_activities"]["Row"];
 
@@ -63,7 +62,7 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
     mutationFn: async () => {
       if (!activity) throw new Error("Keine Aktivität ausgewählt");
       if (!form.title.trim()) throw new Error("Titel ist Pflicht");
-      const { error } = await supabaseEIC
+      const { error } = await (supabase as any)
         .from("deal_activities")
         .update({
           title: form.title.trim(),

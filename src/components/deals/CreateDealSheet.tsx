@@ -16,7 +16,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { supabaseEIC } from "@/lib/supabaseEIC";
 
 interface Props {
   open: boolean;
@@ -84,7 +83,7 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", selectedPipelineId],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.from("pipeline_stages").select("*").eq("pipeline_id", selectedPipelineId).order("position");
+      const { data, error } = await (supabase as any).from("pipeline_stages").select("*").eq("pipeline_id", selectedPipelineId).order("position");
       if (error) throw error;
       return data;
     },
@@ -137,7 +136,7 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
       const sid = form.pipeline_stage_id || defaultStageId;
       if (!pid || !sid) throw new Error("Pipeline und Stage sind erforderlich");
 
-      const { error } = await supabaseEIC.from("deals").insert({
+      const { error } = await (supabase as any).from("deals").insert({
         title: form.title.trim(),
         company_id: form.company_id || null,
         primary_contact_id: form.primary_contact_id || null,
