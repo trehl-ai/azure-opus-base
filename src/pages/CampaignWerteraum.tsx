@@ -17,7 +17,7 @@ function useStats() {
   return useQuery({
     queryKey: ["eic", "outreach_stats"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.rpc("get_outreach_stats");
+      const { data, error } = await (supabaseEIC as any).rpc("get_outreach_stats");
       if (error) throw error;
       return data as OutreachStats;
     },
@@ -28,8 +28,7 @@ function useTopLeads() {
   return useQuery({
     queryKey: ["eic", "v_werteraum_outreach", "top20"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
-        .from("v_werteraum_outreach")
+      const { data, error } = await (supabaseEIC as any).from("v_werteraum_outreach")
         .select("*")
         .order("outreach_score", { ascending: false, nullsFirst: false })
         .limit(20);
@@ -54,7 +53,7 @@ function useActivities() {
     queryFn: async () => {
       // deal_activities ist nicht anon-lesbar (RLS) — supabaseEIC läuft sessionlos als anon.
       // Daher der SECURITY-DEFINER-RPC get_outreach_activities (analog get_outreach_stats).
-      const { data, error } = await supabaseEIC.rpc("get_outreach_activities", { p_limit: 20 });
+      const { data, error } = await (supabaseEIC as any).rpc("get_outreach_activities", { p_limit: 20 });
       if (error) throw error;
       return (data ?? []) as ActivityRow[];
     },
