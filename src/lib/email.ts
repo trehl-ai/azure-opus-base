@@ -144,7 +144,7 @@ async function sendViaOutlook(params: SendEmailParams): Promise<SendEmailResult>
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: inserted } = await supabase
+      const { data: inserted } = await (supabase as any)
         .from("user_email_messages")
         .insert({ user_id: user.id, subject: params.subject, body: params.body_html })
         .select("id")

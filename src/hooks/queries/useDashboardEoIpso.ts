@@ -172,8 +172,8 @@ export function useEoIpsoRecentDeals() {
         id: d.id,
         title: d.title,
         created_at: d.created_at,
-        company_name: (d.company as { name: string } | null)?.name ?? null,
-        pipeline_name: (d.pipeline as { name: string } | null)?.name ?? null,
+        company_name: (d.company as unknown as { name: string } | null)?.name ?? null,
+        pipeline_name: (d.pipeline as unknown as { name: string } | null)?.name ?? null,
       }));
     },
   });

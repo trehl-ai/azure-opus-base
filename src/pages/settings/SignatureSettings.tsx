@@ -52,7 +52,7 @@ export default function SignatureSettings() {
         .eq("id", user.id)
         .single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!user?.id,
   });
@@ -120,7 +120,7 @@ export default function SignatureSettings() {
       // Persist on users so a refresh shows the same image without reuploading.
       const { error: updateErr } = await supabase
         .from("users")
-        .update({ signature_image_url: publicUrl })
+        .update({ signature_image_url: publicUrl } as any)
         .eq("id", user.id);
       if (updateErr) throw updateErr;
 
@@ -141,7 +141,7 @@ export default function SignatureSettings() {
     try {
       const { error } = await supabase
         .from("users")
-        .update({ signature_image_url: null })
+        .update({ signature_image_url: null } as any)
         .eq("id", user.id);
       if (error) throw error;
       setForm((prev) => ({ ...prev, profile_image_path: null }));
@@ -188,7 +188,7 @@ export default function SignatureSettings() {
 
       const { error } = await supabase
         .from("users")
-        .update(payload)
+        .update(payload as any)
         .eq("id", user.id);
       if (error) throw error;
     },

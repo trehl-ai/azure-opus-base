@@ -129,7 +129,7 @@ export default function ContactDetail() {
           <button onClick={() => navigate("/contacts")} className="text-muted-foreground hover:text-foreground transition-colors"><ArrowLeft className="h-5 w-5" /></button>
           <h1 className="text-section-title text-foreground">{contact.first_name} {contact.last_name}</h1>
           <ContactStatusBadge status={contact.status} />
-          <LeadScoreBadge score={contact.lead_score} />
+          <LeadScoreBadge score={(contact as any).lead_score} />
         </div>
         {canWriteContacts && (
           <div className="flex items-center gap-2">

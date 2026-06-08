@@ -89,7 +89,7 @@ export default function Tasks() {
         .select("id, title, status, priority, due_date, task_type, assigned_user_id, project_id, deal_id, project:projects!tasks_project_id_fkey(title, company:companies(name)), deal:deals!tasks_deal_id_fkey(title, company:companies(name))")
         .is("parent_task_id", null);
       if (error) throw error;
-      return data;
+      return data as any;
     },
   });
 
@@ -128,7 +128,7 @@ export default function Tasks() {
       });
     });
     (activitiesRaw ?? []).forEach((a) => {
-      const deal = a.deal as { title: string | null; company: { name: string } | null } | null;
+      const deal = a.deal as unknown as { title: string | null; company: { name: string } | null } | null;
       out.push({
         id: a.id,
         source: "activity",

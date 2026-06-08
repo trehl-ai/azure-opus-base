@@ -111,7 +111,7 @@ export default function Dashboard() {
         .order("lead_score", { ascending: false })
         .limit(10);
       if (error) throw error;
-      return (data ?? []) as TopLead[];
+      return (data ?? []) as unknown as TopLead[];
     },
     staleTime: 60_000,
   });
