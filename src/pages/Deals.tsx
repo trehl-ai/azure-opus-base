@@ -138,6 +138,30 @@ export default function Deals() {
     if (pipelineFromUrl) setSelectedPipelineId(pipelineFromUrl);
   }, []);
 
+  // Per-user pipeline restrictions (EIC). If the user has exactly one allowed
+  // pipeline, auto-select it on first load.
+  const { data: allowedPipelineIds } = useQuery({
+    queryKey: ["user-pipeline-restrictions", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as string[];
+      const { data, error } = await (supabaseEIC as any)
+        .from("user_pipeline_restrictions")
+        .select("pipeline_id")
+        .eq("user_id", user.id);
+      if (error) return [] as string[];
+      return (data ?? []).map((r: any) => r.pipeline_id as string);
+    },
+    enabled: !!user?.id,
+  });
+
+  useEffect(() => {
+    if (selectedPipelineId) return;
+    if (searchParams.get("pipeline")) return;
+    if (allowedPipelineIds && allowedPipelineIds.length === 1) {
+      setSelectedPipelineId(allowedPipelineIds[0]);
+    }
+  }, [allowedPipelineIds, selectedPipelineId, searchParams]);
+
   // Pipeline switch: keep state logic, mirror selection into the URL so a
   // DealDetail navigate(-1) returns to /deals?pipeline=<id> (correct pipeline).
   const handlePipelineChange = (pipelineId: string) => {
