@@ -56,8 +56,12 @@ export default function Deals() {
       setSearchParams(searchParams, { replace: true });
     }
   };
-  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
-  const [showAll, setShowAll] = useState(!showOwnerToggle);
+  // Umut's deals are owned by Tomas in the DB, so "Meine Deals" would always be
+  // empty for him. Default the toggle OFF for this user.
+  const UMUT_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+  const isUmut = user?.id === UMUT_USER_ID;
+  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle && !isUmut ? (user?.id ?? "all") : "all");
+  const [showAll, setShowAll] = useState(!showOwnerToggle || isUmut);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
   const [eignungFilter, setEignungFilter] = useState<string>("all");
