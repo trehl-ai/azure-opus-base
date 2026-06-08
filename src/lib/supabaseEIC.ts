@@ -28,6 +28,18 @@ export type OutreachStats = {
   cluster_d: number;
 };
 
+export type VrStiftungenCandidateRow = {
+  contact_id: string;
+  deal_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  vr_hook: string | null;
+  vr_fit_score: number | null;
+  org_mission: string | null;
+  outreach_status: string | null;
+};
+
 export type WerteraumOutreachRow = {
   contact_id: string;
   first_name: string | null;

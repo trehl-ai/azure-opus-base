@@ -120,6 +120,7 @@ export default function Campaigns() {
         emailSent: vrData.email_sent,
         linkClicked: vrData.link_clicked,
         clusters: { A: vrData.cluster_a, B: vrData.cluster_b, C: vrData.cluster_c, D: vrData.cluster_d },
+        to: "/campaigns/vr-stiftungen",
       }
     : null;
 
