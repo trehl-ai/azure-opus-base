@@ -50,8 +50,7 @@ export function WerteRaumRessourcen({ className }: { className?: string }) {
   const { data: resources } = useQuery<Resource[]>({
     queryKey: ["werteraum-resources"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC
-        .from("werteraum_resources")
+      const { data, error } = await (supabaseEIC as any).from("werteraum_resources")
         .select("*")
         .order("position");
       if (error) throw error;
@@ -85,14 +84,12 @@ export function WerteRaumRessourcen({ className }: { className?: string }) {
         url = null; // a stored file supersedes a URL
       }
       if (editResource) {
-        const { error } = await supabaseEIC
-          .from("werteraum_resources")
+        const { error } = await (supabaseEIC as any).from("werteraum_resources")
           .update({ type: form.type, name: form.name.trim(), url, storage_path })
           .eq("id", editResource.id);
         if (error) throw error;
       } else {
-        const { error } = await supabaseEIC
-          .from("werteraum_resources")
+        const { error } = await (supabaseEIC as any).from("werteraum_resources")
           .insert({ type: form.type, name: form.name.trim(), url, storage_path, position: nextPosition });
         if (error) throw error;
       }
@@ -108,7 +105,7 @@ export function WerteRaumRessourcen({ className }: { className?: string }) {
   const deleteMutation = useMutation({
     mutationFn: async (r: Resource) => {
       // Deletes only the DB row (not the storage file — files may be shared/seeded).
-      const { error } = await supabaseEIC.from("werteraum_resources").delete().eq("id", r.id);
+      const { error } = await (supabaseEIC as any).from("werteraum_resources").delete().eq("id", r.id);
       if (error) throw error;
     },
     onSuccess: () => {

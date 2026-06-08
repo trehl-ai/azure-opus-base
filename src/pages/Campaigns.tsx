@@ -23,7 +23,7 @@ function useOutreachStats() {
   return useQuery({
     queryKey: ["eic", "outreach_stats"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.rpc("get_outreach_stats");
+      const { data, error } = await (supabaseEIC as any).rpc("get_outreach_stats");
       if (error) throw error;
       return data as OutreachStats;
     },
@@ -34,7 +34,7 @@ function useVrStiftungenStats() {
   return useQuery({
     queryKey: ["eic", "vr_stiftungen_stats"],
     queryFn: async () => {
-      const { data, error } = await supabaseEIC.rpc("get_vr_stiftungen_stats");
+      const { data, error } = await (supabaseEIC as any).rpc("get_vr_stiftungen_stats");
       if (error) throw error;
       return data as OutreachStats;
     },
