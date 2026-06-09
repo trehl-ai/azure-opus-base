@@ -69,7 +69,8 @@ export default function CampaignVrStiftungen() {
 
   const stats = statsQ.data;
   const total = stats?.gesamt ?? 0;
-  const conversion = total > 0 ? ((stats?.terminated ?? 0) / total) * 100 : 0;
+  const emailSent = stats?.email_sent ?? 0;
+  const conversion = emailSent > 0 ? ((stats?.replied ?? 0) / emailSent) * 100 : 0;
 
   const funnel = stats
     ? [

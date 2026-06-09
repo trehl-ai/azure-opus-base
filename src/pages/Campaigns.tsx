@@ -14,6 +14,7 @@ type CampaignCardData = {
   total: number;
   emailSent: number;
   linkClicked: number;
+  pending: number;
   clusters: { A: number; B: number; C: number; D: number };
   /** Detail route. Omit for campaigns without a detail page (card renders non-clickable). */
   to?: string;
@@ -61,6 +62,9 @@ function CampaignCard({ c }: { c: CampaignCardData }) {
         <span>·</span>
         <span className="font-semibold text-foreground text-base">{c.linkClicked}</span>
         <span>geklickt</span>
+        <span>·</span>
+        <span className="font-semibold text-foreground text-base">{c.pending}</span>
+        <span>pending</span>
       </div>
 
       <div>
@@ -106,6 +110,7 @@ export default function Campaigns() {
         total: data.gesamt,
         emailSent: data.email_sent,
         linkClicked: data.link_clicked,
+        pending: data.pending,
         clusters: { A: data.cluster_a, B: data.cluster_b, C: data.cluster_c, D: data.cluster_d },
         to: "/campaigns/werteraum",
       }
@@ -119,6 +124,7 @@ export default function Campaigns() {
         total: vrData.gesamt,
         emailSent: vrData.email_sent,
         linkClicked: vrData.link_clicked,
+        pending: vrData.pending,
         clusters: { A: vrData.cluster_a, B: vrData.cluster_b, C: vrData.cluster_c, D: vrData.cluster_d },
         to: "/campaigns/vr-stiftungen",
       }
