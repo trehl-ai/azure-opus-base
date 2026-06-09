@@ -3,9 +3,10 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import localRules from "./eslint-rules/index.js";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "eslint-rules"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -16,6 +17,7 @@ export default tseslint.config(
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      local: localRules,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -31,6 +33,9 @@ export default tseslint.config(
             "Do not instantiate a new Supabase client. Import the single `supabase` client from '@/integrations/supabase/client'.",
         },
       ],
+      // Prevent supabaseEIC (anon) on RLS-protected tables/RPCs. auth.uid() is
+      // NULL there, so RLS returns empty results silently. Use session supabase.
+      "local/no-supabaseeic-rls": "error",
     },
   },
   {
@@ -38,6 +43,6 @@ export default tseslint.config(
     files: ["src/integrations/supabase/client.ts"],
     rules: {
       "no-restricted-syntax": "off",
-
+    },
   },
 );
