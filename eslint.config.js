@@ -21,6 +21,23 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Enforce SINGLE Supabase client — disallow createClient() outside the
+      // canonical client.ts. See src/integrations/supabase/client.ts.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.name='createClient']",
+          message:
+            "Do not instantiate a new Supabase client. Import the single `supabase` client from '@/integrations/supabase/client'.",
+        },
+      ],
     },
+  },
+  {
+    // The canonical client file is the ONLY place allowed to call createClient().
+    files: ["src/integrations/supabase/client.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
+
   },
 );
