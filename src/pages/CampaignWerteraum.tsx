@@ -163,65 +163,7 @@ export default function CampaignWerteraum() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* BLOCK 2 — Funnel */}
-          <Card className="p-5">
-            <h2 className="font-semibold mb-4">Status-Funnel</h2>
-            <div className="space-y-3">
-              {funnel.map((f) => (
-                <div key={f.label}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium">{f.label}</span>
-                    <span className="text-muted-foreground">{f.value}</span>
-                  </div>
-                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${(f.value / funnelMax) * 100}%`, background: f.color }}
-                    />
-                  </div>
-                </div>
-              ))}
-              {!stats && !statsQ.isLoading && (
-                <p className="text-sm text-muted-foreground">Keine Daten</p>
-              )}
-            </div>
-          </Card>
-
-          {/* BLOCK 2.5 — Plausible Analytics (above-the-fold) */}
-          <PlausibleWidget site="werteraum-schule.de" />
-        </div>
-
-        {/* RIGHT COLUMN — Aktivitäten + Link geklickt */}
-        <div className="space-y-6 h-fit lg:sticky lg:top-6">
-          {/* BLOCK 5 — Aktivitäts-Feed */}
-          <Card className="p-5">
-          <h2 className="font-semibold mb-4">Aktivitäten</h2>
-          {activitiesQ.isLoading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Lade…
-            </div>
-          )}
-          {activitiesQ.error && (
-            <p className="text-sm text-destructive">{(activitiesQ.error as Error).message}</p>
-          )}
-          {activitiesQ.data && (
-            <ul className="space-y-3">
-              {activitiesQ.data.map((a, i) => (
-                <li key={i} className="border-l-2 border-primary/30 pl-3">
-                  <p className="text-sm font-medium leading-tight">{a.title}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {[a.company_name, formatRelative(a.created_at)].filter(Boolean).join(" · ")}
-                  </p>
-                </li>
-              ))}
-              {activitiesQ.data.length === 0 && (
-                <li className="text-sm text-muted-foreground">Keine Aktivitäten</li>
-              )}
-            </ul>
-          )}
-          </Card>
-
-          {/* BLOCK 6 — Link geklickt */}
+          {/* BLOCK 6 — Link geklickt (oben, direkt unter Stats) */}
           <Card className="p-5">
             <h2 className="font-semibold mb-4 flex items-center gap-2">
               <span className="inline-block h-2 w-2 rounded-full bg-success" />
@@ -273,6 +215,64 @@ export default function CampaignWerteraum() {
                 })}
                 {linkClickedQ.data.length === 0 && (
                   <li className="text-sm text-muted-foreground">Noch keine Klicks</li>
+                )}
+              </ul>
+            )}
+          </Card>
+
+          {/* BLOCK 2.5 — Plausible Analytics */}
+          <PlausibleWidget site="werteraum-schule.de" />
+
+          {/* BLOCK 2 — Funnel */}
+          <Card className="p-5">
+            <h2 className="font-semibold mb-4">Status-Funnel</h2>
+            <div className="space-y-3">
+              {funnel.map((f) => (
+                <div key={f.label}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium">{f.label}</span>
+                    <span className="text-muted-foreground">{f.value}</span>
+                  </div>
+                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${(f.value / funnelMax) * 100}%`, background: f.color }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {!stats && !statsQ.isLoading && (
+                <p className="text-sm text-muted-foreground">Keine Daten</p>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* RIGHT COLUMN — Aktivitäten */}
+        <div className="space-y-6 h-fit lg:sticky lg:top-6">
+          {/* BLOCK 5 — Aktivitäts-Feed */}
+          <Card className="p-5">
+            <h2 className="font-semibold mb-4">Aktivitäten</h2>
+            {activitiesQ.isLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Lade…
+              </div>
+            )}
+            {activitiesQ.error && (
+              <p className="text-sm text-destructive">{(activitiesQ.error as Error).message}</p>
+            )}
+            {activitiesQ.data && (
+              <ul className="space-y-3">
+                {activitiesQ.data.map((a, i) => (
+                  <li key={i} className="border-l-2 border-primary/30 pl-3">
+                    <p className="text-sm font-medium leading-tight">{a.title}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {[a.company_name, formatRelative(a.created_at)].filter(Boolean).join(" · ")}
+                    </p>
+                  </li>
+                ))}
+                {activitiesQ.data.length === 0 && (
+                  <li className="text-sm text-muted-foreground">Keine Aktivitäten</li>
                 )}
               </ul>
             )}
