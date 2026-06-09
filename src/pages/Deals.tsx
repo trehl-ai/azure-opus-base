@@ -11,6 +11,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
 import { WerteRaumRessourcen } from "@/components/deals/WerteRaumRessourcen";
+import { VRRessourcen } from "@/components/deals/VRRessourcen";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { MobileStageSelector, StageChangeSheet } from "@/components/shared/MobileStageSelector";
@@ -433,6 +434,12 @@ export default function Deals() {
       {/* WerteRaum Ressourcen — slim horizontal strip above the board, only for the "Werteraum - Schulen" pipeline */}
       {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
         <WerteRaumRessourcen className="mb-4" />
+      )}
+
+      {/* VR Ressourcen — same strip for the Viktoria Rebensburg Industrie + Stiftungen pipelines */}
+      {(activePipelineId === "3f27d8f5-d7e1-48a8-9c8b-5cc610777634" ||
+        activePipelineId === "341c067d-39fe-46ae-82c7-33d6c55a2a60") && (
+        <VRRessourcen className="mb-4" />
       )}
 
       {/* Mobile: Stage selector + card list */}
