@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { supabaseEIC, type OutreachStats } from "@/lib/supabaseEIC";
+import { type OutreachStats } from "@/lib/supabaseEIC";
 import { PlausibleWidget } from "@/components/campaigns/PlausibleWidget";
 
 const WERTERAUM_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
@@ -20,7 +20,9 @@ function useStats() {
   return useQuery({
     queryKey: ["eic", "outreach_stats"],
     queryFn: async () => {
-      const { data, error } = await (supabaseEIC as any).rpc("get_outreach_stats");
+      // SECURITY DEFINER stats RPC needs auth context → session `supabase`,
+      // NOT anon supabaseEIC (auth.uid()=NULL). Consistent with Campaigns.tsx.
+      const { data, error } = await (supabase as any).rpc("get_outreach_stats");
       if (error) throw error;
       return data as OutreachStats;
     },
