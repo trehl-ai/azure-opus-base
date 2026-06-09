@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { supabaseEIC, type OutreachStats, type VrStiftungenCandidateRow } from "@/lib/supabaseEIC";
 
 const CLUSTER_COLORS: Record<string, string> = {
@@ -50,9 +51,11 @@ function useActivities() {
   return useQuery({
     queryKey: ["eic", "outreach_activities", "vr_stiftungen"],
     queryFn: async () => {
-      // deal_activities ist nicht anon-lesbar (RLS) — supabaseEIC läuft sessionlos als anon.
-      // get_outreach_activities ist der gemeinsame SECURITY-DEFINER-Feed (Outreach/Research/Landing Page).
-      const { data, error } = await (supabaseEIC as any).rpc("get_outreach_activities", { p_limit: 20 });
+      // deal_activities ist nicht anon-lesbar (RLS) — der anon `supabaseEIC` bekommt 401.
+      // Session-Client `supabase` (gleiche DB ttgvhqygmgtnjgwunuwz) trägt die auth.uid()-Session,
+      // die die RLS-Policy braucht. Gleicher Fix wie PR #96/#97. get_outreach_activities ist
+      // der gemeinsame SECURITY-DEFINER-Feed (Outreach/Research/Landing Page).
+      const { data, error } = await (supabase as any).rpc("get_outreach_activities", { p_limit: 20 });
       if (error) throw error;
       return (data ?? []) as ActivityRow[];
     },
@@ -74,7 +77,7 @@ export default function CampaignVrStiftungen() {
         { label: "Email versendet", value: stats.email_sent, color: "#378ADD" },
         { label: "Link geklickt", value: stats.link_clicked, color: "#1D9E75" },
         { label: "Geantwortet", value: stats.replied, color: "#16a34a" },
-        { label: "Opt-Out", value: stats.terminated, color: "#7c3aed" },
+        { label: "Nicht kontaktieren", value: stats.terminated, color: "#7c3aed" },
       ]
     : [];
   const funnelMax = Math.max(1, ...funnel.map((f) => f.value));
@@ -114,7 +117,11 @@ export default function CampaignVrStiftungen() {
             { label: "Versendet", value: stats?.email_sent ?? 0 },
             { label: "Link geklickt", value: stats?.link_clicked ?? 0 },
             { label: "Geantwortet", value: stats?.replied ?? 0, tone: "success" as const },
-            { label: "Opt-Out", value: stats?.terminated ?? 0, subtitle: "Nicht kontaktieren" },
+            {
+              label: "Opt-Out",
+              value: stats?.opt_out ?? 0,
+              subtitle: `Nicht kontaktieren: ${stats?.terminated ?? 0}`,
+            },
             { label: "Conversion", value: `${conversion.toFixed(1)}%` },
           ] satisfies {
             label: string;
