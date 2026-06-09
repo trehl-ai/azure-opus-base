@@ -1,19 +1,12 @@
-// Dedicated Supabase client for the EIC (eo ipso connect) project — used ONLY
-// by the Campaigns pages. Do NOT use for any other feature; the main app uses
-// `@/integrations/supabase/client`.
-import { createClient } from "@supabase/supabase-js";
+// ⚠️ DEPRECATED MODULE — kept only for backwards-compatible imports.
+// There is exactly ONE Supabase client in this app: `@/integrations/supabase/client`.
+// This file re-exports that single authenticated client (as `supabaseEIC`) plus
+// shared TypeScript types. Do NOT instantiate another Supabase client here or
+// anywhere else — using an anon/secondary client breaks RLS
+// (auth.uid() = NULL → 401 / 0 rows).
+import { supabase } from "@/integrations/supabase/client";
 
-const EIC_SUPABASE_URL = "https://ttgvhqygmgtnjgwunuwz.supabase.co";
-const EIC_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Z3ZocXlnbWd0bmpnd3VudXd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NDE3MTQsImV4cCI6MjA5MjUxNzcxNH0.be9sR4ayWvHROA9CL_GRroDXorsJ_6dz07crZSUnlP8";
-
-export const supabaseEIC = createClient(EIC_SUPABASE_URL, EIC_SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    storageKey: "sb-eic-auth",
-  },
-});
+export const supabaseEIC = supabase;
 
 export type OutreachStats = {
   gesamt: number;
