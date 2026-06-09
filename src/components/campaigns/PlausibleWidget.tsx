@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { usePlausibleStats } from '@/hooks/usePlausibleStats'
-import { useNavigate } from 'react-router-dom'
 import { BarChart2, Mail, Users, TrendingUp } from 'lucide-react'
 
 interface Props {
@@ -21,7 +20,6 @@ function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string
 
 export function PlausibleWidget({ site }: Props) {
   const { visitors, visits, email_visitors, top_utm_contents, loading, error } = usePlausibleStats(site)
-  const navigate = useNavigate()
 
   if (loading) return <div className="rounded-lg border border-border bg-card p-4 animate-pulse h-48" />
   if (error) return <div className="rounded-lg border border-destructive bg-card p-4 text-sm text-destructive">Plausible: {error}</div>
@@ -44,8 +42,7 @@ export function PlausibleWidget({ site }: Props) {
             {top_utm_contents.map((item) => (
               <div
                 key={item.utm_content}
-                className="flex items-center justify-between text-xs cursor-pointer hover:text-primary"
-                onClick={() => navigate(`/contacts/${item.utm_content}`)}
+                className="flex items-center justify-between text-xs"
               >
                 <span className="font-mono text-muted-foreground">{item.utm_content}</span>
                 <span className="font-medium">{item.visitors} Besucher</span>
