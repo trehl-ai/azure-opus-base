@@ -4,14 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { supabaseEIC, type OutreachStats } from "@/lib/supabaseEIC";
+import { type OutreachStats } from "@/lib/supabaseEIC";
 import { PlausibleWidget } from "@/components/campaigns/PlausibleWidget";
 
 function useStats() {
   return useQuery({
     queryKey: ["eic", "vr_stiftungen_stats"],
     queryFn: async () => {
-      const { data, error } = await (supabaseEIC as any).rpc("get_vr_stiftungen_stats");
+      // SECURITY DEFINER stats RPC needs auth context → session `supabase`,
+      // NOT anon supabaseEIC (auth.uid()=NULL). Consistent with Campaigns.tsx.
+      const { data, error } = await (supabase as any).rpc("get_vr_stiftungen_stats");
       if (error) throw error;
       return data as OutreachStats;
     },

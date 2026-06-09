@@ -30,13 +30,35 @@ export default {
       "get_vr_stiftungen_stats",
     ]);
 
+    // Strip TS-only wrappers so `(supabaseEIC as any).rpc(...)`, `supabaseEIC!`,
+    // and `(supabaseEIC satisfies T)` resolve to the underlying Identifier.
+    // The codebase calls these RPCs as `(supabaseEIC as any).rpc(...)`, whose
+    // callee.object is a TSAsExpression (no `.name`) — without unwrapping, the
+    // real violations slip through silently.
+    function unwrap(node) {
+      let n = node;
+      while (
+        n &&
+        (n.type === "TSAsExpression" ||
+          n.type === "TSNonNullExpression" ||
+          n.type === "TSSatisfiesExpression" ||
+          n.type === "TSTypeAssertion")
+      ) {
+        n = n.expression;
+      }
+      return n;
+    }
+
     function isSupabaseEICCall(node) {
-      // supabaseEIC.from('table') or supabaseEIC.rpc('fn')
-      return (
-        node.type === "CallExpression" &&
-        node.callee?.type === "MemberExpression" &&
-        node.callee?.object?.name === "supabaseEIC"
-      );
+      // supabaseEIC.from('table') / .rpc('fn'), incl. (supabaseEIC as any).…
+      if (
+        node.type !== "CallExpression" ||
+        node.callee?.type !== "MemberExpression"
+      ) {
+        return false;
+      }
+      const obj = unwrap(node.callee.object);
+      return obj?.type === "Identifier" && obj.name === "supabaseEIC";
     }
 
     return {
