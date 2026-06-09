@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink, CheckSquare, ClipboardList, Clapperboard } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink, CheckSquare, ClipboardList, Clapperboard, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { resolveActivityAuthorId } from "@/lib/activityAuthor";
@@ -49,13 +49,13 @@ const priorityColors: Record<string, string> = {
 // historical rows — those values are no longer creatable via the UI but may
 // exist in older deal_activities records.
 const activityIcons: Record<string, typeof Phone> = {
-  call: Phone, email: Mail, meeting: Users, task: CheckSquare, briefing: ClipboardList, casting: Clapperboard,
+  call: Phone, email: Mail, email_reply: AlertCircle, meeting: Users, task: CheckSquare, briefing: ClipboardList, casting: Clapperboard,
   note: StickyNote,
   follow_up: CalendarCheck, wiedervorlage: CalendarCheck, notiz: StickyNote, angebot: Mail, absage: XCircle,
 };
 
 const activityLabels: Record<string, string> = {
-  call: "📞 Anruf", email: "📧 E-Mail", meeting: "🤝 Meeting", task: "✅ Aufgabe",
+  call: "📞 Anruf", email: "📧 E-Mail", email_reply: "🔔 Antwort erhalten", meeting: "🤝 Meeting", task: "✅ Aufgabe",
   briefing: "📋 Briefing", casting: "🎬 Casting", note: "📝 Notiz",
   follow_up: "🔄 Follow-Up", wiedervorlage: "🔄 Wiedervorlage", notiz: "📝 Notiz",
   angebot: "📄 Angebot", absage: "❌ Absage",
@@ -132,8 +132,7 @@ export default function DealDetail() {
         .from("deal_activities")
         .select("*")
         .eq("deal_id", id!)
-        .order("completed_at", { ascending: true, nullsFirst: true })
-        .order("due_date", { ascending: true, nullsFirst: false });
+        .order("created_at", { ascending: false }); // newest first — important lead replies stay at the top
       if (error) throw error;
       return data;
     },
@@ -559,15 +558,27 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 function ActivityRow({ activity, ownerName, onToggle, onEdit }: { activity: any; ownerName: string | null; onToggle: (checked: boolean) => void; onEdit?: () => void }) {
   const Icon = activityIcons[activity.activity_type] ?? StickyNote;
   const isDone = !!activity.completed_at;
+  const isReply = activity.activity_type === "email_reply";
 
   return (
-    <div className={cn("flex items-start gap-3 py-2 border-b border-border last:border-0", isDone && "opacity-60")}>
+    <div className={cn(
+      "flex items-start gap-3 py-2",
+      isReply ? "rounded-lg border border-amber-300 bg-amber-50 px-3" : "border-b border-border last:border-0",
+      isDone && !isReply && "opacity-60",
+    )}>
       <Checkbox checked={isDone} onCheckedChange={(c) => onToggle(!!c)} className="mt-0.5" />
-      <div className={cn("rounded-lg p-1.5", isDone ? "bg-muted" : "bg-primary/10")}>
-        <Icon className={cn("h-3.5 w-3.5", isDone ? "text-muted-foreground" : "text-primary")} />
+      <div className={cn("rounded-lg p-1.5", isReply ? "bg-amber-100" : isDone ? "bg-muted" : "bg-primary/10")}>
+        <Icon className={cn("h-3.5 w-3.5", isReply ? "text-amber-600" : isDone ? "text-muted-foreground" : "text-primary")} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className={cn("text-body font-medium", isDone && "line-through text-muted-foreground")}>{activity.title}</p>
+        <div className="flex items-center gap-2">
+          <p className={cn("text-body font-medium", isReply && "font-semibold text-amber-900", isDone && !isReply && "line-through text-muted-foreground")}>{activity.title}</p>
+          {isReply && (
+            <span className="shrink-0 rounded border border-amber-400 bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+              Antwort erhalten
+            </span>
+          )}
+        </div>
         {activity.description && <p className="text-label text-muted-foreground mt-0.5 truncate">{activity.description}</p>}
         <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
           <span>{activityLabels[activity.activity_type] ?? activity.activity_type}</span>
