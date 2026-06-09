@@ -127,6 +127,9 @@ export default function CampaignVrStiftungen() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          {/* BLOCK 2.5 — Plausible Analytics (oben, direkt unter Stats) */}
+          <PlausibleWidget site="viktoria-roadshow.com" />
+
           {/* BLOCK 2 — Funnel */}
           <Card className="p-5">
             <h2 className="font-semibold mb-4">Status-Funnel</h2>
@@ -150,12 +153,9 @@ export default function CampaignVrStiftungen() {
               )}
             </div>
           </Card>
-
-          {/* BLOCK 2.5 — Plausible Analytics (above-the-fold) */}
-          <PlausibleWidget site="viktoria-roadshow.com" />
         </div>
 
-        {/* RIGHT COLUMN — Aktivitäten + Analytics */}
+        {/* RIGHT COLUMN — Aktivitäten */}
         <div className="space-y-6 h-fit lg:sticky lg:top-6">
           {/* BLOCK 5 — Aktivitäts-Feed */}
           <Card className="p-5">
