@@ -186,6 +186,9 @@ export default function CampaignWerteraum() {
               )}
             </div>
           </Card>
+
+          {/* BLOCK 2.5 — Plausible Analytics (above-the-fold) */}
+          <PlausibleWidget site="werteraum-schule.de" />
         </div>
 
         {/* RIGHT COLUMN — Aktivitäten + Link geklickt */}
@@ -274,9 +277,6 @@ export default function CampaignWerteraum() {
               </ul>
             )}
           </Card>
-
-          {/* BLOCK 7 — Plausible Analytics */}
-          <PlausibleWidget site="werteraum-schule.de" />
         </div>
       </div>
     </div>
