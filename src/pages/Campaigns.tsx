@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Megaphone, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabaseEIC, type OutreachStats } from "@/lib/supabaseEIC";
+import { supabase } from "@/integrations/supabase/client";
+import { type OutreachStats } from "@/lib/supabaseEIC";
 
 const CLUSTER_COLORS = { A: "#1D9E75", B: "#378ADD", C: "#BA7517", D: "#9ca3af" } as const;
 
@@ -24,7 +25,8 @@ function useOutreachStats() {
   return useQuery({
     queryKey: ["eic", "outreach_stats"],
     queryFn: async () => {
-      const { data, error } = await (supabaseEIC as any).rpc("get_outreach_stats");
+      // SECURITY DEFINER RPC → needs auth context; session `supabase`, NOT anon supabaseEIC (→ permission denied / 401).
+      const { data, error } = await (supabase as any).rpc("get_outreach_stats");
       if (error) throw error;
       return data as OutreachStats;
     },
@@ -35,7 +37,8 @@ function useVrStiftungenStats() {
   return useQuery({
     queryKey: ["eic", "vr_stiftungen_stats"],
     queryFn: async () => {
-      const { data, error } = await (supabaseEIC as any).rpc("get_vr_stiftungen_stats");
+      // SECURITY DEFINER RPC → session `supabase`, NOT anon supabaseEIC.
+      const { data, error } = await (supabase as any).rpc("get_vr_stiftungen_stats");
       if (error) throw error;
       return data as OutreachStats;
     },
