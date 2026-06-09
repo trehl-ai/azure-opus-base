@@ -54,9 +54,14 @@ function useActivities() {
   return useQuery({
     queryKey: ["eic", "outreach_activities", "werteraum"],
     queryFn: async () => {
-      // deal_activities ist nicht anon-lesbar (RLS) — supabaseEIC läuft sessionlos als anon.
-      // Daher der SECURITY-DEFINER-RPC get_outreach_activities (analog get_outreach_stats).
-      const { data, error } = await (supabaseEIC as any).rpc("get_outreach_activities", { p_limit: 20 });
+      // deal_activities ist nicht anon-lesbar (RLS) — der anon `supabaseEIC` bekommt 401.
+      // Session-Client `supabase` (gleiche DB ttgvhqygmgtnjgwunuwz) trägt die auth.uid()-Session,
+      // die die RLS-Policy braucht. Gleicher Fix wie PR #96/#97. get_outreach_activities ist
+      // der gemeinsame SECURITY-DEFINER-Feed — p_pipeline_id grenzt auf die WerteRaum-Pipeline ein.
+      const { data, error } = await (supabase as any).rpc("get_outreach_activities", {
+        p_limit: 20,
+        p_pipeline_id: "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e",
+      });
       if (error) throw error;
       return (data ?? []) as ActivityRow[];
     },

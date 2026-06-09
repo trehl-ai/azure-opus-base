@@ -54,8 +54,11 @@ function useActivities() {
       // deal_activities ist nicht anon-lesbar (RLS) — der anon `supabaseEIC` bekommt 401.
       // Session-Client `supabase` (gleiche DB ttgvhqygmgtnjgwunuwz) trägt die auth.uid()-Session,
       // die die RLS-Policy braucht. Gleicher Fix wie PR #96/#97. get_outreach_activities ist
-      // der gemeinsame SECURITY-DEFINER-Feed (Outreach/Research/Landing Page).
-      const { data, error } = await (supabase as any).rpc("get_outreach_activities", { p_limit: 20 });
+      // der gemeinsame SECURITY-DEFINER-Feed — p_pipeline_id grenzt auf die VR-Stiftungen-Pipeline ein.
+      const { data, error } = await (supabase as any).rpc("get_outreach_activities", {
+        p_limit: 20,
+        p_pipeline_id: "341c067d-39fe-46ae-82c7-33d6c55a2a60",
+      });
       if (error) throw error;
       return (data ?? []) as ActivityRow[];
     },
