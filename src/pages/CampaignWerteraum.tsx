@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { supabaseEIC, type OutreachStats, type WerteraumOutreachRow } from "@/lib/supabaseEIC";
+import { supabaseEIC, type OutreachStats } from "@/lib/supabaseEIC";
+import { PlausibleWidget } from "@/components/campaigns/PlausibleWidget";
 
 const WERTERAUM_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
 
@@ -23,20 +23,6 @@ function useStats() {
       const { data, error } = await (supabaseEIC as any).rpc("get_outreach_stats");
       if (error) throw error;
       return data as OutreachStats;
-    },
-  });
-}
-
-function useTopLeads() {
-  return useQuery({
-    queryKey: ["eic", "v_werteraum_outreach", "top20"],
-    queryFn: async () => {
-      const { data, error } = await (supabaseEIC as any).from("v_werteraum_outreach")
-        .select("*")
-        .order("outreach_score", { ascending: false, nullsFirst: false })
-        .limit(20);
-      if (error) throw error;
-      return (data ?? []) as WerteraumOutreachRow[];
     },
   });
 }
@@ -101,7 +87,6 @@ function useLinkClicked() {
 
 export default function CampaignWerteraum() {
   const statsQ = useStats();
-  const leadsQ = useTopLeads();
   const activitiesQ = useActivities();
   const linkClickedQ = useLinkClicked();
 
@@ -119,16 +104,6 @@ export default function CampaignWerteraum() {
       ]
     : [];
   const funnelMax = Math.max(1, ...funnel.map((f) => f.value));
-
-  const clusters = stats
-    ? ([
-        { key: "A", count: stats.cluster_a, label: "Cluster A — Hot" },
-        { key: "B", count: stats.cluster_b, label: "Cluster B — Warm" },
-        { key: "C", count: stats.cluster_c, label: "Cluster C — Cold" },
-        { key: "D", count: stats.cluster_d, label: "Cluster D — Unsortiert" },
-      ] as const)
-    : [];
-  const clusterTotal = Math.max(1, clusters.reduce((s, c) => s + c.count, 0));
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -210,97 +185,6 @@ export default function CampaignWerteraum() {
                 <p className="text-sm text-muted-foreground">Keine Daten</p>
               )}
             </div>
-          </Card>
-
-          {/* BLOCK 3 — Cluster Donut */}
-          <Card className="p-5">
-            <h2 className="font-semibold mb-4">Cluster-Verteilung</h2>
-            <div className="flex items-center gap-6 flex-wrap">
-              <DonutChart clusters={clusters} total={clusterTotal} />
-              <div className="space-y-2">
-                {clusters.map((c) => (
-                  <div key={c.key} className="flex items-center gap-2 text-sm">
-                    <span
-                      className="inline-block h-3 w-3 rounded-sm"
-                      style={{ background: CLUSTER_COLORS[c.key] }}
-                    />
-                    <span className="font-medium w-32">{c.label}</span>
-                    <span className="text-muted-foreground">
-                      {c.count} ({Math.round((c.count / clusterTotal) * 100)}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-
-          {/* BLOCK 4 — Top Leads */}
-          <Card className="p-5">
-            <h2 className="font-semibold mb-4">Top 20 Leads</h2>
-            {leadsQ.isLoading && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Lade Leads…
-              </div>
-            )}
-            {leadsQ.error && (
-              <p className="text-sm text-destructive">{(leadsQ.error as Error).message}</p>
-            )}
-            {leadsQ.data && (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Schule</TableHead>
-                      <TableHead>Cluster</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Hook</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leadsQ.data.map((l) => {
-                      const name = [l.first_name, l.last_name].filter(Boolean).join(" ") || "—";
-                      const cluster = (l.outreach_cluster ?? "D").toUpperCase();
-                      const color = CLUSTER_COLORS[cluster] ?? CLUSTER_COLORS.D;
-                      const hook = (l.outreach_hook ?? "").trim();
-                      return (
-                        <TableRow key={l.contact_id} className="cursor-pointer">
-                          <TableCell className="font-medium">
-                            <Link to={`/contacts/${l.contact_id}`} className="hover:underline">
-                              {name}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">{l.company_name ?? "—"}</TableCell>
-                          <TableCell>
-                            <span
-                              className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
-                              style={{ background: color }}
-                            >
-                              {cluster}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-semibold">{l.outreach_score ?? "—"}</TableCell>
-                          <TableCell className="text-[12px] text-muted-foreground">
-                            {l.outreach_status ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-[12px] text-muted-foreground max-w-[260px] truncate">
-                            {hook.length > 60 ? hook.slice(0, 60) + "…" : hook || "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {leadsQ.data.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-sm text-muted-foreground text-center">
-                          Keine Leads
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
           </Card>
         </div>
 
@@ -390,6 +274,9 @@ export default function CampaignWerteraum() {
               </ul>
             )}
           </Card>
+
+          {/* BLOCK 7 — Plausible Analytics */}
+          <PlausibleWidget site="werteraum-schule.de" />
         </div>
       </div>
     </div>
@@ -404,39 +291,4 @@ function formatRelative(iso: string) {
   if (h < 24) return `vor ${h} Std.`;
   const d = Math.round(h / 24);
   return `vor ${d} Tg.`;
-}
-
-function DonutChart({
-  clusters,
-  total,
-}: {
-  clusters: readonly { key: string; count: number }[];
-  total: number;
-}) {
-  const r = 50;
-  const c = 2 * Math.PI * r;
-  let offset = 0;
-  return (
-    <svg viewBox="0 0 140 140" className="h-36 w-36 -rotate-90">
-      <circle cx="70" cy="70" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="18" />
-      {clusters.map((cl) => {
-        const len = (cl.count / total) * c;
-        const el = (
-          <circle
-            key={cl.key}
-            cx="70"
-            cy="70"
-            r={r}
-            fill="none"
-            stroke={CLUSTER_COLORS[cl.key] ?? CLUSTER_COLORS.D}
-            strokeWidth="18"
-            strokeDasharray={`${len} ${c - len}`}
-            strokeDashoffset={-offset}
-          />
-        );
-        offset += len;
-        return el;
-      })}
-    </svg>
-  );
 }
