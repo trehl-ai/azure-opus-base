@@ -22,6 +22,10 @@ export type OutreachStats = {
   link_clicked: number;
   replied: number;
   terminated: number;
+  /** Real opt-outs only (Abmeldung / unsubscribe). Distinct from `terminated`. */
+  opt_out: number;
+  /** Contacts moved to "Terminiert" before any mail went out — NOT opt-outs. */
+  terminated_before_mailing: number;
   cluster_a: number;
   cluster_b: number;
   cluster_c: number;
