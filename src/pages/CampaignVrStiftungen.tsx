@@ -151,6 +151,8 @@ export default function CampaignVrStiftungen() {
             </div>
           </Card>
 
+          {/* BLOCK 2.5 — Plausible Analytics (above-the-fold) */}
+          <PlausibleWidget site="viktoria-roadshow.com" />
         </div>
 
         {/* RIGHT COLUMN — Aktivitäten + Analytics */}
@@ -182,9 +184,6 @@ export default function CampaignVrStiftungen() {
               </ul>
             )}
           </Card>
-
-          {/* BLOCK 6 — Plausible Analytics */}
-          <PlausibleWidget site="viktoria-roadshow.com" />
         </div>
       </div>
     </div>
