@@ -4,7 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { supabaseEIC, type OutreachStats, type WerteraumOutreachRow } from "@/lib/supabaseEIC";
+
+const WERTERAUM_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
 
 const CLUSTER_COLORS: Record<string, string> = {
   A: "#1D9E75",
@@ -60,10 +63,42 @@ function useActivities() {
   });
 }
 
+type LinkClickedRow = {
+  id: string; // deal_id
+  title: string; // school name
+  contacts: {
+    first_name: string | null;
+    last_name: string | null;
+    outreach_cluster: string | null;
+    lead_score: number | null;
+  } | null;
+};
+
+function useLinkClicked() {
+  return useQuery({
+    queryKey: ["eic", "werteraum_link_clicked"],
+    queryFn: async () => {
+      // deals + contacts sind RLS-geschützt → Session-Client `supabase` (trägt auth.uid()),
+      // NICHT der anon `supabaseEIC` (→ 401). Inner-Join über die einzige FK deals→contacts
+      // (primary_contact_id), gefiltert auf link_clicked + WerteRaum-Pipeline.
+      const { data, error } = await (supabase as any)
+        .from("deals")
+        .select("id, title, contacts!inner ( first_name, last_name, outreach_cluster, lead_score )")
+        .eq("pipeline_id", WERTERAUM_PIPELINE_ID)
+        .eq("contacts.outreach_status", "link_clicked")
+        .is("deleted_at", null)
+        .order("title", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as LinkClickedRow[];
+    },
+  });
+}
+
 export default function CampaignWerteraum() {
   const statsQ = useStats();
   const leadsQ = useTopLeads();
   const activitiesQ = useActivities();
+  const linkClickedQ = useLinkClicked();
 
   const stats = statsQ.data;
   const total = stats?.gesamt ?? 0;
@@ -264,8 +299,10 @@ export default function CampaignWerteraum() {
           </Card>
         </div>
 
-        {/* BLOCK 5 — Aktivitäts-Feed */}
-        <Card className="p-5 h-fit lg:sticky lg:top-6">
+        {/* RIGHT COLUMN — Aktivitäten + Link geklickt */}
+        <div className="space-y-6 h-fit lg:sticky lg:top-6">
+          {/* BLOCK 5 — Aktivitäts-Feed */}
+          <Card className="p-5">
           <h2 className="font-semibold mb-4">Aktivitäten</h2>
           {activitiesQ.isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -290,7 +327,65 @@ export default function CampaignWerteraum() {
               )}
             </ul>
           )}
-        </Card>
+          </Card>
+
+          {/* BLOCK 6 — Link geklickt */}
+          <Card className="p-5">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-success" />
+              Link geklickt
+              <span className="font-normal text-muted-foreground">
+                ({linkClickedQ.data?.length ?? 0})
+              </span>
+            </h2>
+            {linkClickedQ.isLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Lade…
+              </div>
+            )}
+            {linkClickedQ.error && (
+              <p className="text-sm text-destructive">{(linkClickedQ.error as Error).message}</p>
+            )}
+            {linkClickedQ.data && (
+              <ul className="space-y-3">
+                {linkClickedQ.data.map((row) => {
+                  const c = row.contacts;
+                  const name = [c?.first_name, c?.last_name].filter(Boolean).join(" ") || "—";
+                  const cluster = (c?.outreach_cluster ?? "D").toUpperCase();
+                  const color = CLUSTER_COLORS[cluster] ?? CLUSTER_COLORS.D;
+                  return (
+                    <li key={row.id} className="border-l-2 border-success/40 pl-3">
+                      <Link
+                        to={`/deals/${row.id}`}
+                        className="text-sm font-medium leading-tight hover:underline"
+                      >
+                        {row.title}
+                      </Link>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                          style={{ background: color }}
+                        >
+                          {cluster}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Score {c?.lead_score ?? "—"}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">
+                          🔗 Link geklickt
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+                {linkClickedQ.data.length === 0 && (
+                  <li className="text-sm text-muted-foreground">Noch keine Klicks</li>
+                )}
+              </ul>
+            )}
+          </Card>
+        </div>
       </div>
     </div>
   );
