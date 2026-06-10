@@ -238,6 +238,21 @@ export default function DealDetail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["deal-activities", id] }),
   });
 
+  const deleteActivityMutation = useMutation({
+    mutationFn: async (actId: string) => {
+      const { error } = await (supabase as any).from("deal_activities").delete().eq("id", actId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Notiz gelöscht" });
+      qc.invalidateQueries({ queryKey: ["deal-activities", id] });
+      qc.invalidateQueries({ queryKey: ["open-activities"] });
+      qc.invalidateQueries({ queryKey: ["activity-stats"] });
+      qc.invalidateQueries({ queryKey: ["dashboard_activities"] });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
+  });
+
   // "Infomaterial auf Wiedervorlage" — scheduled follow-up, default due_date is
   // today+7d (user picks date in the popover before saving). description holds
   // the note text since deal_activities has no `notes` column.
@@ -482,7 +497,7 @@ export default function DealDetail() {
           {noteActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold flex items-center gap-1.5"><StickyNote className="h-3.5 w-3.5" /> Notizen & Kommentare</p>
-              {noteActivities.map((a) => <CommentRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
+              {noteActivities.map((a) => <CommentRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} onDelete={() => deleteActivityMutation.mutate(a.id)} />)}
             </div>
           )}
         </TabsContent>
@@ -615,7 +630,7 @@ function ActivityRow({ activity, ownerName, onToggle, onEdit }: { activity: any;
 }
 
 
-function CommentRow({ activity, ownerName, onEdit }: { activity: any; ownerName: string | null; onEdit?: () => void }) {
+function CommentRow({ activity, ownerName, onEdit, onDelete }: { activity: any; ownerName: string | null; onEdit?: () => void; onDelete?: () => void }) {
   const isGenericTitle = !activity.title || activity.title === "📝 Notiz" || activity.title === "Notiz";
   return (
     <div className="group flex items-start gap-3 rounded-lg border-l-4 border-muted bg-muted/30 px-3 py-2">
@@ -630,17 +645,38 @@ function CommentRow({ activity, ownerName, onEdit }: { activity: any; ownerName:
           <span>{format(new Date(activity.created_at), "dd.MM.yyyy HH:mm")}</span>
         </div>
       </div>
-      {onEdit && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={onEdit}
-          aria-label="Notiz bearbeiten"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-      )}
+      <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onEdit && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onEdit}
+            aria-label="Notiz bearbeiten"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {onDelete && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Notiz löschen">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Notiz wirklich löschen?</AlertDialogTitle>
+                <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
     </div>
   );
 }

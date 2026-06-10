@@ -56,8 +56,14 @@ export default function Deals() {
       setSearchParams(searchParams, { replace: true });
     }
   };
-  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
-  const [showAll, setShowAll] = useState(!showOwnerToggle);
+  // Umut's deals carry owner_user_id = Tomas in the DB, so defaulting the owner
+  // filter to his own ID yields an empty board. Default him to "all" so he sees
+  // every deal in his (still pipeline-restricted) board. The pipeline restriction
+  // is untouched — this only changes the default owner filter.
+  const UMUT_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+  const isUmut = user?.id === UMUT_USER_ID;
+  const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle && !isUmut ? (user?.id ?? "all") : "all");
+  const [showAll, setShowAll] = useState(!showOwnerToggle || isUmut);
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
   const [eignungFilter, setEignungFilter] = useState<string>("all");
