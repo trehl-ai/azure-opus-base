@@ -67,7 +67,7 @@ export default function Tasks() {
     const colors = ["bg-secondary text-secondary-foreground", "bg-primary/10 text-primary", "bg-warning/10 text-warning", "bg-success/10 text-success"];
     statusBadge[s.slug] = colors[i % colors.length];
   });
-  const doneSlug = taskStatusesRaw[taskStatusesRaw.length - 1]?.slug ?? "done";
+  const doneSlug = taskStatusesRaw.find((s) => s.slug === "erledigt")?.slug ?? "erledigt";
 
   // Filter-State — Owner default = eingeloggter User
   const [filterUser, setFilterUser] = useState<string>(user?.id ?? "all");
