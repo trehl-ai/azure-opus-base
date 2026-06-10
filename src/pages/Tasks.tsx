@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Plus } from "lucide-react";
+import { Plus, Eye, EyeOff } from "lucide-react";
 import { format, isBefore, isSameDay, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
@@ -75,6 +75,7 @@ export default function Tasks() {
   const [filterType, setFilterType] = useState<string>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false); // erledigte Tasks default ausblenden
   const [statusChangeSheet, setStatusChangeSheet] = useState<{ open: boolean; taskId: string; currentStatus: string }>({
     open: false, taskId: "", currentStatus: "",
   });
@@ -178,6 +179,8 @@ export default function Tasks() {
 
   const filtered = useMemo(() => {
     return unified.filter((u) => {
+      // Erledigte Tasks (doneSlug = "erledigt") default ausblenden — ausser Toggle an oder explizit danach gefiltert
+      if (!showCompleted && u.source === "task" && u.status === doneSlug && filterStatus !== doneSlug) return false;
       if (filterUser !== "all" && u.owner_user_id !== filterUser) return false;
       if (filterStatus !== "all" && u.status !== filterStatus) return false;
       if (filterType !== "all") {
@@ -185,7 +188,7 @@ export default function Tasks() {
       }
       return true;
     });
-  }, [unified, filterUser, filterStatus, filterType]);
+  }, [unified, filterUser, filterStatus, filterType, showCompleted, doneSlug]);
 
   const today = startOfDay(new Date());
   const dueState = (due: string | null, status: string): "overdue" | "today" | "future" | "none" => {
@@ -229,11 +232,23 @@ export default function Tasks() {
     <div className="flex flex-col h-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-[28px] font-semibold text-foreground">Tasks</h1>
-        {canWriteTasks && (
-          <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1 min-h-[44px]">
-            <Plus className="h-4 w-4" /> Neuer Task
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={showCompleted ? "default" : "outline"}
+            onClick={() => setShowCompleted((v) => !v)}
+            className="gap-1 min-h-[44px]"
+            aria-pressed={showCompleted}
+          >
+            {showCompleted ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            Erledigte {showCompleted ? "ausblenden" : "anzeigen"}
           </Button>
-        )}
+          {canWriteTasks && (
+            <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1 min-h-[44px]">
+              <Plus className="h-4 w-4" /> Neuer Task
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filter-Bar */}
@@ -285,7 +300,7 @@ export default function Tasks() {
                 onClick={() => handleRowClick(item)}
                 title={item.title}
                 subtitle={subtitle}
-                className={cn(item.status === doneSlug && "opacity-60", ds === "overdue" && "border-destructive/30", ds === "today" && "border-warning/40")}
+                className={cn(item.status === doneSlug && "opacity-50", ds === "overdue" && "border-destructive/30", ds === "today" && "border-warning/40")}
                 badge={
                   item.source === "task" ? (
                     <button
@@ -338,7 +353,7 @@ export default function Tasks() {
                 return (
                   <TableRow
                     key={`${item.source}-${item.id}`}
-                    className={cn("cursor-pointer h-[56px]", rowBg[ds], item.status === doneSlug && "opacity-60")}
+                    className={cn("cursor-pointer h-[56px]", rowBg[ds], item.status === doneSlug && "opacity-50")}
                     onClick={() => handleRowClick(item)}
                   >
                     <TableCell className={cn("font-medium", item.status === doneSlug && "line-through")}>
