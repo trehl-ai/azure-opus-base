@@ -71,8 +71,12 @@ export default function Tasks() {
   // Default-/Offen-Slug fuer Activity-Status-Mapping (deal_activities nutzen open/completed statt Slugs)
   const offenSlug = taskStatusesRaw.find((s) => s.is_default)?.slug ?? "offen";
 
-  // Filter-State — Owner default = eingeloggter User
-  const [filterUser, setFilterUser] = useState<string>(user?.id ?? "all");
+  // Filter-State — Owner default = eingeloggter User.
+  // Umut's tasks/activities are attributed to Tomas in the DB, so the default
+  // "my items" filter would hide everything. Default him to "all" instead.
+  const UMUT_USER_ID = "c1c7b986-21e7-4371-9226-c54a03d59ecf";
+  const isUmut = user?.id === UMUT_USER_ID;
+  const [filterUser, setFilterUser] = useState<string>(isUmut ? "all" : (user?.id ?? "all"));
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
