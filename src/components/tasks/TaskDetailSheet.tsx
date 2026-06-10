@@ -37,10 +37,13 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const qc = useQueryClient();
   const { data: taskStatusesData = [] } = useTaskStatuses();
   const statusOptions = taskStatusesData.map((s) => ({ value: s.slug, label: s.name }));
+  // Done/Default-Slugs aus dynamischen task_statuses (DB-Slugs: offen/in-bearbeitung/erledigt/blockiert) statt hardcoded Strings
+  const doneSlug = taskStatusesData.find((s) => s.slug === "erledigt")?.slug ?? "erledigt";
+  const defaultSlug = taskStatusesData.find((s) => s.is_default)?.slug ?? taskStatusesData[0]?.slug ?? "offen";
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState("todo");
+  const [status, setStatus] = useState(defaultSlug);
   const [priority, setPriority] = useState("medium");
   const [assignedUserId, setAssignedUserId] = useState("");
   const [startDate, setStartDate] = useState<Date>();
@@ -121,8 +124,8 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
         start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
         due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
       };
-      if (status === "done" && task?.status !== "done") updates.completed_at = new Date().toISOString();
-      else if (status !== "done") updates.completed_at = null;
+      if (status === doneSlug && task?.status !== doneSlug) updates.completed_at = new Date().toISOString();
+      else if (status !== doneSlug) updates.completed_at = null;
       const { error } = await supabase.from("tasks").update(updates as any).eq("id", taskId!);
       if (error) throw error;
     },
@@ -158,7 +161,7 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const toggleSubtask = useMutation({
     mutationFn: async ({ id, done }: { id: string; done: boolean }) => {
       const { error } = await supabase.from("tasks").update({
-        status: done ? "done" : "todo",
+        status: done ? doneSlug : defaultSlug,
         completed_at: done ? new Date().toISOString() : null,
       }).eq("id", id);
       if (error) throw error;
@@ -273,10 +276,10 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
                   {subtasks.map((st) => (
                     <div key={st.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
                       <Checkbox
-                        checked={st.status === "done"}
+                        checked={st.status === doneSlug}
                         onCheckedChange={(checked) => toggleSubtask.mutate({ id: st.id, done: !!checked })}
                       />
-                      <span className={cn("text-sm flex-1", st.status === "done" && "line-through text-muted-foreground")}>{st.title}</span>
+                      <span className={cn("text-sm flex-1", st.status === doneSlug && "line-through text-muted-foreground")}>{st.title}</span>
                       {st.due_date && <span className="text-[11px] text-muted-foreground">{format(new Date(st.due_date), "dd.MM.")}</span>}
                     </div>
                   ))}
