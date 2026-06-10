@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type DealActivity = Database["public"]["Tables"]["deal_activities"]["Row"];
@@ -86,6 +91,27 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!activity) throw new Error("Keine Aktivität ausgewählt");
+      const { error } = await (supabase as any)
+        .from("deal_activities")
+        .delete()
+        .eq("id", activity.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Aktivität gelöscht" });
+      qc.invalidateQueries({ queryKey: ["deal-activities"] });
+      qc.invalidateQueries({ queryKey: ["open-activities"] });
+      qc.invalidateQueries({ queryKey: ["activity-stats"] });
+      qc.invalidateQueries({ queryKey: ["dashboard_activities"] });
+      onSaved();
+      onClose();
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
+  });
+
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -116,6 +142,23 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
             </Button>
             <Button variant="outline" className="flex-1" onClick={onClose}>Abbrechen</Button>
           </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="w-full gap-1.5" disabled={deleteMutation.isPending}>
+                <Trash2 className="h-4 w-4" />{deleteMutation.isPending ? "Löschen…" : "Aktivität löschen"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Aktivität wirklich löschen?</AlertDialogTitle>
+                <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </SheetContent>
     </Sheet>

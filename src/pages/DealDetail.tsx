@@ -468,13 +468,13 @@ export default function DealDetail() {
           {openActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold">Offen</p>
-              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
+              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
             </div>
           )}
           {doneActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold text-muted-foreground">Erledigt</p>
-              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
+              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
             </div>
           )}
 
@@ -482,7 +482,7 @@ export default function DealDetail() {
           {noteActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold flex items-center gap-1.5"><StickyNote className="h-3.5 w-3.5" /> Notizen & Kommentare</p>
-              {noteActivities.map((a) => <CommentRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
+              {noteActivities.map((a) => <CommentRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
             </div>
           )}
         </TabsContent>
