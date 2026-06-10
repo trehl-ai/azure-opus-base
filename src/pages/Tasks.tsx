@@ -68,6 +68,8 @@ export default function Tasks() {
     statusBadge[s.slug] = colors[i % colors.length];
   });
   const doneSlug = taskStatusesRaw.find((s) => s.slug === "erledigt")?.slug ?? "erledigt";
+  // Default-/Offen-Slug fuer Activity-Status-Mapping (deal_activities nutzen open/completed statt Slugs)
+  const offenSlug = taskStatusesRaw.find((s) => s.is_default)?.slug ?? "offen";
 
   // Filter-State — Owner default = eingeloggter User
   const [filterUser, setFilterUser] = useState<string>(user?.id ?? "all");
@@ -182,13 +184,18 @@ export default function Tasks() {
       // Erledigte Tasks (doneSlug = "erledigt") default ausblenden — ausser Toggle an oder explizit danach gefiltert
       if (!showCompleted && u.source === "task" && u.status === doneSlug && filterStatus !== doneSlug) return false;
       if (filterUser !== "all" && u.owner_user_id !== filterUser) return false;
-      if (filterStatus !== "all" && u.status !== filterStatus) return false;
+      // deal_activities haben ein eigenes Status-Vokabular (open/completed/sent) statt task_statuses-Slugs.
+      // 1:1 auf Slugs mappen, damit Activities beim Status-Filter nicht pauschal verschwinden: open->offen, completed->erledigt.
+      if (filterStatus !== "all") {
+        const effStatus = u.source === "task" ? u.status : (u.status === "completed" ? doneSlug : offenSlug);
+        if (effStatus !== filterStatus) return false;
+      }
       if (filterType !== "all") {
         if (filterType === "__none__" ? u.type : u.type !== filterType) return false;
       }
       return true;
     });
-  }, [unified, filterUser, filterStatus, filterType, showCompleted, doneSlug]);
+  }, [unified, filterUser, filterStatus, filterType, showCompleted, doneSlug, offenSlug]);
 
   const today = startOfDay(new Date());
   const dueState = (due: string | null, status: string): "overdue" | "today" | "future" | "none" => {
