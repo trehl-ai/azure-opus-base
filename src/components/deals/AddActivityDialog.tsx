@@ -24,7 +24,7 @@ const ACTIVITY_TYPE_OPTIONS = [
   { value: "email",    label: "📧 E-Mail" },
   { value: "meeting",  label: "🤝 Meeting" },
   { value: "task",     label: "✅ Aufgabe" },
-  { value: "note",     label: "📝 Notiz" },
+  { value: "note",     label: "📝 Kommentar / Notiz" },
   { value: "briefing", label: "📋 Briefing" },
   { value: "casting",  label: "🎬 Casting" },
 ] as const;

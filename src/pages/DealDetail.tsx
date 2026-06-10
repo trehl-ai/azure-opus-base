@@ -291,8 +291,12 @@ export default function DealDetail() {
   const lostStage = stages?.find((s) => s.is_lost_stage);
   const currentStageIdx = stages?.findIndex((s) => s.id === deal.pipeline_stage_id) ?? -1;
 
-  const openActivities = activities?.filter((a) => !a.completed_at) ?? [];
-  const doneActivities = activities?.filter((a) => a.completed_at) ?? [];
+  // Notizen (activity_type='note') als Kommentar-Strang getrennt von Aktions-Aktivitäten
+  // (call/email/task/meeting/...) — kein Checkbox, kein Offen/Erledigt-Split.
+  const actionActivities = activities?.filter((a) => a.activity_type !== "note") ?? [];
+  const noteActivities = activities?.filter((a) => a.activity_type === "note") ?? [];
+  const openActivities = actionActivities.filter((a) => !a.completed_at);
+  const doneActivities = actionActivities.filter((a) => a.completed_at);
 
   const isWerteraumSchulen = deal?.pipeline_id === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
 
@@ -458,7 +462,7 @@ export default function DealDetail() {
             )}
             <Button size="sm" onClick={() => setActivityOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Aktivität</Button>
           </div>
-          {openActivities.length === 0 && doneActivities.length === 0 && (
+          {openActivities.length === 0 && doneActivities.length === 0 && noteActivities.length === 0 && (
             <p className="text-muted-foreground text-center py-8">Noch keine Aktivitäten.</p>
           )}
           {openActivities.length > 0 && (
@@ -471,6 +475,14 @@ export default function DealDetail() {
             <div className={cardClass + " space-y-3"}>
               <p className="text-label font-semibold text-muted-foreground">Erledigt</p>
               {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
+            </div>
+          )}
+
+          {/* Notizen & Kommentare — getrennt von Aktions-Aktivitäten, ohne Checkbox/Status */}
+          {noteActivities.length > 0 && (
+            <div className={cardClass + " space-y-3"}>
+              <p className="text-label font-semibold flex items-center gap-1.5"><StickyNote className="h-3.5 w-3.5" /> Notizen & Kommentare</p>
+              {noteActivities.map((a) => <CommentRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onEdit={canWriteDeals ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
             </div>
           )}
         </TabsContent>
@@ -594,6 +606,37 @@ function ActivityRow({ activity, ownerName, onToggle, onEdit }: { activity: any;
           className="h-7 w-7 shrink-0"
           onClick={onEdit}
           aria-label="Aktivität bearbeiten"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+
+function CommentRow({ activity, ownerName, onEdit }: { activity: any; ownerName: string | null; onEdit?: () => void }) {
+  const isGenericTitle = !activity.title || activity.title === "📝 Notiz" || activity.title === "Notiz";
+  return (
+    <div className="group flex items-start gap-3 rounded-lg border-l-4 border-muted bg-muted/30 px-3 py-2">
+      <div className="rounded-lg bg-muted p-1.5 mt-0.5 shrink-0">
+        <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        {!isGenericTitle && <p className="text-body font-medium">{activity.title}</p>}
+        {activity.description && <p className="text-body text-foreground whitespace-pre-wrap break-words">{activity.description}</p>}
+        <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
+          {ownerName && <span>{ownerName}</span>}
+          <span>{format(new Date(activity.created_at), "dd.MM.yyyy HH:mm")}</span>
+        </div>
+      </div>
+      {onEdit && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={onEdit}
+          aria-label="Notiz bearbeiten"
         >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
