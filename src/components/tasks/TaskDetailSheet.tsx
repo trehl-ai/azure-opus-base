@@ -150,6 +150,8 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
       if (!subtaskTitle.trim()) return;
       const { error } = await supabase.from("tasks").insert({
         title: subtaskTitle.trim(), project_id: task!.project_id,
+        // Expliziter Slug 'offen' — sonst greift der DB-Default 'open' (kein gültiger task_statuses-Slug).
+        status: "offen",
         parent_task_id: taskId!, created_by_user_id: user?.id ?? null,
       });
       if (error) throw error;
