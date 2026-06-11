@@ -4,6 +4,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTaskStatuses } from "@/hooks/queries/useTaskStatuses";
 import { EditProjectSheet } from "@/components/projects/EditProjectSheet";
 import { AddTaskDialog } from "@/components/projects/AddTaskDialog";
 import { ProjectResources } from "@/components/projects/ProjectResources";
@@ -33,9 +34,9 @@ const priorityBadge: Record<string, string> = {
   low: "bg-muted text-muted-foreground", medium: "bg-warning/10 text-warning", high: "bg-destructive/10 text-destructive",
 };
 
-const taskStatuses = ["todo", "in_progress", "review", "done"] as const;
-const taskStatusLabel: Record<string, string> = { todo: "To Do", in_progress: "In Progress", review: "Review", done: "Done" };
-const taskColumnBg: Record<string, string> = { done: "bg-success/5 border-success/20" };
+// Task-Status-Vokabular kommt dynamisch aus task_statuses (Slugs: offen/in-bearbeitung/erledigt/blockiert).
+// Frühere hartkodierte Spalten ("todo"/"in_progress"/"review"/"done") schrieben Nicht-Slug-Werte in
+// tasks.status → Task galt global (Tasks-Liste, DB) NICHT als erledigt und sah weiter offen aus.
 
 const priorityDot: Record<string, string> = { low: "bg-muted-foreground", medium: "bg-warning", high: "bg-destructive" };
 
@@ -51,6 +52,13 @@ export default function ProjectDetail() {
   const { canWrite } = usePermission();
   const canWriteProjects = canWrite("projects");
   const canWriteTasks = canWrite("tasks");
+
+  // Task-Status-Spalten + Done-Slug dynamisch aus task_statuses (wie Tasks.tsx / TaskDetailSheet seit #116).
+  const { data: taskStatusesData = [] } = useTaskStatuses();
+  const taskStatusList = taskStatusesData.map((s) => s.slug).filter((s): s is string => !!s);
+  const taskStatusLabel: Record<string, string> = {};
+  taskStatusesData.forEach((s) => { if (s.slug) taskStatusLabel[s.slug] = s.name; });
+  const doneSlug = taskStatusesData.find((s) => s.slug === "erledigt")?.slug ?? "erledigt";
 
   // Project
   const { data: project, isLoading } = useQuery({
@@ -115,12 +123,12 @@ export default function ProjectDetail() {
   const moveTaskMutation = useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
       const updates: Record<string, unknown> = { status };
-      if (status === "done") updates.completed_at = new Date().toISOString();
+      if (status === doneSlug) updates.completed_at = new Date().toISOString();
       else updates.completed_at = null;
       const { error } = await supabase.from("tasks").update(updates as any).eq("id", taskId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-tasks", id] }); qc.invalidateQueries({ queryKey: ["project-task-counts"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-tasks", id] }); qc.invalidateQueries({ queryKey: ["project-task-counts"] }); qc.invalidateQueries({ queryKey: ["all-tasks"] }); },
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
@@ -241,13 +249,13 @@ export default function ProjectDetail() {
           )}
           <div className="overflow-x-auto">
             <div className="flex gap-4 min-w-max pb-4">
-              {taskStatuses.map((status) => {
+              {taskStatusList.map((status) => {
                 const statusTasks = tasksByStatus.get(status) ?? [];
-                const bgClass = taskColumnBg[status] ?? "bg-[#F0F1F5] border-transparent";
+                const bgClass = status === doneSlug ? "bg-success/5 border-success/20" : "bg-[#F0F1F5] border-transparent";
                 return (
                   <div key={status} className={cn("flex w-[250px] shrink-0 flex-col rounded-xl border p-3", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
                     <div className="mb-3 px-1 flex items-center justify-between">
-                      <h3 className="text-[13px] font-semibold text-foreground">{taskStatusLabel[status]}</h3>
+                      <h3 className="text-[13px] font-semibold text-foreground">{taskStatusLabel[status] ?? status}</h3>
                       <span className="text-[11px] font-medium text-muted-foreground">{statusTasks.length}</span>
                     </div>
                     <div className="flex-1 space-y-2 min-h-[60px]">
@@ -259,10 +267,10 @@ export default function ProjectDetail() {
                             key={task.id}
                             draggable
                             onDragStart={(e) => handleDragStart(e, task.id)}
-                            className={cn("rounded-xl border border-border bg-card p-3 cursor-grab transition-shadow hover:shadow-md", task.status === "done" && "opacity-60")}
+                            className={cn("rounded-xl border border-border bg-card p-3 cursor-grab transition-shadow hover:shadow-md", task.status === doneSlug && "opacity-60")}
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <p className={cn("text-sm font-medium text-foreground truncate flex-1", task.status === "done" && "line-through")}>{task.title}</p>
+                              <p className={cn("text-sm font-medium text-foreground truncate flex-1", task.status === doneSlug && "line-through")}>{task.title}</p>
                               {task.priority && <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", priorityDot[task.priority] ?? priorityDot.medium)} />}
                             </div>
                             <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
