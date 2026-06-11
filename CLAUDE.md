@@ -33,3 +33,14 @@ site_url: https://crm.ts-connect.cloud
 
 ## Commit-Format
 fix: [kurze Beschreibung] (fixes #[issue-nummer])
+
+## LOVABLE-FREEZE (absolut — nie abweichen)
+- trehl-ai/azure-opus-base: KEINE Lovable-Prompts ausführen — nur Claude Code
+- Lovable-Sync (types.ts von qgvedroebvmwhnjmeyip) bleibt aktiv — nur Prompts sind verboten
+- Lovable nur für isolierte UI-Prototypen in separaten Projekten
+- Begründung: Lovable regeneriert Code und überschreibt Claude-Code-Fixes (supabaseEIC-RLS-Bug 5x aufgetreten)
+
+## STAGING-WORKFLOW (ab 11.06.2026)
+- Feature Branch → PR auf staging → testen auf staging.ts-connect.cloud
+- Erst nach Test: PR staging → main → Produktion ts-connect.cloud
+- staging Branch: trehl-ai/azure-opus-base/tree/staging
