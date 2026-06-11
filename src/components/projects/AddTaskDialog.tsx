@@ -42,6 +42,9 @@ export function AddTaskDialog({ projectId, open, onOpenChange }: Props) {
         project_id: projectId,
         title: form.title.trim(),
         description: form.description.trim() || null,
+        // Expliziter Slug 'offen' — sonst greift der DB-Default 'open' (kein gültiger
+        // task_statuses-Slug) und der Task landet in keiner Kanban-Spalte / Statusfilter.
+        status: "offen",
         assigned_user_id: form.assigned_user_id || null,
         priority: form.priority,
         start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
