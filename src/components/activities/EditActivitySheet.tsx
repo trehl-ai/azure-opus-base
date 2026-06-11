@@ -94,9 +94,10 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!activity) throw new Error("Keine Aktivität ausgewählt");
+      // Soft-Delete: deleted_at setzen statt physisch löschen — wiederherstellbar
       const { error } = await (supabase as any)
         .from("deal_activities")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", activity.id);
       if (error) throw error;
     },
@@ -151,7 +152,7 @@ export function EditActivitySheet({ activity, open, onClose, onSaved }: EditActi
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Aktivität wirklich löschen?</AlertDialogTitle>
-                <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+                <AlertDialogDescription>Kann im Notfall wiederhergestellt werden.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Abbrechen</AlertDialogCancel>

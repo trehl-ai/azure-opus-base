@@ -208,6 +208,44 @@ export default function Deals() {
     enabled: !!activePipelineId,
   });
 
+  // Letzte E-Mail-Aktivität pro Deal — Basis für die Wiedervorlage-Sortierung.
+  // Embed-Filter auf deals!inner(pipeline_id) statt .in(dealIds), um lange URLs
+  // zu vermeiden; läuft über den Session-Client (auth.uid() für RLS vorhanden).
+  const WVL_STAGE_ID = "e152c133-d3c2-43f8-8e46-792933734fe3";
+  const { data: lastEmailByDeal = {} } = useQuery<Record<string, string>>({
+    queryKey: ["deal-last-email", activePipelineId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("deal_activities")
+        .select("deal_id, created_at, deals!inner(pipeline_id)")
+        .eq("deals.pipeline_id", activePipelineId)
+        .eq("activity_type", "email")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const row of (data ?? [])) {
+        if (!map[row.deal_id]) map[row.deal_id] = row.created_at; // desc → erster Treffer = neueste Mail
+      }
+      return map;
+    },
+    enabled: !!activePipelineId,
+  });
+
+  // Wiedervorlage-Spalte nach letztem Mail-Datum ASC sortieren (älteste Mail oben,
+  // noch nie gemailte/NULLs zuletzt) — "erst die abfrühstücken, die schon länger warten".
+  const sortWvlByOldestMail = (list: any[], stageId: string): any[] => {
+    if (stageId !== WVL_STAGE_ID) return list;
+    return [...list].sort((a, b) => {
+      const ta = lastEmailByDeal[a.id];
+      const tb = lastEmailByDeal[b.id];
+      if (!ta && !tb) return 0;
+      if (!ta) return 1;  // a nie gemailt → nach unten
+      if (!tb) return -1; // b nie gemailt → nach unten
+      return ta < tb ? -1 : ta > tb ? 1 : 0; // ältere ISO-Zeit zuerst
+    });
+  };
+
   // Filtered deals by eignung — Roadshow-Eignung lebt in deal_roadshow_details.
   // Falls nicht geladen, gilt der Deal als "grau" (offen).
   const filteredDeals = deals?.filter((d: any) => {
@@ -337,7 +375,10 @@ export default function Deals() {
   const formatSum = (v: number) => eur(v);
 
   // Mobile: deals in selected stage
-  const mobileDeals = filteredDeals?.filter((d) => d.pipeline_stage_id === effectiveMobileStageId) ?? [];
+  const mobileDeals = sortWvlByOldestMail(
+    filteredDeals?.filter((d) => d.pipeline_stage_id === effectiveMobileStageId) ?? [],
+    effectiveMobileStageId,
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -491,12 +532,12 @@ export default function Deals() {
         <div className="flex-1 overflow-x-auto">
           <div className="flex gap-2.5 min-w-max pb-4">
             {stages?.map((stage) => {
-              const stageDeals = dealsByStage.get(stage.id) ?? [];
+              const stageDeals = sortWvlByOldestMail(dealsByStage.get(stage.id) ?? [], stage.id);
               const totalValue = stageDeals.reduce((sum, d) => sum + (d.value_amount ?? 0), 0);
               const bgClass = stage.is_won_stage ? "bg-success/5 border-success/20" : stage.is_lost_stage ? "bg-destructive/5 border-destructive/20" : "bg-[#D8DAE5] border-transparent";
 
               return (
-                <div key={stage.id} className={cn("flex w-[200px] shrink-0 flex-col rounded-lg border p-1.5", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.id)}>
+                <div key={stage.id} className={cn("flex w-[280px] shrink-0 flex-col rounded-lg border p-1.5", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.id)}>
                   <div className="mb-1.5 px-0.5 h-[32px] flex flex-col justify-center">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[11px] font-semibold text-foreground">{stage.name}</h3>

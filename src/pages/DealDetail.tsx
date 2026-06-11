@@ -134,7 +134,7 @@ export default function DealDetail() {
         .from("deal_activities")
         .select("*")
         .eq("deal_id", id!)
-        .is("deleted_at", null)
+        .is("deleted_at", null) // soft-deleted Aktivitäten ausblenden
         .order("created_at", { ascending: false }); // newest first — important lead replies stay at the top
       if (error) throw error;
       return data;
@@ -259,7 +259,7 @@ export default function DealDetail() {
 
   const deleteActivityMutation = useMutation({
     mutationFn: async (actId: string) => {
-      // Soft-Delete — Notiz bleibt in der DB, verschwindet aber aus dem Feed (deleted_at-Filter)
+      // Soft-Delete: deleted_at setzen statt physisch löschen — wiederherstellbar (verschwindet via deleted_at-Filter aus dem Feed)
       const { error } = await (supabase as any).from("deal_activities").update({ deleted_at: new Date().toISOString() }).eq("id", actId);
       if (error) throw error;
     },
@@ -744,7 +744,7 @@ function NoteCard({ activity, authorName, canWrite, onEdit, onDelete }: { activi
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Notiz wirklich löschen?</AlertDialogTitle>
-                    <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+                    <AlertDialogDescription>Kann im Notfall wiederhergestellt werden.</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Abbrechen</AlertDialogCancel>

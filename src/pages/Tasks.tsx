@@ -106,6 +106,7 @@ export default function Tasks() {
       const { data, error } = await (supabase as any)
         .from("deal_activities")
         .select("id, title, status, due_date, activity_type, owner_user_id, deal_id, deal:deals(title, company:companies(name))")
+        .is("deleted_at", null)
         .or("status.eq.open,status.is.null");
       if (error) throw error;
       return data;

@@ -72,6 +72,7 @@ export function useDashboardOpenActivities() {
       const { data, error } = await (supabase as any)
         .from("deal_activities")
         .select("deal_id")
+        .is("deleted_at", null)
         .is("completed_at", null);
       if (error) throw error;
       return new Set(data.map((a) => a.deal_id));
