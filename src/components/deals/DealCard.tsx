@@ -32,13 +32,14 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
       draggable
       onDragStart={(e) => onDragStart(e, deal.id)}
       onClick={() => navigate(`/deals/${deal.id}`)}
-      className="cursor-pointer rounded-lg border border-border bg-card px-2.5 py-2 transition-shadow hover:shadow-sm"
+      className="cursor-pointer rounded-lg border border-border bg-card px-3 py-2.5 transition-shadow hover:shadow-sm"
     >
       <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-medium text-foreground truncate leading-tight">{deal.title}</p>
+          {/* Schulname prominent + vollständig sichtbar (kein Truncate) */}
+          <p className="text-[14px] font-semibold text-foreground leading-snug break-words">{deal.title}</p>
           {deal.company_name && (
-            <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-tight">{deal.company_name}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug break-words">{deal.company_name}</p>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0 mt-0.5">

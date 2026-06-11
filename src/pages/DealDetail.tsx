@@ -132,6 +132,7 @@ export default function DealDetail() {
         .from("deal_activities")
         .select("*")
         .eq("deal_id", id!)
+        .is("deleted_at", null) // soft-deleted Aktivitäten ausblenden
         .order("created_at", { ascending: false }); // newest first — important lead replies stay at the top
       if (error) throw error;
       return data;
@@ -240,7 +241,8 @@ export default function DealDetail() {
 
   const deleteActivityMutation = useMutation({
     mutationFn: async (actId: string) => {
-      const { error } = await (supabase as any).from("deal_activities").delete().eq("id", actId);
+      // Soft-Delete: deleted_at setzen statt physisch löschen — wiederherstellbar
+      const { error } = await (supabase as any).from("deal_activities").update({ deleted_at: new Date().toISOString() }).eq("id", actId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -667,7 +669,7 @@ function CommentRow({ activity, ownerName, onEdit, onDelete }: { activity: any; 
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Notiz wirklich löschen?</AlertDialogTitle>
-                <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+                <AlertDialogDescription>Kann im Notfall wiederhergestellt werden.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Abbrechen</AlertDialogCancel>
