@@ -24,8 +24,10 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink, CheckSquare, ClipboardList, Clapperboard, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { format, formatDistanceToNow } from "date-fns";
+import { de } from "date-fns/locale";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { cn, getInitials, getAvatarColor } from "@/lib/utils";
 import { resolveActivityAuthorId } from "@/lib/activityAuthor";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -74,7 +76,7 @@ export default function DealDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
-  const [notes, setNotes] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState("");
   const [editActivity, setEditActivity] = useState<DealActivityRow | null>(null);
   const [editActivityOpen, setEditActivityOpen] = useState(false);
   const [followupOpen, setFollowupOpen] = useState(false);
@@ -132,6 +134,7 @@ export default function DealDetail() {
         .from("deal_activities")
         .select("*")
         .eq("deal_id", id!)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false }); // newest first — important lead replies stay at the top
       if (error) throw error;
       return data;
@@ -218,13 +221,28 @@ export default function DealDetail() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  // Notes
-  const notesMutation = useMutation({
+  // Notizen-Feed: append-only — jede Notiz ist ein eigener deal_activities-Eintrag
+  // (activity_type='note', auto_generated=false). Session-Client = RLS-konform.
+  const addNoteMutation = useMutation({
     mutationFn: async (text: string) => {
-      const { error } = await (supabase as any).from("deals").update({ description: text.trim() || null }).eq("id", id!);
+      const authorId = resolveActivityAuthorId(user?.id);
+      const { error } = await (supabase as any).from("deal_activities").insert({
+        deal_id: id!,
+        activity_type: "note",
+        title: "Notiz",
+        description: text.trim(),
+        status: "completed",
+        auto_generated: false,
+        owner_user_id: authorId,
+        created_by_user_id: authorId,
+      });
       if (error) throw error;
     },
-    onSuccess: () => { toast({ title: "Notizen gespeichert" }); qc.invalidateQueries({ queryKey: ["deal", id] }); },
+    onSuccess: () => {
+      setNewNote("");
+      qc.invalidateQueries({ queryKey: ["deal-activities", id] });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
   // Toggle activity
@@ -232,6 +250,7 @@ export default function DealDetail() {
     mutationFn: async ({ actId, completed }: { actId: string; completed: boolean }) => {
       const { error } = await (supabase as any).from("deal_activities").update({
         completed_at: completed ? new Date().toISOString() : null,
+        status: completed ? "completed" : "open", // erledigte verschwinden aus der offenen Liste
       }).eq("id", actId);
       if (error) throw error;
     },
@@ -240,7 +259,8 @@ export default function DealDetail() {
 
   const deleteActivityMutation = useMutation({
     mutationFn: async (actId: string) => {
-      const { error } = await (supabase as any).from("deal_activities").delete().eq("id", actId);
+      // Soft-Delete — Notiz bleibt in der DB, verschwindet aber aus dem Feed (deleted_at-Filter)
+      const { error } = await (supabase as any).from("deal_activities").update({ deleted_at: new Date().toISOString() }).eq("id", actId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -302,16 +322,27 @@ export default function DealDetail() {
   const contact = deal.contact as { id: string; first_name: string; last_name: string; phone: string | null } | null;
   const ownerName = resolveOwnerName(deal.owner_user_id);
   const pipeline = deal.pipeline as { name: string } | null;
-  const currentNotes = notes ?? deal.description ?? "";
   const lostStage = stages?.find((s) => s.is_lost_stage);
   const currentStageIdx = stages?.findIndex((s) => s.id === deal.pipeline_stage_id) ?? -1;
 
-  // Notizen (activity_type='note') als Kommentar-Strang getrennt von Aktions-Aktivitäten
-  // (call/email/task/meeting/...) — kein Checkbox, kein Offen/Erledigt-Split.
-  const actionActivities = activities?.filter((a) => a.activity_type !== "note") ?? [];
-  const noteActivities = activities?.filter((a) => a.activity_type === "note") ?? [];
-  const openActivities = actionActivities.filter((a) => !a.completed_at);
-  const doneActivities = actionActivities.filter((a) => a.completed_at);
+  // Aktivitäten-Tab zeigt NUR offene Aktionen (status open/null/sent) — erledigte
+  // (status='completed') werden ausgeblendet, kein Toggle. calls/emails/meetings/tasks/
+  // briefings/castings inklusive. Notizen sind ein eigener Tab.
+  const isVisibleActionStatus = (s: string | null | undefined) => {
+    const v = s ?? "open";
+    return v === "open" || v === "sent";
+  };
+  const visibleActivities = (activities ?? []).filter(
+    (a) => a.activity_type !== "note" && isVisibleActionStatus(a.status),
+  );
+  // Score-Notizen (auto_generated=true, activity_type='note') → eingeklappter System-Bereich.
+  const systemActivities = (activities ?? []).filter(
+    (a) => a.auto_generated && a.activity_type === "note",
+  );
+  // Append-only Notizen-Feed (manuell, neueste zuerst — activities ist created_at DESC).
+  const noteFeed = (activities ?? []).filter(
+    (a) => a.activity_type === "note" && !a.auto_generated,
+  );
 
   const isWerteraumSchulen = deal?.pipeline_id === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
 
@@ -477,28 +508,35 @@ export default function DealDetail() {
             )}
             <Button size="sm" onClick={() => setActivityOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Aktivität</Button>
           </div>
-          {openActivities.length === 0 && doneActivities.length === 0 && noteActivities.length === 0 && (
-            <p className="text-muted-foreground text-center py-8">Noch keine Aktivitäten.</p>
+          {visibleActivities.length === 0 && systemActivities.length === 0 && (
+            <p className="text-muted-foreground text-center py-8">Keine offenen Aktivitäten.</p>
           )}
-          {openActivities.length > 0 && (
+          {visibleActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
-              <p className="text-label font-semibold">Offen</p>
-              {openActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
-            </div>
-          )}
-          {doneActivities.length > 0 && (
-            <div className={cardClass + " space-y-3"}>
-              <p className="text-label font-semibold text-muted-foreground">Erledigt</p>
-              {doneActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
+              {visibleActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
             </div>
           )}
 
-          {/* Notizen & Kommentare — getrennt von Aktions-Aktivitäten, ohne Checkbox/Status */}
-          {noteActivities.length > 0 && (
-            <div className={cardClass + " space-y-3"}>
-              <p className="text-label font-semibold flex items-center gap-1.5"><StickyNote className="h-3.5 w-3.5" /> Notizen & Kommentare</p>
-              {noteActivities.map((a) => <CommentRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} onDelete={() => deleteActivityMutation.mutate(a.id)} />)}
-            </div>
+          {/* System-Informationen (Scoring) — auto-generierte Score-Notizen, eingeklappt */}
+          {systemActivities.length > 0 && (
+            <Accordion type="single" collapsible className="rounded-2xl border border-border bg-card px-6">
+              <AccordionItem value="system" className="border-0">
+                <AccordionTrigger className="text-xs text-muted-foreground hover:no-underline">
+                  System-Informationen (Scoring) · {systemActivities.length}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {systemActivities.map((a) => (
+                      <div key={a.id} className="border-b border-border pb-2 last:border-0 last:pb-0">
+                        {a.title && a.title !== "Notiz" && <p className="text-xs font-medium text-muted-foreground">{a.title}</p>}
+                        {a.description && <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{a.description}</p>}
+                        <p className="mt-0.5 text-[10px] text-muted-foreground/70">{format(new Date(a.created_at), "dd.MM.yyyy HH:mm")}</p>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           )}
         </TabsContent>
 
@@ -510,12 +548,46 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
-        {/* Notes */}
-        <TabsContent value="notes" className="mt-4">
-          <div className={cardClass + " space-y-3"}>
-            <Textarea value={currentNotes} onChange={(e) => setNotes(e.target.value)} rows={8} placeholder="Deal-Notizen…" />
-            <Button size="sm" onClick={() => notesMutation.mutate(currentNotes)} disabled={notesMutation.isPending}>Speichern</Button>
-          </div>
+        {/* Notes — append-only Kommentar-Feed (deals.description Textarea entfernt) */}
+        <TabsContent value="notes" className="mt-4 space-y-4">
+          {/* Feed oben — neueste zuerst */}
+          {noteFeed.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">Noch keine Notizen.</p>
+          ) : (
+            <div className="space-y-3">
+              {noteFeed.map((a) => (
+                <NoteCard
+                  key={a.id}
+                  activity={a}
+                  authorName={resolveOwnerName(a.created_by_user_id ?? a.owner_user_id)}
+                  canWrite={canWriteDeals}
+                  onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }}
+                  onDelete={() => deleteActivityMutation.mutate(a.id)}
+                />
+              ))}
+            </div>
+          )}
+          {/* Eingabe unten — append-only, kein überschreibbares Feld */}
+          {canWriteDeals && (
+            <div className={cardClass + " space-y-3"}>
+              <Textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                rows={3}
+                placeholder="Notiz schreiben…"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => addNoteMutation.mutate(newNote)}
+                  disabled={addNoteMutation.isPending || !newNote.trim()}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Notiz hinzufügen
+                </Button>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* Tags */}
@@ -630,51 +702,58 @@ function ActivityRow({ activity, ownerName, onToggle, onEdit }: { activity: any;
 }
 
 
-function CommentRow({ activity, ownerName, onEdit, onDelete }: { activity: any; ownerName: string | null; onEdit?: () => void; onDelete?: () => void }) {
+function NoteCard({ activity, authorName, canWrite, onEdit, onDelete }: { activity: any; authorName: string | null; canWrite: boolean; onEdit?: () => void; onDelete?: () => void }) {
+  const name = authorName ?? "Unbekannt";
   const isGenericTitle = !activity.title || activity.title === "📝 Notiz" || activity.title === "Notiz";
   return (
-    <div className="group flex items-start gap-3 rounded-lg border-l-4 border-muted bg-muted/30 px-3 py-2">
-      <div className="rounded-lg bg-muted p-1.5 mt-0.5 shrink-0">
-        <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
-      </div>
-      <div className="flex-1 min-w-0">
-        {!isGenericTitle && <p className="text-body font-medium">{activity.title}</p>}
-        {activity.description && <p className="text-body text-foreground whitespace-pre-wrap break-words">{activity.description}</p>}
-        <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
-          {ownerName && <span>{ownerName}</span>}
-          <span>{format(new Date(activity.created_at), "dd.MM.yyyy HH:mm")}</span>
+    <div className="group rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-start gap-3">
+        <div
+          title={name}
+          className={cn(
+            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium text-white",
+            getAvatarColor(name),
+          )}
+        >
+          {getInitials(name)}
         </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {onEdit && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={onEdit}
-            aria-label="Notiz bearbeiten"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-        )}
-        {onDelete && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Notiz löschen">
-                <Trash2 className="h-3.5 w-3.5" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-body font-medium">{name}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true, locale: de })}
+            </span>
+          </div>
+          {!isGenericTitle && <p className="text-body font-medium mt-1">{activity.title}</p>}
+          {activity.description && <p className="text-body text-foreground whitespace-pre-wrap break-words mt-1">{activity.description}</p>}
+        </div>
+        {canWrite && (
+          <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onEdit && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit} aria-label="Notiz bearbeiten">
+                <Pencil className="h-3.5 w-3.5" />
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Notiz wirklich löschen?</AlertDialogTitle>
-                <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            )}
+            {onDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Notiz löschen">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Notiz wirklich löschen?</AlertDialogTitle>
+                    <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         )}
       </div>
     </div>
