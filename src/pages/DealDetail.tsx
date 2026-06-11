@@ -245,7 +245,8 @@ export default function DealDetail() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  // Toggle activity
+  // Toggle activity — Checkbox markiert eine Aktivität als erledigt.
+  // status='completed' + completed_at=now() via Session-Client (RLS-konform).
   const toggleActivityMutation = useMutation({
     mutationFn: async ({ actId, completed }: { actId: string; completed: boolean }) => {
       const { error } = await (supabase as any).from("deal_activities").update({
@@ -254,7 +255,33 @@ export default function DealDetail() {
       }).eq("id", actId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["deal-activities", id] }),
+    // Optimistic update: Item sofort lokal auf erledigt/offen patchen. Der status-Filter
+    // (isVisibleActionStatus) blendet die erledigte Aktivität dadurch unmittelbar aus,
+    // ohne auf den Refetch zu warten — kein "toter" Klick mehr.
+    onMutate: async ({ actId, completed }: { actId: string; completed: boolean }) => {
+      await qc.cancelQueries({ queryKey: ["deal-activities", id] });
+      const previous = qc.getQueryData(["deal-activities", id]);
+      qc.setQueryData(["deal-activities", id], (old: any) =>
+        Array.isArray(old)
+          ? old.map((a) =>
+              a.id === actId
+                ? { ...a, completed_at: completed ? new Date().toISOString() : null, status: completed ? "completed" : "open" }
+                : a,
+            )
+          : old,
+      );
+      return { previous };
+    },
+    onError: (err: Error, _vars, context: any) => {
+      if (context?.previous !== undefined) qc.setQueryData(["deal-activities", id], context.previous);
+      toast({ variant: "destructive", title: "Fehler", description: err.message });
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["deal-activities", id] });
+      qc.invalidateQueries({ queryKey: ["open-activities"] });
+      qc.invalidateQueries({ queryKey: ["activity-stats"] });
+      qc.invalidateQueries({ queryKey: ["dashboard_activities"] });
+    },
   });
 
   const deleteActivityMutation = useMutation({
