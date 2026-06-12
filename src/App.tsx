@@ -28,6 +28,7 @@ import SettingsPage from "./pages/Settings.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import AuthCallback from "./pages/AuthCallback.tsx";
 import Ideas from "./pages/Ideas.tsx";
+import Activities from "./pages/Activities.tsx";
 import OutlookAdminConsent from "./pages/settings/OutlookAdminConsent.tsx";
 import Dsgvo from "./pages/Dsgvo.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="/companies/:id" element={<P><CompanyDetail /></P>} />
               <Route path="/deals" element={<P><Deals /></P>} />
               <Route path="/deals/:id" element={<P><DealDetail /></P>} />
+              <Route path="/activities" element={<P><Activities /></P>} />
               <Route path="/campaigns" element={<P><Campaigns /></P>} />
               <Route path="/campaigns/werteraum" element={<P><CampaignWerteraum /></P>} />
               <Route path="/campaigns/vr-stiftungen" element={<P><CampaignVrStiftungen /></P>} />
