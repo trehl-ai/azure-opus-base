@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
@@ -13,11 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Plus, Eye, EyeOff } from "lucide-react";
-import { format, isBefore, isSameDay, startOfDay } from "date-fns";
+import { Plus, Eye, EyeOff, Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare } from "lucide-react";
+import { format, isBefore, isSameDay, startOfDay, isToday, isPast, isThisWeek, parseISO } from "date-fns";
+import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
 import { CreateTaskSheet } from "@/components/tasks/CreateTaskSheet";
+import { ActivityDetailSheet, type ActivityDetail } from "@/components/tasks/ActivityDetailSheet";
 
 const priorityDot: Record<string, string> = { low: "bg-muted-foreground", medium: "bg-warning", high: "bg-destructive" };
 
@@ -35,21 +36,42 @@ type UnifiedTodo = {
   deal_id: string | null;
   deal_title: string | null;
   priority: string | null;
+  description: string | null; // nur Activities — fuer das Detail-Popup
+  contact_id: string | null;  // nur Activities — fuer die Kontakt-Aufloesung im Popup
 };
 
-const sourceBadge: Record<Source, string> = {
-  task: "bg-primary/10 text-primary",
-  activity: "bg-warning/10 text-warning",
+// Type-Icons 1:1 aus Activities.tsx — ersetzen das frühere Source-Badge.
+const ACTIVITY_ICONS: Record<string, any> = {
+  call: Phone,
+  email: Mail,
+  note: FileText,
+  task: CheckSquare,
+  meeting: Calendar,
+  briefing: Users,
+  casting: Users,
 };
-const sourceLabel: Record<Source, string> = {
-  task: "Task",
-  activity: "Aktivität",
+const ACTIVITY_COLORS: Record<string, string> = {
+  call: "text-blue-500",
+  email: "text-purple-500",
+  note: "text-gray-500",
+  task: "text-orange-500",
+  meeting: "text-green-500",
+  briefing: "text-pink-500",
+  casting: "text-yellow-500",
 };
+
+// Zeitfilter (portiert aus Activities.tsx).
+type TimeFilter = "all" | "today" | "overdue" | "week";
+const TIME_FILTERS: { key: TimeFilter; label: string }[] = [
+  { key: "all", label: "Alle" },
+  { key: "today", label: "Heute" },
+  { key: "overdue", label: "Überfällig" },
+  { key: "week", label: "Diese Woche" },
+];
 
 export default function Tasks() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { data: users } = useUsers();
   const { user } = useAuth();
@@ -79,7 +101,9 @@ export default function Tasks() {
   const [filterUser, setFilterUser] = useState<string>(isUmut ? "all" : (user?.id ?? "all"));
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityDetail | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false); // erledigte Tasks default ausblenden
   const [statusChangeSheet, setStatusChangeSheet] = useState<{ open: boolean; taskId: string; currentStatus: string }>({
@@ -105,7 +129,7 @@ export default function Tasks() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("deal_activities")
-        .select("id, title, status, due_date, activity_type, owner_user_id, deal_id, deal:deals(title, company:companies(name))")
+        .select("id, title, status, due_date, activity_type, owner_user_id, deal_id, description, contact_id, deal:deals(title, company:companies(name))")
         .is("deleted_at", null)
         .or("status.eq.open,status.is.null");
       if (error) throw error;
@@ -132,6 +156,8 @@ export default function Tasks() {
         deal_id: t.deal_id ?? null,
         deal_title: deal?.title ?? null,
         priority: t.priority ?? null,
+        description: null,
+        contact_id: null,
       });
     });
     (activitiesRaw ?? []).forEach((a) => {
@@ -149,6 +175,8 @@ export default function Tasks() {
         deal_id: a.deal_id ?? null,
         deal_title: deal?.title ?? null,
         priority: null,
+        description: a.description ?? null,
+        contact_id: a.contact_id ?? null,
       });
     });
     // due_date ASC NULLS LAST
@@ -198,9 +226,17 @@ export default function Tasks() {
       if (filterType !== "all") {
         if (filterType === "__none__" ? u.type : u.type !== filterType) return false;
       }
+      // Zeitfilter (Heute/Überfällig/Diese Woche) — portiert aus Activities.tsx (date-fns).
+      if (timeFilter !== "all") {
+        const due = u.due_date ? parseISO(u.due_date) : null;
+        const isDone = u.source === "task" ? u.status === doneSlug : u.status === "completed";
+        if (timeFilter === "today" && (!due || !isToday(due))) return false;
+        if (timeFilter === "overdue" && (!due || !isPast(due) || isToday(due) || isDone)) return false;
+        if (timeFilter === "week" && (!due || !isThisWeek(due, { locale: de }))) return false;
+      }
       return true;
     });
-  }, [unified, filterUser, filterStatus, filterType, showCompleted, doneSlug, offenSlug]);
+  }, [unified, filterUser, filterStatus, filterType, timeFilter, showCompleted, doneSlug, offenSlug]);
 
   const today = startOfDay(new Date());
   const dueState = (due: string | null, status: string): "overdue" | "today" | "future" | "none" => {
@@ -224,9 +260,20 @@ export default function Tasks() {
     none: "text-muted-foreground",
   };
 
+  const typeIcon = (type: string | null) => {
+    const I = ACTIVITY_ICONS[type ?? ""] || MessageSquare;
+    return <I className={cn("h-4 w-4 shrink-0", ACTIVITY_COLORS[type ?? ""] || "text-muted-foreground")} />;
+  };
+
   const handleRowClick = (item: UnifiedTodo) => {
-    if (item.source === "task") setSelectedTaskId(item.id);
-    else if (item.deal_id) navigate(`/deals/${item.deal_id}`);
+    if (item.source === "task") {
+      setSelectedTaskId(item.id);
+    } else {
+      setSelectedActivity({
+        id: item.id, title: item.title, type: item.type, description: item.description,
+        due_date: item.due_date, deal_id: item.deal_id, deal_title: item.deal_title, contact_id: item.contact_id,
+      });
+    }
   };
 
   const renderStatusBadge = (item: UnifiedTodo) => {
@@ -297,6 +344,21 @@ export default function Tasks() {
         </Select>
       </div>
 
+      {/* Zeitfilter-Tabs (portiert aus Activities) */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {TIME_FILTERS.map((f) => (
+          <Button
+            key={f.key}
+            variant={timeFilter === f.key ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTimeFilter(f.key)}
+            className="min-h-[44px]"
+          >
+            {f.label}
+          </Button>
+        ))}
+      </div>
+
       {/* Mobile: Card-Liste */}
       {isMobile ? (
         <div className="space-y-2">
@@ -322,9 +384,7 @@ export default function Tasks() {
                       {taskStatusLabel[item.status] ?? item.status}
                     </button>
                   ) : (
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", sourceBadge.activity)}>
-                      {sourceLabel.activity}
-                    </span>
+                    typeIcon(item.type)
                   )
                 }
                 rightContent={
@@ -370,9 +430,7 @@ export default function Tasks() {
                   >
                     <TableCell className={cn("font-medium", item.status === doneSlug && "line-through")}>
                       <div className="flex items-center gap-2">
-                        <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide", sourceBadge[item.source])}>
-                          {sourceLabel[item.source]}
-                        </span>
+                        {typeIcon(item.type)}
                         <span className="truncate">{item.title}</span>
                       </div>
                     </TableCell>
@@ -430,6 +488,7 @@ export default function Tasks() {
       </Sheet>
 
       <TaskDetailSheet taskId={selectedTaskId} open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }} />
+      <ActivityDetailSheet activity={selectedActivity} open={!!selectedActivity} onOpenChange={(open) => { if (!open) setSelectedActivity(null); }} />
       <CreateTaskSheet open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
