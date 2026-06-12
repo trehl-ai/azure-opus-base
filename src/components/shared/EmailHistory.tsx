@@ -31,8 +31,35 @@ const ACTIVITY_FIELDS =
 const emailBody = (email: EmailActivity) =>
   email.mail_entwurf?.trim() || email.description?.trim() || "";
 
+// Roh-HTML aus IMAP (bei email_reply / eingehenden Mails) in lesbaren Plaintext
+// wandeln. Nur strippen wenn wirklich HTML drin ist, damit saubere Plaintext-
+// Entwürfe (mail_entwurf) nicht durch die \s{2,}->\n-Regel zerfleddert werden.
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\s{2,}/g, "\n")
+    .trim();
+}
+
+// Vollständigen Mailtext für email_reply / email aufbereiten: HTML strippen
+// (falls vorhanden) und zitierten Verlauf ("Ursprüngliche Nachricht") abschneiden.
+function cleanEmailBody(raw: string, activityType: string): string {
+  if (activityType !== "email_reply" && activityType !== "email") return raw;
+  const hasHtml = /<[a-z!/][^>]*>/i.test(raw);
+  const cleaned = hasHtml ? stripHtml(raw) : raw.trim();
+  const cutOff = cleaned.indexOf("-----Ursprüngliche Nachricht-----");
+  return cutOff > 0 ? cleaned.substring(0, cutOff).trim() : cleaned;
+}
+
 function EmailDetail({ email }: { email: EmailActivity }) {
   const timestamp = email.completed_at ?? email.created_at;
+  const body = cleanEmailBody(emailBody(email), email.activity_type);
 
   return (
     <>
@@ -63,9 +90,9 @@ function EmailDetail({ email }: { email: EmailActivity }) {
           <p className="text-xs text-muted-foreground">{email.description.trim()}</p>
         )}
 
-        <div className="rounded-md border border-border bg-muted/30 p-4 text-sm whitespace-pre-wrap break-words">
-          {emailBody(email) || "(Kein Inhalt)"}
-        </div>
+        <pre className="text-sm text-foreground whitespace-pre-wrap break-words font-sans mt-2 rounded-md border border-border bg-muted/30 p-4">
+          {body || "(Kein Inhalt)"}
+        </pre>
       </div>
     </>
   );
@@ -83,7 +110,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
           .select(ACTIVITY_FIELDS)
           .eq("deal_id", dealId)
           .is("deleted_at", null)
-          .in("activity_type", ["email", "email_sent"])
+          .in("activity_type", ["email", "email_sent", "email_reply"])
           .order("completed_at", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
           .limit(50);
@@ -106,7 +133,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
             .select(ACTIVITY_FIELDS)
             .in("deal_id", dealIds)
             .is("deleted_at", null)
-            .in("activity_type", ["email", "email_sent"])
+            .in("activity_type", ["email", "email_sent", "email_reply"])
             .order("completed_at", { ascending: false, nullsFirst: false })
             .order("created_at", { ascending: false })
             .limit(50);
@@ -144,7 +171,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
       <div className="space-y-2">
         {emails.map((email) => {
           const timestamp = email.completed_at ?? email.created_at;
-          const fullBody = emailBody(email);
+          const fullBody = cleanEmailBody(emailBody(email), email.activity_type);
           const preview = fullBody.slice(0, 150);
 
           return (
