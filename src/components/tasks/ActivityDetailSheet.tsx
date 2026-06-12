@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare, ExternalLink } from "lucide-react";
+import { Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare, ExternalLink, CheckCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 
@@ -36,6 +37,7 @@ export type ActivityDetail = {
   deal_id: string | null;
   deal_title: string | null;
   contact_id: string | null;
+  status: string;
 };
 
 interface Props {
@@ -48,6 +50,23 @@ type ContactRow = { first_name: string | null; last_name: string | null; email: 
 
 export function ActivityDetailSheet({ activity, open, onOpenChange }: Props) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Aktivität als erledigt markieren — session-supabase (RLS), gleiches
+  // invalidate-Key wie die Tasks-Liste (["open-activities"]), dann Sheet schließen.
+  const handleMarkDone = async () => {
+    if (!activity) return;
+    setIsUpdating(true);
+    const { error } = await (supabase as any)
+      .from("deal_activities")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", activity.id);
+    setIsUpdating(false);
+    if (error) return;
+    onOpenChange(false);
+    qc.invalidateQueries({ queryKey: ["open-activities"] });
+  };
 
   // Kontakt-Auflösung — IMMER session-supabase (RLS auth.uid()), NIE supabaseEIC.
   // Prio 1: activity.contact_id → contacts.
@@ -134,17 +153,33 @@ export function ActivityDetailSheet({ activity, open, onOpenChange }: Props) {
               </p>
             )}
 
-            {/* Deal */}
-            {activity.deal_id && (
+            {/* Deal-Titel (nur Anzeige; Navigation via Footer-Button) */}
+            {activity.deal_id && activity.deal_title && (
+              <div className="flex items-center gap-2 rounded-md border p-3 text-sm text-muted-foreground">
+                <ExternalLink className="h-4 w-4 shrink-0" />
+                <span className="truncate">{activity.deal_title}</span>
+              </div>
+            )}
+
+            {/* CTA-Leiste: Erledigt + Deal öffnen (wie altes Aktivitäten-Popup) */}
+            <div className="flex gap-2 pt-4 border-t mt-4">
+              <Button
+                className="flex-1"
+                onClick={handleMarkDone}
+                disabled={activity.status === "completed" || isUpdating}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Erledigt
+              </Button>
               <Button
                 variant="outline"
-                className="w-full justify-between"
+                className="flex-1"
                 onClick={() => navigate(`/deals/${activity.deal_id}`)}
+                disabled={!activity.deal_id}
               >
-                <span className="truncate">{activity.deal_title ?? "Deal öffnen"}</span>
-                <ExternalLink className="h-4 w-4" />
+                Deal öffnen
               </Button>
-            )}
+            </div>
           </div>
         )}
       </SheetContent>
