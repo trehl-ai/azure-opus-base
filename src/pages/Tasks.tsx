@@ -8,7 +8,7 @@ import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare } from "lucide-react";
+import { Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare, Reply, MousePointerClick } from "lucide-react";
 import { format, isBefore, isSameDay, startOfDay, isToday, isPast, isThisWeek, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -39,15 +39,19 @@ const ACTIVITY_ICONS: Record<string, any> = {
   meeting: Calendar,
   briefing: Users,
   casting: Users,
+  email_reply: Reply,
+  link_click: MousePointerClick,
 };
 const ACTIVITY_COLORS: Record<string, string> = {
   call: "text-blue-500",
-  email: "text-purple-500",
-  note: "text-gray-500",
-  task: "text-orange-500",
-  meeting: "text-green-500",
+  email: "text-orange-500",
+  note: "text-gray-400",
+  task: "text-green-500",
+  meeting: "text-purple-500",
   briefing: "text-pink-500",
   casting: "text-yellow-500",
+  email_reply: "text-orange-400",
+  link_click: "text-gray-400",
 };
 
 // Zeitfilter (portiert aus Activities.tsx).
@@ -171,6 +175,19 @@ export default function Tasks() {
     return <I className={cn("h-4 w-4 shrink-0", ACTIVITY_COLORS[type ?? ""] || "text-muted-foreground")} />;
   };
 
+  // Kompaktes Status-Pill (text-xs): completed = grün, sonst gedämpft.
+  const statusLabel: Record<string, string> = { open: "Offen", completed: "Erledigt", sent: "Gesendet" };
+  const renderStatus = (status: string) => (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+        isDone(status) ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground",
+      )}
+    >
+      {statusLabel[status] ?? status}
+    </span>
+  );
+
   const handleRowClick = (item: UnifiedTodo) => {
     setSelectedActivity({
       id: item.id, title: item.title, type: item.type, description: item.description,
@@ -262,54 +279,52 @@ export default function Tasks() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Aufgabentitel</TableHead>
-                <TableHead>Kunde</TableHead>
-                <TableHead>Fällig am</TableHead>
-                <TableHead>Aufgabenart</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="w-8 py-2 px-2"></TableHead>
+                <TableHead className="py-2">Aufgabentitel</TableHead>
+                <TableHead className="py-2">Kunde</TableHead>
+                <TableHead className="py-2">Fällig am</TableHead>
+                <TableHead className="py-2">Aufgabenart</TableHead>
+                <TableHead className="py-2">Owner</TableHead>
+                <TableHead className="py-2">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Keine Einträge gefunden.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Keine Einträge gefunden.</TableCell></TableRow>
               ) : filtered.map((item) => {
                 const owner = users?.find((u) => u.id === item.owner_user_id) ?? null;
                 const ds = dueState(item.due_date, item.status);
                 return (
                   <TableRow
                     key={item.id}
-                    className={cn("cursor-pointer h-[56px]", rowBg[ds], isDone(item.status) && "opacity-50")}
+                    className={cn("cursor-pointer", rowBg[ds], isDone(item.status) && "opacity-50")}
                     onClick={() => handleRowClick(item)}
                   >
-                    <TableCell className={cn("font-medium", isDone(item.status) && "line-through")}>
-                      <div className="flex items-center gap-2">
-                        {typeIcon(item.type)}
-                        <span className="truncate">{item.title}</span>
-                      </div>
+                    {/* Icon-Spalte — schmal, reines Icon mit Typ-Farbe */}
+                    <TableCell className="w-8 py-2 px-2 align-middle">{typeIcon(item.type)}</TableCell>
+                    <TableCell className={cn("py-2 text-sm font-medium", isDone(item.status) && "line-through")}>
+                      <span className="block truncate max-w-[280px]">{item.title}</span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-2">
                       {item.company ? (
                         <div className="leading-tight">
-                          <div className="font-medium text-foreground">{item.company}</div>
+                          <div className="text-xs text-muted-foreground">{item.company}</div>
                           {item.deal_title && (
-                            <div className="text-[11px] text-muted-foreground">{item.deal_title}</div>
+                            <div className="text-[11px] text-muted-foreground/80">{item.deal_title}</div>
                           )}
                         </div>
                       ) : item.deal_title ? (
-                        <span className="text-muted-foreground">{item.deal_title}</span>
+                        <span className="text-xs text-muted-foreground">{item.deal_title}</span>
                       ) : (
-                        <span className="text-muted-foreground">–</span>
+                        <span className="text-xs text-muted-foreground">–</span>
                       )}
                     </TableCell>
-                    <TableCell className={dueLabelClass[ds]}>
+                    <TableCell className={cn("py-2 text-sm", dueLabelClass[ds])}>
                       {item.due_date ? format(new Date(item.due_date), "dd.MM.yyyy") : "–"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{item.type ?? "–"}</TableCell>
-                    <TableCell>{owner ? `${owner.first_name ?? ""} ${owner.last_name ?? ""}`.trim() : "–"}</TableCell>
-                    <TableCell>
-                      <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium bg-muted text-muted-foreground">{item.status}</span>
-                    </TableCell>
+                    <TableCell className="py-2 text-sm text-muted-foreground">{item.type ?? "–"}</TableCell>
+                    <TableCell className="py-2 text-sm">{owner ? `${owner.first_name ?? ""} ${owner.last_name ?? ""}`.trim() : "–"}</TableCell>
+                    <TableCell className="py-2">{renderStatus(item.status)}</TableCell>
                   </TableRow>
                 );
               })}
