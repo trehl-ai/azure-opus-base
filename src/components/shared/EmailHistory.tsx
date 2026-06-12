@@ -25,15 +25,8 @@ type EmailActivity = {
 const ACTIVITY_FIELDS =
   "id, title, description, mail_entwurf, completed_at, created_at, deal_id, activity_type";
 
-// Der eigentliche Mailtext steht in mail_entwurf; description ist nur eine kurze
-// Log-/Kontext-Notiz (z.B. "Automatisch via … | Empfänger: … | Kontext: …").
-// Daher mail_entwurf bevorzugen, auf description zurückfallen.
-const emailBody = (email: EmailActivity) =>
-  email.mail_entwurf?.trim() || email.description?.trim() || "";
-
 // Roh-HTML aus IMAP (bei email_reply / eingehenden Mails) in lesbaren Plaintext
-// wandeln. Nur strippen wenn wirklich HTML drin ist, damit saubere Plaintext-
-// Entwürfe (mail_entwurf) nicht durch die \s{2,}->\n-Regel zerfleddert werden.
+// wandeln.
 function stripHtml(html: string): string {
   return html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
@@ -47,19 +40,64 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-// Vollständigen Mailtext für email_reply / email aufbereiten: HTML strippen
-// (falls vorhanden) und zitierten Verlauf ("Ursprüngliche Nachricht") abschneiden.
-function cleanEmailBody(raw: string, activityType: string): string {
-  if (activityType !== "email_reply" && activityType !== "email") return raw;
-  const hasHtml = /<[a-z!/][^>]*>/i.test(raw);
-  const cleaned = hasHtml ? stripHtml(raw) : raw.trim();
-  const cutOff = cleaned.indexOf("-----Ursprüngliche Nachricht-----");
-  return cutOff > 0 ? cleaned.substring(0, cutOff).trim() : cleaned;
+// MIME-encoded-words (=?utf-8?Q?…?=) aus alten manuell geloggten Subjects
+// in lesbaren Text dekodieren.
+function decodeQuotedPrintable(str: string): string {
+  return str.replace(/=\?utf-8\?[QqBb]\?([^?]+)\?=/gi, (_, encoded) => {
+    try {
+      return decodeURIComponent(encoded.replace(/=/g, "%").replace(/_/g, " "));
+    } catch {
+      return encoded;
+    }
+  });
+}
+
+// Lesbaren Text aus der description einer eingehenden Reply extrahieren.
+// Zwei Formate kommen vor:
+//   (1) Workflow:  "Kategorie: <x>\n\n<html>…"      → HTML-Teil nach der Zeile
+//   (2) manuell:   "Subject: =?utf-8?…?= — <Text>"  → Klartext nach " — "
+function extractReadableText(description: string): string {
+  if (!description) return "";
+
+  // Typ 1: Kategorie-Prefix + HTML-Body
+  const kategorieMatch = description.match(/^Kategorie:\s*\S+\s*\n+([\s\S]*)/);
+  if (kategorieMatch) {
+    return stripHtml(kategorieMatch[1])
+      .replace(/-----Ursprüngliche Nachricht-----[\s\S]*/i, "")
+      .replace(/Von:.*[\s\S]*/m, "")
+      .trim();
+  }
+
+  // Typ 2: MIME-encoded Subject + " — " + Klartext
+  const subjectSplit = description.indexOf(" — ");
+  if (subjectSplit > -1) {
+    return decodeQuotedPrintable(description.substring(subjectSplit + 3))
+      .replace(/-----Ursprüngliche Nachricht-----[\s\S]*/i, "")
+      .trim();
+  }
+
+  // Fallback: normales stripHtml
+  return stripHtml(description)
+    .replace(/-----Ursprüngliche Nachricht-----[\s\S]*/i, "")
+    .trim();
+}
+
+// Anzuzeigenden Mailtext bestimmen: ein sauberer Entwurf (mail_entwurf, z.B.
+// versendete Kampagnen-Mails) ist bereits Klartext und gewinnt; sonst wird die
+// description für email_reply / email aufbereitet.
+function displayEmailText(email: EmailActivity): string {
+  const draft = email.mail_entwurf?.trim();
+  if (draft) return draft;
+  const desc = email.description?.trim() || "";
+  if (email.activity_type === "email_reply" || email.activity_type === "email") {
+    return extractReadableText(desc);
+  }
+  return desc;
 }
 
 function EmailDetail({ email }: { email: EmailActivity }) {
   const timestamp = email.completed_at ?? email.created_at;
-  const body = cleanEmailBody(emailBody(email), email.activity_type);
+  const body = displayEmailText(email);
 
   return (
     <>
@@ -171,7 +209,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
       <div className="space-y-2">
         {emails.map((email) => {
           const timestamp = email.completed_at ?? email.created_at;
-          const fullBody = cleanEmailBody(emailBody(email), email.activity_type);
+          const fullBody = displayEmailText(email);
           const preview = fullBody.slice(0, 150);
 
           return (
