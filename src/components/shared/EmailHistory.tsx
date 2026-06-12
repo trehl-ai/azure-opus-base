@@ -92,9 +92,8 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
           .select(ACTIVITY_FIELDS)
           .eq("deal_id", dealId)
           .is("deleted_at", null)
-          .eq("activity_type", "email")
-          .order("completed_at", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false })
+          .in("activity_type", ["email", "email_reply"])
+          .order("created_at", { ascending: true })
           .limit(50);
         if (error) throw error;
         return (data ?? []) as EmailActivity[];
@@ -115,9 +114,8 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
             .select(ACTIVITY_FIELDS)
             .in("deal_id", dealIds)
             .is("deleted_at", null)
-            .eq("activity_type", "email")
-            .order("completed_at", { ascending: false, nullsFirst: false })
-            .order("created_at", { ascending: false })
+            .in("activity_type", ["email", "email_reply"])
+            .order("created_at", { ascending: true })
             .limit(50);
           return (dealActs ?? []) as EmailActivity[];
         }
