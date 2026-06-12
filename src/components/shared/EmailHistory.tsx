@@ -93,7 +93,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
           .eq("deal_id", dealId)
           .is("deleted_at", null)
           .in("activity_type", ["email", "email_reply"])
-          .order("created_at", { ascending: true })
+          .order("created_at", { ascending: false })
           .limit(50);
         if (error) throw error;
         return (data ?? []) as EmailActivity[];
@@ -115,7 +115,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
             .in("deal_id", dealIds)
             .is("deleted_at", null)
             .in("activity_type", ["email", "email_reply"])
-            .order("created_at", { ascending: true })
+            .order("created_at", { ascending: false })
             .limit(50);
           return (dealActs ?? []) as EmailActivity[];
         }
