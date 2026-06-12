@@ -15,6 +15,7 @@ type EmailActivity = {
   id: string;
   title: string | null;
   description: string | null;
+  mail_entwurf: string | null;
   completed_at: string | null;
   created_at: string | null;
   deal_id: string | null;
@@ -22,7 +23,13 @@ type EmailActivity = {
 };
 
 const ACTIVITY_FIELDS =
-  "id, title, description, completed_at, created_at, deal_id, activity_type";
+  "id, title, description, mail_entwurf, completed_at, created_at, deal_id, activity_type";
+
+// Der eigentliche Mailtext steht in mail_entwurf; description ist nur eine kurze
+// Log-/Kontext-Notiz (z.B. "Automatisch via … | Empfänger: … | Kontext: …").
+// Daher mail_entwurf bevorzugen, auf description zurückfallen.
+const emailBody = (email: EmailActivity) =>
+  email.mail_entwurf?.trim() || email.description?.trim() || "";
 
 function EmailDetail({ email }: { email: EmailActivity }) {
   const timestamp = email.completed_at ?? email.created_at;
@@ -50,8 +57,14 @@ function EmailDetail({ email }: { email: EmailActivity }) {
           </Badge>
         </div>
 
+        {/* Kontext-Notiz (Empfänger/Workflow) nur zeigen, wenn der Mailtext aus
+            mail_entwurf kommt und die description eine separate Notiz ist. */}
+        {email.mail_entwurf?.trim() && email.description?.trim() && (
+          <p className="text-xs text-muted-foreground">{email.description.trim()}</p>
+        )}
+
         <div className="rounded-md border border-border bg-muted/30 p-4 text-sm whitespace-pre-wrap break-words">
-          {email.description?.trim() || "(Kein Inhalt)"}
+          {emailBody(email) || "(Kein Inhalt)"}
         </div>
       </div>
     </>
@@ -131,7 +144,8 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
       <div className="space-y-2">
         {emails.map((email) => {
           const timestamp = email.completed_at ?? email.created_at;
-          const preview = (email.description ?? "").trim().slice(0, 150);
+          const fullBody = emailBody(email);
+          const preview = fullBody.slice(0, 150);
 
           return (
             <button
@@ -148,7 +162,7 @@ export function EmailHistory({ contactId, dealId }: EmailHistoryProps) {
                   {preview && (
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                       {preview}
-                      {(email.description ?? "").length > preview.length ? "…" : ""}
+                      {fullBody.length > preview.length ? "…" : ""}
                     </p>
                   )}
                 </div>
