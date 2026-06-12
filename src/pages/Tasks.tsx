@@ -173,6 +173,7 @@ export default function Tasks() {
     setSelectedActivity({
       id: item.id, title: item.title, type: item.type, description: item.description,
       due_date: item.due_date, deal_id: item.deal_id, deal_title: item.deal_title, contact_id: item.contact_id,
+      status: item.status,
     });
   };
 
