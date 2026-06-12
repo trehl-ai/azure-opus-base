@@ -31,11 +31,12 @@ const ACTIVITY_TYPE_OPTIONS = [
 
 interface Props {
   dealId: string;
+  contactId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
+export function AddActivityDialog({ dealId, contactId, open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { data: users } = useUsers();
   const { toast } = useToast();
@@ -64,7 +65,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
         due_date: dueDate ? dueDate.toISOString() : null,
         owner_user_id: form.owner_user_id || authorId,
         created_by_user_id: authorId,
-        
+        contact_id: contactId ?? null,
         completed_at: null,
       });
       if (error) throw error;
@@ -72,6 +73,7 @@ export function AddActivityDialog({ dealId, open, onOpenChange }: Props) {
     onSuccess: () => {
       toast({ title: "Aktivität erstellt" });
       qc.invalidateQueries({ queryKey: ["deal-activities", dealId] });
+      qc.invalidateQueries({ queryKey: ["open-activities"] });
       qc.invalidateQueries({ queryKey: ["activity-stats"] });
       qc.invalidateQueries({ queryKey: ["dashboard_activities"] });
       setForm({ activity_type: "call", title: "", description: "", owner_user_id: "" });
