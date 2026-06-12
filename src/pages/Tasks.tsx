@@ -110,20 +110,8 @@ export default function Tasks() {
     open: false, taskId: "", currentStatus: "",
   });
 
-  // Tasks-Query
-  const { data: tasksRaw } = useQuery({
-    queryKey: ["all-tasks"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, status, priority, due_date, task_type, assigned_user_id, project_id, deal_id, project:projects!tasks_project_id_fkey(title, company:companies(name)), deal:deals!tasks_deal_id_fkey(title, company:companies(name))")
-        .is("parent_task_id", null);
-      if (error) throw error;
-      return data as any;
-    },
-  });
-
-  // Deal-Activities-Query — nur offene
+  // Deal-Activities-Query — nur offene. deal_activities ist die EINZIGE Quelle;
+  // die tasks-Tabelle wird nicht mehr abgefragt (Migration spiegelt tasks → deal_activities).
   const { data: activitiesRaw } = useQuery({
     queryKey: ["open-activities"],
     queryFn: async () => {
@@ -137,29 +125,9 @@ export default function Tasks() {
     },
   });
 
-  // Client-side merge nach UnifiedTodo
+  // deal_activities → UnifiedTodo (einzige Quelle, kein tasks-Merge mehr)
   const unified: UnifiedTodo[] = useMemo(() => {
     const out: UnifiedTodo[] = [];
-    (tasksRaw ?? []).forEach((t) => {
-      const project = t.project as { title: string | null; company: { name: string } | null } | null;
-      const deal = t.deal as { title: string | null; company: { name: string } | null } | null;
-      out.push({
-        id: t.id,
-        source: "task",
-        title: t.title,
-        due_date: t.due_date ?? null,
-        owner_user_id: t.assigned_user_id ?? null,
-        type: t.task_type ?? null,
-        status: t.status,
-        company: deal?.company?.name ?? project?.company?.name ?? null,
-        project_title: project?.title ?? null,
-        deal_id: t.deal_id ?? null,
-        deal_title: deal?.title ?? null,
-        priority: t.priority ?? null,
-        description: null,
-        contact_id: null,
-      });
-    });
     (activitiesRaw ?? []).forEach((a) => {
       const deal = a.deal as unknown as { title: string | null; company: { name: string } | null } | null;
       out.push({
@@ -187,7 +155,7 @@ export default function Tasks() {
       return 0;
     });
     return out;
-  }, [tasksRaw, activitiesRaw]);
+  }, [activitiesRaw]);
 
   // Distinct Aufgabenarten (vereint aus task_type + activity_type)
   const distinctTypes = useMemo(() => {
