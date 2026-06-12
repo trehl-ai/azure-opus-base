@@ -5,6 +5,7 @@ import { Mail } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { extractReadableText } from "@/lib/emailUtils";
 
 interface EmailHistoryProps {
   contactId?: string;
@@ -24,63 +25,6 @@ type EmailActivity = {
 
 const ACTIVITY_FIELDS =
   "id, title, description, mail_entwurf, completed_at, created_at, deal_id, activity_type";
-
-// Roh-HTML aus IMAP (bei email_reply / eingehenden Mails) in lesbaren Plaintext
-// wandeln.
-function stripHtml(html: string): string {
-  return html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/\s{2,}/g, "\n")
-    .trim();
-}
-
-// MIME-encoded-words (=?utf-8?Q?…?=) aus alten manuell geloggten Subjects
-// in lesbaren Text dekodieren.
-function decodeQuotedPrintable(str: string): string {
-  return str.replace(/=\?utf-8\?[QqBb]\?([^?]+)\?=/gi, (_, encoded) => {
-    try {
-      return decodeURIComponent(encoded.replace(/=/g, "%").replace(/_/g, " "));
-    } catch {
-      return encoded;
-    }
-  });
-}
-
-// Lesbaren Text aus der description einer eingehenden Reply extrahieren.
-// Zwei Formate kommen vor:
-//   (1) Workflow:  "Kategorie: <x>\n\n<html>…"      → HTML-Teil nach der Zeile
-//   (2) manuell:   "Subject: =?utf-8?…?= — <Text>"  → Klartext nach " — "
-function extractReadableText(description: string): string {
-  if (!description) return "";
-
-  // Typ 1: Kategorie-Prefix + HTML-Body
-  const kategorieMatch = description.match(/^Kategorie:\s*\S+\s*\n+([\s\S]*)/);
-  if (kategorieMatch) {
-    return stripHtml(kategorieMatch[1])
-      .replace(/-----Ursprüngliche Nachricht-----[\s\S]*/i, "")
-      .replace(/Von:.*[\s\S]*/m, "")
-      .trim();
-  }
-
-  // Typ 2: MIME-encoded Subject + " — " + Klartext
-  const subjectSplit = description.indexOf(" — ");
-  if (subjectSplit > -1) {
-    return decodeQuotedPrintable(description.substring(subjectSplit + 3))
-      .replace(/-----Ursprüngliche Nachricht-----[\s\S]*/i, "")
-      .trim();
-  }
-
-  // Fallback: normales stripHtml
-  return stripHtml(description)
-    .replace(/-----Ursprüngliche Nachricht-----[\s\S]*/i, "")
-    .trim();
-}
 
 // Anzuzeigenden Mailtext bestimmen: ein sauberer Entwurf (mail_entwurf, z.B.
 // versendete Kampagnen-Mails) ist bereits Klartext und gewinnt; sonst wird die

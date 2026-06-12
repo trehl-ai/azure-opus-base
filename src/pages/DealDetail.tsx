@@ -23,12 +23,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink, CheckSquare, ClipboardList, Clapperboard, AlertCircle } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Trophy, XCircle, Plus, Phone, Mail, Users, CalendarCheck, StickyNote, ExternalLink, CheckSquare, ClipboardList, Clapperboard } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn, getInitials, getAvatarColor } from "@/lib/utils";
 import { resolveActivityAuthorId } from "@/lib/activityAuthor";
+import { extractReadableText } from "@/lib/emailUtils";
 import type { Database } from "@/integrations/supabase/types";
 
 type DealActivityRow = Database["public"]["Tables"]["deal_activities"]["Row"];
@@ -51,7 +52,7 @@ const priorityColors: Record<string, string> = {
 // historical rows — those values are no longer creatable via the UI but may
 // exist in older deal_activities records.
 const activityIcons: Record<string, typeof Phone> = {
-  call: Phone, email: Mail, email_reply: AlertCircle, meeting: Users, task: CheckSquare, briefing: ClipboardList, casting: Clapperboard,
+  call: Phone, email: Mail, email_reply: Mail, meeting: Users, task: CheckSquare, briefing: ClipboardList, casting: Clapperboard,
   note: StickyNote,
   follow_up: CalendarCheck, wiedervorlage: CalendarCheck, notiz: StickyNote, angebot: Mail, absage: XCircle,
 };
@@ -705,7 +706,13 @@ function ActivityRow({ activity, ownerName, onToggle, onEdit }: { activity: any;
             </span>
           )}
         </div>
-        {activity.description && <p className="text-label text-muted-foreground mt-0.5 truncate">{activity.description}</p>}
+        {isReply ? (
+          <div className="mt-1 text-sm text-muted-foreground bg-muted/30 rounded p-2 whitespace-pre-wrap break-words">
+            {extractReadableText(activity.description || "") || "(Kein Inhalt)"}
+          </div>
+        ) : (
+          activity.description && <p className="text-label text-muted-foreground mt-0.5 truncate">{activity.description}</p>
+        )}
         <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
           <span>{activityLabels[activity.activity_type] ?? activity.activity_type}</span>
           {activity.due_date && <span>Fällig: {format(new Date(activity.due_date), "dd.MM.yyyy")}</span>}
