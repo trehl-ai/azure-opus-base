@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +45,14 @@ export default function Projects() {
   const canWriteProjects = canWrite("projects");
   const showOwnerToggle = role === "project_manager";
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [view, setView] = useState<"board" | "list">("board");
+  const [view, setView] = useState<"board" | "list">(() => {
+    if (typeof window === "undefined") return "board";
+    const saved = localStorage.getItem("projects-view");
+    return saved === "list" || saved === "board" ? saved : "board";
+  });
+  useEffect(() => {
+    localStorage.setItem("projects-view", view);
+  }, [view]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState(showOwnerToggle ? (user?.id ?? "all") : "all");
   const [showAll, setShowAll] = useState(!showOwnerToggle);
