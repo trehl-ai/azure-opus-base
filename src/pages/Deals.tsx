@@ -535,10 +535,15 @@ export default function Deals() {
               const stageDeals = sortWvlByOldestMail(dealsByStage.get(stage.id) ?? [], stage.id);
               const totalValue = stageDeals.reduce((sum, d) => sum + (d.value_amount ?? 0), 0);
               const bgClass = stage.is_won_stage ? "bg-success/5 border-success/20" : stage.is_lost_stage ? "bg-destructive/5 border-destructive/20" : "bg-[#D8DAE5] border-transparent";
+              // Sticky-Header braucht eine OPAKE Hintergrundfarbe (DealCards sind bg-card),
+              // sonst scrollen die Cards sichtbar durch den fixierten Header. Diese Hexwerte
+              // entsprechen der jeweiligen Spaltenfarbe (success/5 bzw. destructive/5) deckend
+              // über dem Seiten-Background gerendert; Default = die Spaltenfarbe #D8DAE5.
+              const headerBgClass = stage.is_won_stage ? "bg-[#EAF4F2]" : stage.is_lost_stage ? "bg-[#F5EDF1]" : "bg-[#D8DAE5]";
 
               return (
                 <div key={stage.id} className={cn("flex w-[280px] shrink-0 flex-col rounded-lg border p-1.5", bgClass)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, stage.id)}>
-                  <div className="mb-1.5 px-0.5 h-[32px] flex flex-col justify-center">
+                  <div className={cn("sticky top-0 z-10 -mx-1.5 -mt-1.5 mb-1.5 rounded-t-lg px-2 py-1.5 h-[40px] flex flex-col justify-center", headerBgClass)}>
                     <div className="flex items-center justify-between">
                       <h3 className="text-[11px] font-semibold text-foreground">{stage.name}</h3>
                       <span className="text-[9px] font-medium text-muted-foreground">{stage.probability_percent}%</span>
