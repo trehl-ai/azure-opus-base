@@ -29,6 +29,15 @@ import { exportToExcel, todayString } from "@/lib/excelExport";
 const eur = (v: number) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
 
+// Stages, die aus dem Kanban-Render ausgeblendet werden (Filter nach ID, nicht Name).
+// Sie bleiben in der DB erhalten — nur die Anzeige im Board/Stage-Selector wird unterdrückt.
+const HIDDEN_STAGE_IDS = [
+  "616dd027-993c-4875-bca7-0f5cc436a38b", // Qualifiziert — NRW
+  "21c7ad65-0905-41cf-846a-9fc276545cc9", // Qualifiziert — BW
+  "d1f00bca-fcdd-4a55-a373-9c06e0544f05", // Qualifiziert — Niedersachsen
+  "996ba733-5d04-44df-950a-f7e8af6245de", // Qualifiziert — RLP
+];
+
 export default function Deals() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -183,8 +192,13 @@ export default function Deals() {
     enabled: !!activePipelineId,
   });
 
+  // Im Board sichtbare Stages: HIDDEN_STAGE_IDS werden nur aus der Anzeige
+  // gefiltert. Das rohe `stages` bleibt für Datenlogik erhalten (Export-Namen,
+  // Drag/Move-Lookups), damit Deals in ausgeblendeten Stages korrekt aufgelöst werden.
+  const visibleStages = stages?.filter((s: any) => !HIDDEN_STAGE_IDS.includes(s.id));
+
   // Set initial mobile stage
-  const effectiveMobileStageId = mobileStageId || stages?.[0]?.id || "";
+  const effectiveMobileStageId = mobileStageId || visibleStages?.[0]?.id || "";
 
   // Deals
   const { data: deals } = useQuery({
@@ -488,9 +502,9 @@ export default function Deals() {
       {/* Mobile: Stage selector + card list */}
       {isMobile ? (
         <div className="flex-1 space-y-3">
-          {stages && (
+          {visibleStages && (
             <MobileStageSelector
-              stages={stages}
+              stages={visibleStages}
               selectedStageId={effectiveMobileStageId}
               onStageChange={setMobileStageId}
             />
@@ -531,7 +545,7 @@ export default function Deals() {
         /* Desktop: Kanban Board */
         <div className="flex-1 overflow-x-auto">
           <div className="flex gap-2.5 min-w-max pb-4">
-            {stages?.map((stage) => {
+            {visibleStages?.map((stage) => {
               const stageDeals = sortWvlByOldestMail(dealsByStage.get(stage.id) ?? [], stage.id);
               const totalValue = stageDeals.reduce((sum, d) => sum + (d.value_amount ?? 0), 0);
               const bgClass = stage.is_won_stage ? "bg-success/5 border-success/20" : stage.is_lost_stage ? "bg-destructive/5 border-destructive/20" : "bg-[#D8DAE5] border-transparent";
@@ -586,11 +600,11 @@ export default function Deals() {
         open={lostDialog.open} onOpenChange={(open) => setLostDialog((p) => ({ ...p, open }))}
         onComplete={() => setLostDialog({ open: false, dealId: "", dealTitle: "", stageId: "" })}
       />
-      {stages && (
+      {visibleStages && (
         <StageChangeSheet
           open={stageChangeSheet.open}
           onOpenChange={(open) => setStageChangeSheet((p) => ({ ...p, open }))}
-          stages={stages}
+          stages={visibleStages}
           currentStageId={stageChangeSheet.currentStageId}
           dealTitle={stageChangeSheet.dealTitle}
           onSelect={(stageId) => handleMobileStageChange(stageChangeSheet.dealId, stageChangeSheet.dealTitle, stageId)}
