@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { usePermission } from "@/hooks/usePermission";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useUsers } from "@/hooks/useUsers";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,8 +87,14 @@ export default function DealDetail() {
     return d;
   };
   const [followupDate, setFollowupDate] = useState<Date>(defaultFollowupDate);
-  const { canWrite } = usePermission();
-  const canWriteDeals = canWrite("deals");
+  const { isAdmin, canManageAllTasks } = useUserRole();
+  // Loeschen = deals_delete (RLS is_admin()). Bearbeiten/Won/Lost/Reopen = deals_update
+  // (RLS user_can_access_pipeline → jeder Zugriffsberechtigte) bleiben fuer alle sichtbar.
+  // deal_activities update UND delete teilen dasselbe RLS-Praedikat:
+  //   can_manage_all_tasks() OR created_by_user_id = auth.uid()
+  // → ein Gate deckt Edit und Delete pro Aktivitaet ab.
+  const canEditActivity = (a: { created_by_user_id?: string | null }) =>
+    canManageAllTasks || a.created_by_user_id === user?.id;
   const { data: users } = useUsers();
 
   // Resolve owner_user_id -> "First Last" via SECURITY DEFINER list_team_members RPC.
@@ -386,8 +392,8 @@ export default function DealDetail() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {canWriteDeals && <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>}
-          {deal.status === "open" && canWriteDeals && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
+          {deal.status === "open" && (
             <>
               <Button size="sm" className="gap-1.5 bg-success hover:bg-success/90 text-white" onClick={() => wonMutation.mutate()} disabled={wonMutation.isPending}>
                 <Trophy className="h-3.5 w-3.5" /> Won
@@ -397,7 +403,7 @@ export default function DealDetail() {
               </Button>
             </>
           )}
-          {(deal.status === "won" || deal.status === "lost") && canWriteDeals && (
+          {(deal.status === "won" || deal.status === "lost") && (
             <Button
               size="sm"
               variant="outline"
@@ -408,7 +414,7 @@ export default function DealDetail() {
               ↩ Als offen markieren
             </Button>
           )}
-          {canWriteDeals && (
+          {isAdmin && (
           <AlertDialog>
             <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
             <AlertDialogContent>
@@ -505,8 +511,8 @@ export default function DealDetail() {
         {/* Activities */}
         <TabsContent value="activities" className="space-y-4 mt-4">
           <div className="flex justify-end gap-2">
-            {canWriteDeals && (
-              <Popover open={followupOpen} onOpenChange={setFollowupOpen}>
+            {/* deal_activities-Insert → RLS erlaubt jeden Pipeline-Zugriffsberechtigten (kein Rollen-Gate). */}
+            <Popover open={followupOpen} onOpenChange={setFollowupOpen}>
                 <PopoverTrigger asChild>
                   <Button size="sm" variant="outline" className="gap-1.5">
                     <CalendarCheck className="h-3.5 w-3.5" /> Infomaterial auf Wiedervorlage
@@ -532,8 +538,7 @@ export default function DealDetail() {
                     </Button>
                   </div>
                 </PopoverContent>
-              </Popover>
-            )}
+            </Popover>
             <Button size="sm" onClick={() => setActivityOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Aktivität</Button>
           </div>
           {visibleActivities.length === 0 && systemActivities.length === 0 && (
@@ -541,7 +546,7 @@ export default function DealDetail() {
           )}
           {visibleActivities.length > 0 && (
             <div className={cardClass + " space-y-3"}>
-              {visibleActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }} />)}
+              {visibleActivities.map((a) => <ActivityRow key={a.id} activity={a} ownerName={resolveOwnerName(a.owner_user_id)} onToggle={(checked) => toggleActivityMutation.mutate({ actId: a.id, completed: checked })} onEdit={canEditActivity(a) ? () => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); } : undefined} />)}
             </div>
           )}
 
@@ -588,18 +593,18 @@ export default function DealDetail() {
                   key={a.id}
                   activity={a}
                   authorName={resolveOwnerName(a.created_by_user_id ?? a.owner_user_id)}
-                  canWrite={canWriteDeals}
+                  canWrite={canEditActivity(a)}
                   onEdit={() => { setEditActivity(a as DealActivityRow); setEditActivityOpen(true); }}
                   onDelete={() => deleteActivityMutation.mutate(a.id)}
                 />
               ))}
             </div>
           )}
-          {/* Eingabe unten — append-only, kein überschreibbares Feld */}
-          {canWriteDeals && (
-            <div className={cardClass + " space-y-3"}>
-              <Textarea
-                value={newNote}
+          {/* Eingabe unten — append-only. deal_activities-Insert → RLS erlaubt jeden
+              Pipeline-Zugriffsberechtigten, daher kein Rollen-Gate. */}
+          <div className={cardClass + " space-y-3"}>
+            <Textarea
+              value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
                 rows={3}
                 placeholder="Notiz schreiben…"
@@ -615,7 +620,6 @@ export default function DealDetail() {
                 </Button>
               </div>
             </div>
-          )}
         </TabsContent>
 
         {/* Tags */}
