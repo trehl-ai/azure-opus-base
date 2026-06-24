@@ -58,7 +58,7 @@ const navSections = [
 const roleLabels: Record<string, string> = {
   admin: "Administrator",
   sales: "Sales",
-  project_manager: "Projektmanager",
+  projektmanager: "Projektmanager",
   management: "Management",
   read_only: "Nur Lesen",
 };

@@ -10,7 +10,7 @@ import {
 const roles = [
   { key: "admin", label: "Administrator", color: "bg-primary text-primary-foreground" },
   { key: "sales", label: "Sales", color: "bg-[#6366F1] text-white" },
-  { key: "project_manager", label: "Projektmanager", color: "bg-[#F59E0B] text-white" },
+  { key: "projektmanager", label: "Projektmanager", color: "bg-[#F59E0B] text-white" },
   { key: "management", label: "Management", color: "bg-[#0EA5E9] text-white" },
   { key: "read_only", label: "Nur Lesen", color: "bg-[#8B93A7] text-white" },
 ] as const;

@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { usePermission } from "@/hooks/usePermission";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -50,8 +52,13 @@ export default function ProjectDetail() {
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [notes, setNotes] = useState<string | null>(null);
   const { canWrite } = usePermission();
+  const { user } = useAuth();
+  const { isAdmin, canManageAllTasks } = useUserRole();
+  // projects: write/update RLS = alle 4 (all_auth); DELETE = is_admin().
   const canWriteProjects = canWrite("projects");
-  const canWriteTasks = canWrite("tasks");
+  // tasks UPDATE RLS = can_manage_all_tasks() ODER eigene/zugewiesene Task (per-Row).
+  const canManageTask = (t: { created_by_user_id?: string | null; assigned_user_id?: string | null }) =>
+    canManageAllTasks || t.created_by_user_id === user?.id || t.assigned_user_id === user?.id;
 
   // Task-Status-Spalten + Done-Slug dynamisch aus task_statuses (wie Tasks.tsx / TaskDetailSheet seit #116).
   const { data: taskStatusesData = [] } = useTaskStatuses();
@@ -132,7 +139,8 @@ export default function ProjectDetail() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
   });
 
-  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { if (!canWriteTasks) { e.preventDefault(); return; } e.dataTransfer.setData("taskId", taskId); }, [canWriteTasks]);
+  // Gate pro Task (canManageTask) am Card via draggable; hier nur die Datenuebergabe.
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => { e.dataTransfer.setData("taskId", taskId); }, []);
   const handleDrop = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
@@ -187,6 +195,7 @@ export default function ProjectDetail() {
         {canWriteProjects && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
+            {isAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
               <AlertDialogContent>
@@ -194,6 +203,7 @@ export default function ProjectDetail() {
                 <AlertDialogFooter><AlertDialogCancel>Abbrechen</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction></AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            )}
           </div>
         )}
       </div>
@@ -242,11 +252,10 @@ export default function ProjectDetail() {
 
         {/* Tasks Kanban */}
         <TabsContent value="tasks" className="space-y-4 mt-4">
-          {canWriteTasks && (
-            <div className="flex justify-end">
-              <Button size="sm" onClick={() => setTaskDialogOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Task</Button>
-            </div>
-          )}
+          {/* tasks INSERT RLS = alle Authentifizierten -> kein Rollen-Gate */}
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setTaskDialogOpen(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Task</Button>
+          </div>
           <div className="overflow-x-auto">
             <div className="flex gap-4 min-w-max pb-4">
               {taskStatusList.map((status) => {
@@ -265,8 +274,8 @@ export default function ProjectDetail() {
                         return (
                           <div
                             key={task.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, task.id)}
+                            draggable={canManageTask(task)}
+                            onDragStart={canManageTask(task) ? (e) => handleDragStart(e, task.id) : undefined}
                             className={cn("rounded-xl border border-border bg-card p-3 cursor-grab transition-shadow hover:shadow-md", task.status === doneSlug && "opacity-60")}
                           >
                             <div className="flex items-start justify-between gap-2">
