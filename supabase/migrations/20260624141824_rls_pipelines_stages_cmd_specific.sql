@@ -1,0 +1,10 @@
+DROP POLICY IF EXISTS pipeline_restricted_access ON public.pipelines;
+CREATE POLICY pipelines_select ON public.pipelines FOR SELECT TO authenticated USING (user_can_access_pipeline(id));
+CREATE POLICY pipelines_insert ON public.pipelines FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY pipelines_update ON public.pipelines FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY pipelines_delete ON public.pipelines FOR DELETE TO authenticated USING (is_admin());
+DROP POLICY IF EXISTS pipeline_restricted_access ON public.pipeline_stages;
+CREATE POLICY pipeline_stages_select ON public.pipeline_stages FOR SELECT TO authenticated USING (user_can_access_pipeline(pipeline_id));
+CREATE POLICY pipeline_stages_insert ON public.pipeline_stages FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY pipeline_stages_update ON public.pipeline_stages FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY pipeline_stages_delete ON public.pipeline_stages FOR DELETE TO authenticated USING (is_admin());
