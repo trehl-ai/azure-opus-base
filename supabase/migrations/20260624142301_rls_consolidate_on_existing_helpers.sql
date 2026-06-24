@@ -1,0 +1,11 @@
+DROP POLICY IF EXISTS deals_insert ON public.deals;
+CREATE POLICY deals_insert ON public.deals FOR INSERT TO authenticated WITH CHECK (can_write_deals() AND user_can_access_pipeline(pipeline_id));
+DROP POLICY IF EXISTS deal_activities_update ON public.deal_activities;
+CREATE POLICY deal_activities_update ON public.deal_activities FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM deals d WHERE d.id=deal_activities.deal_id AND user_can_access_pipeline(d.pipeline_id)) AND (can_manage_all_tasks() OR created_by_user_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM deals d WHERE d.id=deal_activities.deal_id AND user_can_access_pipeline(d.pipeline_id)) AND (can_manage_all_tasks() OR created_by_user_id = auth.uid()));
+DROP POLICY IF EXISTS deal_activities_delete ON public.deal_activities;
+CREATE POLICY deal_activities_delete ON public.deal_activities FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM deals d WHERE d.id=deal_activities.deal_id AND user_can_access_pipeline(d.pipeline_id)) AND (can_manage_all_tasks() OR created_by_user_id = auth.uid()));
+DROP POLICY IF EXISTS tasks_select ON public.tasks;
+CREATE POLICY tasks_select ON public.tasks FOR SELECT TO authenticated USING (can_manage_all_tasks() OR assigned_user_id = auth.uid() OR created_by_user_id = auth.uid());
+DROP POLICY IF EXISTS tasks_update ON public.tasks;
+CREATE POLICY tasks_update ON public.tasks FOR UPDATE TO authenticated USING (can_manage_all_tasks() OR assigned_user_id = auth.uid() OR created_by_user_id = auth.uid()) WITH CHECK (can_manage_all_tasks() OR assigned_user_id = auth.uid() OR created_by_user_id = auth.uid());
+DROP FUNCTION IF EXISTS public.app_role();

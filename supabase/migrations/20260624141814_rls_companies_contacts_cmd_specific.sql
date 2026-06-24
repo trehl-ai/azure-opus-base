@@ -1,0 +1,10 @@
+DROP POLICY IF EXISTS all_auth ON public.companies;
+CREATE POLICY companies_select ON public.companies FOR SELECT TO authenticated USING (true);
+CREATE POLICY companies_insert ON public.companies FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY companies_update ON public.companies FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY companies_delete ON public.companies FOR DELETE TO authenticated USING (is_admin());
+DROP POLICY IF EXISTS all_auth ON public.contacts;
+CREATE POLICY contacts_select ON public.contacts FOR SELECT TO authenticated USING (true);
+CREATE POLICY contacts_insert ON public.contacts FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY contacts_update ON public.contacts FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY contacts_delete ON public.contacts FOR DELETE TO authenticated USING (is_admin());
