@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { usePermission } from "@/hooks/usePermission";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -67,6 +68,8 @@ export default function CompanyDetail() {
   const [notes, setNotes] = useState<string | null>(null);
   const { canWrite } = usePermission();
   const canWriteCompanies = canWrite("companies");
+  // Loeschen = companies_delete (RLS is_admin()). Bearbeiten/Anlegen bleiben unveraendert.
+  const { isAdmin } = useUserRole();
 
   // Company
   const { data: company, isLoading } = useQuery({
@@ -203,6 +206,7 @@ export default function CompanyDetail() {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" /> Bearbeiten
             </Button>
+            {isAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
@@ -224,6 +228,7 @@ export default function CompanyDetail() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            )}
           </div>
         )}
       </div>

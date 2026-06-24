@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePermission } from "@/hooks/usePermission";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +32,8 @@ export default function ContactDetail() {
   const [notes, setNotes] = useState<string | null>(null);
   const { canWrite } = usePermission();
   const canWriteContacts = canWrite("contacts");
+  // Loeschen = contacts_delete (RLS is_admin()). Bearbeiten/Anlegen bleiben unveraendert.
+  const { isAdmin } = useUserRole();
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
@@ -133,6 +136,7 @@ export default function ContactDetail() {
         {canWriteContacts && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /> Bearbeiten</Button>
+            {isAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Löschen</Button>
@@ -148,6 +152,7 @@ export default function ContactDetail() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            )}
           </div>
         )}
       </div>

@@ -27,6 +27,7 @@ type UnifiedTodo = {
   deal_title: string | null;
   description: string | null;
   contact_id: string | null;
+  created_by_user_id: string | null;
 };
 
 // Type-Icons 1:1 aus Activities.tsx — ersetzen das frühere Source-Badge.
@@ -81,7 +82,7 @@ export default function Tasks() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("deal_activities")
-        .select("id, title, status, due_date, activity_type, owner_user_id, deal_id, description, contact_id, deal:deals(title, company:companies(name))")
+        .select("id, title, status, due_date, activity_type, owner_user_id, created_by_user_id, deal_id, description, contact_id, deal:deals(title, company:companies(name))")
         .is("deleted_at", null)
         .or("status.eq.open,status.is.null");
       if (error) throw error;
@@ -106,6 +107,7 @@ export default function Tasks() {
         deal_title: deal?.title ?? null,
         description: a.description ?? null,
         contact_id: a.contact_id ?? null,
+        created_by_user_id: a.created_by_user_id ?? null,
       });
     });
     // due_date ASC NULLS LAST
@@ -173,7 +175,7 @@ export default function Tasks() {
     setSelectedActivity({
       id: item.id, title: item.title, type: item.type, description: item.description,
       due_date: item.due_date, deal_id: item.deal_id, deal_title: item.deal_title, contact_id: item.contact_id,
-      status: item.status,
+      status: item.status, created_by_user_id: item.created_by_user_id,
     });
   };
 

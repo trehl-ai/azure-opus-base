@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUsers } from "@/hooks/useUsers";
 import { usePipelines } from "@/hooks/usePipelines";
 import { useToast } from "@/hooks/use-toast";
-import { usePermission } from "@/hooks/usePermission";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
@@ -46,8 +46,10 @@ export default function Deals() {
   const contactParam = searchParams.get("contact");
   const { data: users } = useUsers();
   const { user } = useAuth();
-  const { canWrite, role } = usePermission();
-  const canWriteDeals = canWrite("deals");
+  // canWriteDeals = Deal ANLEGEN (RLS can_write_deals: admin/management/projektmanager).
+  // Stage-Wechsel (Drag/Drop + Mobile) ist davon entkoppelt: RLS deals_update erlaubt
+  // jeden Pipeline-Zugriffsberechtigten, daher bleiben die Move-Controls fuer alle sichtbar.
+  const { canWriteDeals, role } = useUserRole();
   const showOwnerToggle = role === "sales";
   const onlineUsers = usePresence("/deals");
   const isMobile = useIsMobile();
@@ -350,9 +352,10 @@ export default function Deals() {
   };
 
   const handleDragStart = useCallback((e: React.DragEvent, dealId: string) => {
-    if (!canWriteDeals) { e.preventDefault(); return; }
+    // Stage-Move = deals_update → RLS erlaubt jeden Pipeline-Zugriffsberechtigten,
+    // daher kein Rollen-Gate (rein kosmetisch; DB bleibt Durchsetzungsebene).
     e.dataTransfer.setData("dealId", dealId);
-  }, [canWriteDeals]);
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent, stageId: string) => {
     e.preventDefault();
@@ -525,14 +528,12 @@ export default function Deals() {
                   rightContent={
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       {deal.value_amount ? <span className="text-[13px] font-semibold text-foreground">{eur(deal.value_amount)}</span> : null}
-                      {canWriteDeals && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setStageChangeSheet({ open: true, dealId: deal.id, dealTitle: deal.title, currentStageId: deal.pipeline_stage_id }); }}
-                          className="flex items-center gap-1 text-[11px] text-primary font-medium"
-                        >
-                          <ArrowRightLeft className="h-3 w-3" /> Stage
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setStageChangeSheet({ open: true, dealId: deal.id, dealTitle: deal.title, currentStageId: deal.pipeline_stage_id }); }}
+                        className="flex items-center gap-1 text-[11px] text-primary font-medium"
+                      >
+                        <ArrowRightLeft className="h-3 w-3" /> Stage
+                      </button>
                     </div>
                   }
                 />

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare, ExternalLink, CheckCircle, Plus, Pencil } from "lucide-react";
@@ -43,6 +45,7 @@ export type ActivityDetail = {
   deal_title: string | null;
   contact_id: string | null;
   status: string;
+  created_by_user_id: string | null;
 };
 
 interface Props {
@@ -56,6 +59,11 @@ type ContactRow = { first_name: string | null; last_name: string | null; email: 
 export function ActivityDetailSheet({ activity, open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const { canManageAllTasks } = useUserRole();
+  // deal_activities update/delete: RLS = can_manage_all_tasks() OR created_by_user_id = auth.uid().
+  // Bearbeiten oeffnet EditActivitySheet (Edit + Delete) → ein Gate deckt beides ab.
+  const canEditActivity = !!activity && (canManageAllTasks || activity.created_by_user_id === user?.id);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -205,14 +213,16 @@ export function ActivityDetailSheet({ activity, open, onOpenChange }: Props) {
                     <Plus className="w-4 h-4 mr-2" />
                     Folgeaktivität
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setShowEdit(true)}
-                  >
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Bearbeiten
-                  </Button>
+                  {canEditActivity && (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowEdit(true)}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Bearbeiten
+                    </Button>
+                  )}
                 </div>
 
                 <Button
