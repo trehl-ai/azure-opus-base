@@ -1,0 +1,17 @@
+ALTER FUNCTION public.audit_log_trigger() SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.deal_roadshow_details(deal_id uuid) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.fn_eis_recalculate_score(p_lead_id uuid, p_company_size_score integer, p_csr_signal_score integer, p_sponsor_affinity_score integer, p_decision_maker_score integer, p_regional_fit_score integer, p_score_reasoning text) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.get_eis_connect_queue(p_limit integer) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.get_scoring_queue(p_limit integer) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.get_vr_stiftungen_candidates(p_limit integer) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.get_vr_stiftungen_companies() SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.list_team_members() SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.log_eis_activity(p_contact_id uuid, p_type text, p_title text, p_description text, p_metadata jsonb) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.match_contacts(query_embedding vector, match_threshold double precision, match_count integer) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.match_eis_knowledge(query_embedding vector, match_threshold double precision, match_count integer, filter_type text) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.pipelines_with_deals() SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.promote_eis_lead(p_lead_queue_id uuid, p_connected_on date) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.protect_user_role_escalation() SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.set_deal_lost(p_deal_id uuid, p_lost_stage_id uuid, p_reason text) SET search_path = 'public','auth','extensions';
+ALTER FUNCTION public.set_deal_won(p_deal_id uuid, p_won_stage_id uuid) SET search_path = 'public','auth','extensions';
+CREATE INDEX IF NOT EXISTS idx_deal_activities_created_by ON public.deal_activities(created_by_user_id);
