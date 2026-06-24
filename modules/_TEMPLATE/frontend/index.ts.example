@@ -1,0 +1,35 @@
+// ============================================================================
+// Frontend-Modul-Manifest (Template).  Kopiere nach src/modules/<modul>/index.ts.
+//
+// Default-Export ist das Manifest. Routen werden via React.lazy() geladen
+// (Code-Splitting -> eigener Chunk, das Modul landet NICHT im Haupt-Bundle).
+// Der Core-Host liest dieses Manifest, mountet Routen nur, wenn der eingeloggte
+// User die requiredCapabilities besitzt (core.has_capability -> via core-View/RPC).
+//
+// CONTRACT-LINT erzwingt: in src/modules/** darf Core NUR lesend (.select) oder
+// via .rpc(...) beruehrt werden — NIE .insert/.update/.delete/.upsert auf
+// Raw-Core-Tabellen (deals, contacts, companies, pipelines, deal_activities,
+// tasks, users). Schreiben an Core IMMER ueber einen Core-RPC.
+// ============================================================================
+import { lazy } from 'react';
+import type { ModuleManifest } from '@/lib/modules/types';
+
+const manifest: ModuleManifest = {
+  name: '<modul>',
+  displayName: '<Modul-Anzeigename>',
+
+  // Welche Capabilities der eingeloggte User braucht, damit das Modul (Nav + Routen)
+  // ueberhaupt sichtbar/mountbar ist. Format: '<modul>.<cap>'.
+  requiredCapabilities: ['<modul>.read'],
+
+  routes: [
+    {
+      path: '/<modul>',
+      // Lazy -> eigener Bundle-Chunk:
+      component: lazy(() => import('./pages/Overview')),
+      requiredCapabilities: ['<modul>.read'],
+    },
+  ],
+};
+
+export default manifest;

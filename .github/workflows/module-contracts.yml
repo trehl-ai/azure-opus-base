@@ -1,0 +1,35 @@
+name: Module Contracts
+
+# Erzwingt die Modul-Architektur-Verträge (docs/ARCHITECTURE.md):
+#   • POLICY-LINT  — RLS-/SECURITY-DEFINER-Hygiene auf geänderter SQL
+#   • CONTRACT-LINT — kein Raw-Core-Write aus src/modules/**
+# Läuft neben Typecheck + Schema Drift Check.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  policy-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Volle History → BASE_REF (Merge-Basis bzw. Vorgänger-Commit) ist auflösbar.
+          fetch-depth: 0
+      - name: POLICY-LINT (geänderte SQL)
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: bash scripts/lint-policies.sh
+
+  contract-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: CONTRACT-LINT (src/modules)
+        run: bash scripts/lint-contracts.sh

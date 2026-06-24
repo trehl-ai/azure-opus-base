@@ -1,0 +1,44 @@
+-- ============================================================================
+-- Modul-RPC (Template).  Kopiere nach modules/<modul>/rpc/001_api.sql und in eine
+-- flache Migration. Jede SECURITY-DEFINER-Funktion MUSS search_path pinnen
+-- (POLICY-LINT erzwingt 'SET search_path' bei jedem SECURITY DEFINER -> sonst CI rot).
+--
+-- Vertrag (siehe docs/ARCHITECTURE.md, "3 erlaubte Beruehrungspunkte"):
+--   • Core LESEN: nur ueber stabile core-Views/RPCs, nie Raw-Core-Tabellen.
+--   • Core SCHREIBEN: nur ueber Core-RPCs (SECURITY DEFINER, pinned search_path).
+--   • Modul-Kopplung: ausschliesslich ueber den Event-Spine core.emit_event(),
+--     NIE durch Schreiben/Lesen fremder Modul-Tabellen.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION <modul>.create_widget(p_deal_id uuid, p_title text)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = '<modul>', 'core', 'public', 'auth'
+AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  -- Autorisierung explizit im RPC (SECURITY DEFINER umgeht RLS!):
+  IF NOT core.has_capability('<modul>','write') THEN
+    RAISE EXCEPTION 'capability <modul>.write required';
+  END IF;
+
+  INSERT INTO <modul>.widget (deal_id, owner_id, title)
+  VALUES (p_deal_id, auth.uid(), p_title)
+  RETURNING id INTO v_id;
+
+  -- Kopplung an andere Module NUR ueber den Event-Spine, nie via Fremd-Tabellen:
+  PERFORM core.emit_event(
+    'widget',            -- p_entity_type
+    v_id,                -- p_entity_id
+    '<modul>',           -- p_module
+    'widget.created',    -- p_event_type
+    jsonb_build_object('deal_id', p_deal_id, 'title', p_title)  -- p_payload
+  );
+
+  RETURN v_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION <modul>.create_widget(uuid, text) TO authenticated;
