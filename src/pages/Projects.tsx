@@ -43,7 +43,7 @@ export default function Projects() {
   const { user } = useAuth();
   const { canWrite, role } = usePermission();
   const canWriteProjects = canWrite("projects");
-  const showOwnerToggle = role === "project_manager";
+  const showOwnerToggle = role === "projektmanager";
   const [sheetOpen, setSheetOpen] = useState(false);
   const [view, setView] = useState<"board" | "list">(() => {
     if (typeof window === "undefined") return "board";

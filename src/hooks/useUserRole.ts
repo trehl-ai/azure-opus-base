@@ -1,8 +1,8 @@
 import { useAuth } from "@/contexts/AuthContext";
 
 // Rollen-Strings exakt wie in public.users (ttgvhqygmgtnjgwunuwz).
-// NB: "projektmanager" (deutsche Schreibweise) — NICHT "project_manager".
-// (lib/permissions.ts verwendet abweichend "project_manager" und ist insofern stale.)
+// NB: "projektmanager" (deutsche Schreibweise) — NICHT "projektmanager".
+// (lib/permissions.ts verwendet abweichend "projektmanager" und ist insofern stale.)
 export type AppRole = "admin" | "management" | "projektmanager" | "sales" | "read_only";
 
 // Spiegelt die RLS-Helper auf ttgvhqygmgtnjgwunuwz 1:1 wider. Dieses Gating ist

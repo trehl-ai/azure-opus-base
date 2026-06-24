@@ -30,13 +30,13 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
-const ROLES = ["admin", "sales", "project_manager", "management", "read_only"] as const;
+const ROLES = ["admin", "sales", "projektmanager", "management", "read_only"] as const;
 type Role = typeof ROLES[number];
 
 const roleLabels: Record<Role, string> = {
   admin: "Administrator",
   sales: "Sales",
-  project_manager: "Projektmanager",
+  projektmanager: "Projektmanager",
   management: "Management",
   read_only: "Nur Lesen",
 };
@@ -44,7 +44,7 @@ const roleLabels: Record<Role, string> = {
 const roleDescriptions: Record<Role, string> = {
   admin: "Vollzugriff auf alle Bereiche und Einstellungen",
   sales: "Zugriff auf Contacts, Companies und Deals",
-  project_manager: "Zugriff auf Projects und Tasks",
+  projektmanager: "Zugriff auf Projects und Tasks",
   management: "Lesezugriff auf Dashboard, Deals und Projekte",
   read_only: "Nur lesender Zugriff auf definierte Bereiche",
 };
@@ -52,7 +52,7 @@ const roleDescriptions: Record<Role, string> = {
 const roleBadgeColors: Record<Role, string> = {
   admin: "bg-primary text-primary-foreground",
   sales: "bg-[#6366F1] text-white",
-  project_manager: "bg-[#F59E0B] text-white",
+  projektmanager: "bg-[#F59E0B] text-white",
   management: "bg-[#0EA5E9] text-white",
   read_only: "bg-[#8B93A7] text-white",
 };

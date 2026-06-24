@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/hooks/use-toast";
 import { useTaskStatuses } from "@/hooks/queries/useTaskStatuses";
@@ -32,6 +33,7 @@ interface Props {
 
 export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
   const { user } = useAuth();
+  const { isAdmin, canManageAllTasks } = useUserRole();
   const { data: users } = useUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -189,6 +191,10 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
 
   const markDirty = () => setDirty(true);
 
+  // RLS-Spiegel: tasks UPDATE = can_manage_all_tasks() ODER eigene/zugewiesene Task;
+  // tasks DELETE = is_admin(). Rein kosmetisch — die DB-RLS setzt durch.
+  const canManageTask = !!task && (canManageAllTasks || task.created_by_user_id === user?.id || task.assigned_user_id === user?.id);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -261,7 +267,7 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
               <div><span className="text-[12px] font-medium">Erstellt am:</span> {format(new Date(task.created_at), "dd.MM.yyyy HH:mm")}</div>
             </div>
 
-            {dirty && (
+            {dirty && canManageTask && (
               <Button className="w-full" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? "Speichern…" : "Änderungen speichern"}
               </Button>
@@ -328,12 +334,14 @@ export function TaskDetailSheet({ taskId, open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {/* Delete */}
+            {/* Delete — RLS tasks_delete = is_admin() */}
+            {isAdmin && (
             <div className="pt-4 border-t border-border">
               <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setDeleteConfirmOpen(true)}>
                 <Trash2 className="h-4 w-4" /> Task löschen
               </Button>
             </div>
+            )}
           </div>
         )}
       </DialogContent>
