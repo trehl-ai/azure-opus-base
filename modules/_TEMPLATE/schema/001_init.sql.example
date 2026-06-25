@@ -1,0 +1,53 @@
+-- ============================================================================
+-- Modul-Schema-Init (Template).  Kopiere nach modules/<modul>/schema/001_init.sql,
+-- ersetze <modul> + <cap>, und lege den finalen Inhalt zusaetzlich als flache
+-- Migration supabase/migrations/<version>_<modul>_init.sql ab (drift-check erwartet
+-- die flache Ablage + Namenskonvention; siehe docs/ARCHITECTURE.md).
+--
+-- Harte Regeln (POLICY-LINT erzwingt sie, CI rot bei Verstoss):
+--   1. RLS AN auf JEDER Modul-Tabelle.
+--   2. Genau 4 command-spezifische Policies (SELECT/INSERT/UPDATE/DELETE), je TO authenticated.
+--   3. Praedikate NUR aus den stabilen Core-Helfern:
+--        public.is_admin() | public.can_write_deals() | public.can_manage_all_tasks()
+--        core.has_capability('<modul>','<cap>')
+--      NIEMALS: TO anon / TO public, USING (true) / WITH CHECK (true) als Schreibrecht,
+--      keine Catch-all-Policy namens all_auth.
+--   4. FK auf Core ist erlaubt (Modul -> Core, Einbahn). Core kennt das Modul NICHT.
+-- ============================================================================
+
+CREATE SCHEMA IF NOT EXISTS <modul>;
+GRANT USAGE ON SCHEMA <modul> TO authenticated, service_role;
+
+CREATE TABLE <modul>.widget (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- FK auf Core ist erlaubt (Modul -> Core):
+  deal_id     uuid REFERENCES public.deals(id) ON DELETE CASCADE,
+  owner_id    uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id),
+  title       text NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE <modul>.widget ENABLE ROW LEVEL SECURITY;
+
+-- SELECT: Lese-Capability des Moduls ODER Admin.
+CREATE POLICY widget_select ON <modul>.widget
+  FOR SELECT TO authenticated
+  USING ( core.has_capability('<modul>','read') OR public.is_admin() );
+
+-- INSERT: Schreib-Capability noetig; der Owner MUSS der schreibende User sein.
+CREATE POLICY widget_insert ON <modul>.widget
+  FOR INSERT TO authenticated
+  WITH CHECK ( core.has_capability('<modul>','write') AND owner_id = auth.uid() );
+
+-- UPDATE: Schreib-Capability auf eigene Zeilen ODER Admin.
+CREATE POLICY widget_update ON <modul>.widget
+  FOR UPDATE TO authenticated
+  USING      ( (core.has_capability('<modul>','write') AND owner_id = auth.uid()) OR public.is_admin() )
+  WITH CHECK ( (core.has_capability('<modul>','write') AND owner_id = auth.uid()) OR public.is_admin() );
+
+-- DELETE: nur Admin.
+CREATE POLICY widget_delete ON <modul>.widget
+  FOR DELETE TO authenticated
+  USING ( public.is_admin() );
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON <modul>.widget TO authenticated;
