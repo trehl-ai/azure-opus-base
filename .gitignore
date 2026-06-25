@@ -27,3 +27,6 @@ dist-ssr
 # Env files (contain keys — never commit; copy .env.example -> .env)
 .env
 .env.local
+
+# TypeScript incremental build artifacts
+*.tsbuildinfo
