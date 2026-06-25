@@ -15,6 +15,22 @@ webhook_log, intake_messages
 Email Magic Link + Google OAuth
 site_url: https://crm.ts-connect.cloud
 
+## Modulare Architektur — Core-Schema (Phase 2, ab #159)
+Verbindlicher Bauplan: `docs/ARCHITECTURE.md` + `docs/MODULE_GUIDE.md`. Modularer Monolith, eine DB (ttgv), Einbahn-Abhängigkeit **Core ⟵ Module** (Core kennt kein Modul). CI erzwingt die Grenzen: `typecheck` (required), `drift-check`, POLICY-LINT, CONTRACT-LINT.
+
+**Core read-contract Views** (`core`-Schema, security_invoker=true → RLS der Basistabellen gilt, KEIN Bypass; soft-delete-aware `WHERE deleted_at IS NULL`):
+- `core.v_company`, `core.v_contact`, `core.v_deal` — Migration `20260625130534_core_billing_read_contract_views.sql` (#160)
+- Module lesen Core **ausschließlich** über `core.v_*` / Read-RPCs, nie Raw-`public`-Tabellen.
+
+**Modul-Vertrag — 3 erlaubte Core-Berührungspunkte:**
+- (a) LESEN nur via `core.v_*` / Read-RPC — `.select` auf Core erlaubt, aber View ist der Vertrag.
+- (b) SCHREIBEN nur via Core-RPC (`SECURITY DEFINER`, pinned search_path). CONTRACT-LINT macht PR rot bei `.from('deals'|...).insert/update/delete/upsert(...)` aus Modul-Frontend — Mutation nur via `.rpc(...)`.
+- (c) Eigene Moduldaten im eigenen Schema, FK Modul→Core erlaubt. Querkopplung NUR über `core.events` / `core.emit_event(...)`.
+
+**Core-Typen:** `src/core/database.types.ts` (#161) — generiert via `supabase gen types typescript --project-id ttgvhqygmgtnjgwunuwz --schema core`. STRIKT getrennt von der Lovable-Datei `src/integrations/supabase/types.ts` — letztere **NIE** mit `gen types` überschreiben (korrumpiert den Lovable-Sync). Re-Gen der Core-Typen läuft in eigenem Worktree/Branch, kein `db push`.
+
+`*.tsbuildinfo` ist gitignored (#162) — tsc-Build-Artefakte triggern keine Status-Checks.
+
 ## Bug-Fix Regeln (KRITISCH)
 - NIEMALS direkt auf main committen
 - Immer Branch: fix/bug-[issue-nummer]
