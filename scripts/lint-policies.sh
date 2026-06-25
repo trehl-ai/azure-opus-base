@@ -35,6 +35,18 @@ check_file() {
       my $anon = ($stmt =~ /\bto\s+(anon|public)\b/);
       my $tru  = ($stmt =~ /\busing\s*\(\s*true\s*\)/ or $stmt =~ /\bwith\s+check\s*\(\s*true\s*\)/);
       if ($anon and $tru) { print "  [A] Policy $name: TO anon/public + USING/CHECK (true)\n"; $bad=1; }
+      # [B2] Muster-basiert: Blanket-Schreibrecht fuer authenticated/public ohne Rollen-Helper.
+      my $is_write = ($stmt !~ /\bfor\s+select\b/);             # (1) ALL/INSERT/UPDATE/DELETE oder kein FOR (=ALL)
+      my $has_to   = ($stmt =~ /\bto\s+/);
+      my $roles    = "";
+      if ($has_to) { ($roles) = $stmt =~ /\bto\s+(.*?)(?:\busing\b|\bwith\s+check\b|;)/s; $roles = "" unless defined $roles; }
+      my $target_ok  = (!$has_to) || ($roles =~ /\b(authenticated|public)\b/);                                  # (2)
+      my $has_helper = ($stmt =~ /(is_admin|is_management_or_admin|can_write_deals|can_manage_all_tasks|auth\.uid)/); # (4)
+      if ($is_write && $target_ok && $tru && !$has_helper) {   # (3) = $tru: USING(true)/WITH CHECK(true)
+        my $cmd  = ($stmt =~ /\bfor\s+(all|insert|update|delete)\b/) ? uc($1) : "ALL";
+        my $role = (!$has_to) ? "none" : (($roles =~ /\bpublic\b/) ? "public" : "authenticated");
+        print "  [B2] Blanket-Schreibpolicy ohne Rollen-Helper: $name ($cmd TO $role USING/CHECK true)\n"; $bad=1;
+      }
     }
     my @chunks = split /(?=create\s+(?:or\s+replace\s+)?function)/i, $low;
     for my $c (@chunks) {
