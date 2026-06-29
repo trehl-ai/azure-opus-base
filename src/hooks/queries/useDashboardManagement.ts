@@ -10,8 +10,8 @@ const WR_STAGE_TERMINIERT_ID = "6cfd9d0a-cdfa-4048-b711-bf63bd4640b6"; // WR-Sta
 
 /* ------------------------------------------------------------------ */
 /* Gewonnener Umsatz — SUM(value_amount) WHERE status='won'           */
-/* Bewusst OHNE deleted_at-Filter: status='won' = 70 Deals / 1.96 M € */
-/* (mit deleted_at IS NULL wären es 67 / 1.825 M €).                   */
+/*                     AND deleted_at IS NULL                          */
+/* Soft-deleted Deals werden NICHT mitgezählt → 67 Deals / 1.825 M €. */
 /* ------------------------------------------------------------------ */
 export interface WonTotal {
   value: number;
@@ -25,7 +25,8 @@ export function useWonTotal() {
       const { data, error } = await (supabase as any)
         .from("deals")
         .select("value_amount")
-        .eq("status", "won");
+        .eq("status", "won")
+        .is("deleted_at", null);
       if (error) throw error;
       const rows = (data ?? []) as { value_amount: number | null }[];
       return {
