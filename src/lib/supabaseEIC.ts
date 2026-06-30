@@ -8,6 +8,21 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const supabaseEIC = supabase;
 
+/** Per-Bundesland breakdown returned by get_outreach_stats().by_bundesland. */
+export type OutreachByBundesland = {
+  bundesland: string;
+  gesamt: number;
+  pending: number;
+  email_sent: number;
+  link_clicked: number;
+  replied: number;
+  terminated: number;
+  cluster_a: number;
+  cluster_b: number;
+  cluster_c: number;
+  cluster_d: number;
+};
+
 export type OutreachStats = {
   gesamt: number;
   pending: number;
@@ -23,6 +38,8 @@ export type OutreachStats = {
   cluster_b: number;
   cluster_c: number;
   cluster_d: number;
+  /** Per-Bundesland split (added 2026-06; absent on older deployments). */
+  by_bundesland?: OutreachByBundesland[];
 };
 
 export type VrStiftungenCandidateRow = {
