@@ -436,71 +436,49 @@ function MachineBanner({
     | { mails: number; activities: number; calls: number; termine: number }
     | undefined;
 }) {
-  const counters: { icon: React.ElementType; label: string; value: number }[] = [
+  const counters: {
+    icon: React.ElementType;
+    label: string;
+    value: number;
+    accent?: boolean;
+  }[] = [
     { icon: Mail, label: "Mails", value: stats?.mails ?? 0 },
     { icon: Activity, label: "Aktivitäten", value: stats?.activities ?? 0 },
     { icon: Phone, label: "Telefonate", value: stats?.calls ?? 0 },
-    { icon: CalendarCheck, label: "Termine", value: stats?.termine ?? 0 },
+    // Funnel-Endpunkt: live aus dem terminiert-Feld, als Erstgespräch gelabelt + Brand-Akzent
+    { icon: CalendarCheck, label: "Erstgespräche", value: stats?.termine ?? 0, accent: true },
   ];
   return (
-    <section
-      className="relative overflow-hidden rounded-[12px] p-6 md:p-8 shadow-sm"
-      style={{ backgroundColor: COCKPIT.deep }}
-    >
-      {/* linker Akzentbalken Fire mit Glow */}
-      <span
-        aria-hidden
-        className="absolute left-0 top-0 h-full w-1.5"
-        style={{
-          backgroundColor: COCKPIT.fire,
-          boxShadow: `0 0 16px 2px ${COCKPIT.fire}`,
-        }}
-      />
-      <div className="pl-3 md:pl-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="relative flex h-2.5 w-2.5">
-            <span
-              className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-              style={{ backgroundColor: COCKPIT.fire }}
-            />
-            <span
-              className="relative inline-flex h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: COCKPIT.fire }}
-            />
-          </span>
-          <span
-            className="text-[11px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color: COCKPIT.fire }}
-          >
-            Outreach läuft automatisch
-          </span>
-        </div>
-
-        <h2 className="text-white text-[18px] md:text-[22px] font-bold leading-snug max-w-3xl flex items-start gap-2">
-          <Zap
-            className="h-5 w-5 mt-0.5 shrink-0"
-            style={{ color: COCKPIT.gold }}
-            aria-hidden
-          />
-          Die Akquise-Maschine arbeitet, während das Team an Projekten arbeitet.
-        </h2>
-
-        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-xl overflow-hidden bg-white/10">
-          {counters.map((c) => (
-            <MachineCounter
-              key={c.label}
-              icon={c.icon}
-              label={c.label}
-              value={c.value}
-            />
-          ))}
-        </div>
-
-        <p className="mt-5 text-[13px] text-white/60 max-w-3xl">
-          KI bewertet, textet und versendet — Dienstag bis Freitag, ohne
-          manuellen Aufwand pro Mail.
-        </p>
+    <section className="rounded-[12px] border border-border bg-card shadow-sm p-6 md:p-8">
+      <div className="flex items-center gap-2 mb-3">
+        {/* statischer Brand-Grün-Punkt, keine Animation */}
+        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-brand" aria-hidden />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
+          Outreach läuft automatisch
+        </span>
       </div>
+
+      <h2 className="text-foreground text-[18px] md:text-[22px] font-bold leading-snug max-w-3xl flex items-start gap-2">
+        <Zap className="h-5 w-5 mt-0.5 shrink-0 text-brand" aria-hidden />
+        Die Akquise-Maschine arbeitet, während das Team an Projekten arbeitet.
+      </h2>
+
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {counters.map((c) => (
+          <MachineCounter
+            key={c.label}
+            icon={c.icon}
+            label={c.label}
+            value={c.value}
+            accent={c.accent}
+          />
+        ))}
+      </div>
+
+      <p className="mt-5 text-[13px] text-muted-foreground max-w-3xl">
+        KI bewertet, textet und versendet — Dienstag bis Freitag, ohne
+        manuellen Aufwand pro Mail.
+      </p>
     </section>
   );
 }
@@ -509,24 +487,33 @@ function MachineCounter({
   icon: Icon,
   label,
   value,
+  accent,
 }: {
   icon: React.ElementType;
   label: string;
   value: number;
+  accent?: boolean;
 }) {
   return (
     <div
-      className="flex flex-col gap-1 p-4 md:p-5"
-      style={{ backgroundColor: COCKPIT.deep }}
+      className={cn(
+        "flex flex-col gap-1 rounded-xl border p-4 md:p-5",
+        accent ? "border-brand/40 bg-brand-soft" : "border-border bg-background",
+      )}
     >
-      <Icon className="h-4 w-4 text-white/40" aria-hidden />
+      <Icon
+        className={cn("h-4 w-4", accent ? "text-brand" : "text-muted-foreground")}
+        aria-hidden
+      />
       <p
-        className="text-[28px] md:text-[34px] font-bold leading-none tabular-nums text-white"
-        style={{ textShadow: `0 0 18px ${COCKPIT.fire}33` }}
+        className={cn(
+          "text-[28px] md:text-[34px] font-bold leading-none tabular-nums",
+          accent ? "text-brand" : "text-foreground",
+        )}
       >
         {value.toLocaleString("de-DE")}
       </p>
-      <p className="text-[12px] text-white/55">{label}</p>
+      <p className="text-[12px] text-muted-foreground">{label}</p>
     </div>
   );
 }
