@@ -13,7 +13,17 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from "recharts";
-import { Handshake, Trophy, Percent, Users, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Handshake,
+  Trophy,
+  Percent,
+  Users,
+  Mail,
+  Activity,
+  Phone,
+  CalendarCheck,
+  Zap,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,7 +40,12 @@ import {
   type HoverCompanyValue,
   type HoverCompanyExpected,
 } from "@/hooks/useDashboardStats";
-import { useActivityStats, type FunnelBestandStage } from "@/hooks/useActivityStats";
+import {
+  useWonTotal,
+  useMachineStats,
+  useWerteraumFunnel,
+  type FunnelStep,
+} from "@/hooks/queries/useDashboardManagement";
 
 const PIPELINE_COLOR_MAP: Record<string, string> = {
   Erlebniswelten: "#8b5cf6",
@@ -92,7 +107,9 @@ type TopLead = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { stats, loading } = useDashboardStats();
-  const { activityStats } = useActivityStats();
+  const { data: wonTotal } = useWonTotal();
+  const { data: machine } = useMachineStats();
+  const { data: funnel } = useWerteraumFunnel();
   const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet">("gesamt");
 
   const today = useMemo(
@@ -116,39 +133,9 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  const funnelBestand = useMemo<FunnelBestandStage[]>(() => {
-    return (activityStats?.funnel_bestand ?? [])
-      .filter((f) => f && typeof f.position === "number")
-      .slice()
-      .sort((a, b) => a.position - b.position);
-  }, [activityStats]);
-
-  const identifiziertBestand = useMemo(
-    () =>
-      (activityStats?.funnel_bestand ?? []).find(
-        (f) => f && f.stage === "Identifiziert",
-      )?.deals ?? 0,
-    [activityStats],
-  );
-
-  const [selectedKw, setSelectedKw] = useState<"diese" | "letzte">("diese");
-
-  const totalsThisKw =
-    (activityStats?.calls_diese_woche ?? 0) +
-    (activityStats?.briefe_diese_kw ?? 0) +
-    (activityStats?.emails_diese_kw ?? 0) +
-    (activityStats?.stage_wiedervorlage_diese_kw ?? 0) +
-    (activityStats?.lost_diese_kw ?? 0);
-  const totalsLastKw =
-    (activityStats?.calls_letzte_woche ?? 0) +
-    (activityStats?.briefe_letzte_kw ?? 0) +
-    (activityStats?.emails_letzte_kw ?? 0) +
-    (activityStats?.stage_wiedervorlage_letzte_kw ?? 0) +
-    (activityStats?.lost_letzte_kw ?? 0);
-
   const wonCompanies = stats?.hover_won_companies ?? [];
-  const wonDealCount = stats?.won_deal_count ?? 0;
-  const wonSubtext = !stats
+  const wonDealCount = wonTotal?.count ?? 0;
+  const wonSubtext = !wonTotal
     ? undefined
     : wonDealCount === 0
       ? "Noch keine gewonnenen Deals"
@@ -161,7 +148,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="flex flex-col gap-1">
         <h1 className="text-[28px] md:text-[32px] font-bold tracking-tight text-brand">
-          EO IPSO CRM
+          eo ipso CRM
         </h1>
         <p className="text-[14px] text-muted-foreground">
           {greeting} · <span className="capitalize">{today}</span>
@@ -194,7 +181,7 @@ export default function Dashboard() {
           <KpiCard
             icon={Trophy}
             label="Gewonnen"
-            value={loading ? null : eurFormatter.format(stats?.won_value ?? 0)}
+            value={!wonTotal ? null : eurFormatter.format(wonTotal.value)}
             subtext={wonSubtext}
             tone="success"
           />
@@ -206,13 +193,9 @@ export default function Dashboard() {
         >
           <KpiCard
             icon={Percent}
-            label="Ø Wahrscheinlichkeit"
+            label="Gewichteter Forecast"
             value={loading ? null : eurFormatter.format(stats?.expected_value ?? 0)}
-            subtext={
-              loading
-                ? undefined
-                : `${stats?.weighted_probability ?? 0}% gewichtete Wahrscheinlichkeit`
-            }
+            subtext="wahrscheinlichkeitsgewichtete Pipeline"
             tone="gold"
           />
         </KpiTooltip>
@@ -231,6 +214,9 @@ export default function Dashboard() {
           onClick={() => navigate("/contacts")}
         />
       </section>
+
+      {/* Block 1b — Maschinen-Banner */}
+      <MachineBanner stats={machine} />
 
       {/* Block 2 — Pipeline Wert Chart */}
       <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
@@ -428,216 +414,182 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Block 5 — Werteraum — KW Vergleich */}
-      <section className="space-y-4">
-        <h2 className="text-[16px] font-semibold text-foreground">
-          Werteraum — KW {activityStats?.kw_nr_letzte ?? "—"} vs. KW {activityStats?.kw_nr_diese ?? "—"} (lfd.)
-        </h2>
-
-        {/* KW-Vergleichs-Tabelle */}
-        <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Aktion</TableHead>
-                <TableHead className="text-right tabular-nums">
-                  KW {activityStats?.kw_nr_letzte ?? "—"}
-                </TableHead>
-                <TableHead className="text-right tabular-nums">
-                  KW {activityStats?.kw_nr_diese ?? "—"} (lfd.)
-                </TableHead>
-                <TableHead className="text-right">Trend</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <ComparisonRow
-                icon="📞"
-                label="Anrufe"
-                previous={activityStats?.calls_letzte_woche ?? 0}
-                current={activityStats?.calls_diese_woche ?? 0}
-              />
-              <ComparisonRow
-                icon="✉️"
-                label="Briefe versendet"
-                previous={activityStats?.briefe_letzte_kw ?? 0}
-                current={activityStats?.briefe_diese_kw ?? 0}
-              />
-              <ComparisonRow
-                icon="📧"
-                label="E-Mails versendet"
-                previous={activityStats?.emails_letzte_kw ?? 0}
-                current={activityStats?.emails_diese_kw ?? 0}
-              />
-              <ComparisonRow
-                icon="🔄"
-                label="→ Wiedervorlage"
-                previous={activityStats?.stage_wiedervorlage_letzte_kw ?? 0}
-                current={activityStats?.stage_wiedervorlage_diese_kw ?? 0}
-              />
-              <ComparisonRow
-                icon="❌"
-                label="Als verloren markiert"
-                previous={activityStats?.lost_letzte_kw ?? 0}
-                current={activityStats?.lost_diese_kw ?? 0}
-                invertedGood
-              />
-              <ComparisonRow
-                icon="📊"
-                label="Gesamt Aktivitäten"
-                previous={totalsLastKw}
-                current={totalsThisKw}
-              />
-            </TableBody>
-          </Table>
-          <p className="text-xs text-gray-400 mt-3">
-            KW {activityStats?.kw_nr_diese ?? "—"} läuft noch bis Freitag · Vergleich mit abgeschlossener KW {activityStats?.kw_nr_letzte ?? "—"}
-          </p>
-          {funnelBestand.length > 0 && (
-            <p className="text-xs text-gray-500 mt-3 border-t border-border pt-3">
-              <span className="font-medium text-foreground">Aktueller Bestand:</span>{" "}
-              {funnelBestand.map((b, i) => (
-                <span key={`${b.stage}-${b.position}`}>
-                  {b.stage}{" "}
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {(b.deals ?? 0).toLocaleString("de-DE")}
-                  </span>
-                  {i < funnelBestand.length - 1 ? " · " : ""}
-                </span>
-              ))}
-            </p>
-          )}
-        </div>
-
-        {/* Stage-Bewegungen Werteraum (KW-Umschalter) */}
-        <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="text-[15px] font-semibold text-foreground">
-              Stage-Bewegungen Werteraum
-            </h3>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedKw("letzte")}
-                className={cn(
-                  "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                  selectedKw === "letzte"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
-                )}
-              >
-                KW {activityStats?.kw_nr_letzte ?? "—"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedKw("diese")}
-                className={cn(
-                  "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                  selectedKw === "diese"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
-                )}
-              >
-                KW {activityStats?.kw_nr_diese ?? "—"} (lfd.)
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-row items-stretch gap-0">
-            <StageFlowBox
-              label="Identifiziert"
-              value={identifiziertBestand}
-              subtext="Gesamt im Pool"
-              tone="blue"
-            />
-            <StageFlowArrow />
-            <StageFlowBox
-              label="→ Wiedervorlage"
-              value={
-                selectedKw === "diese"
-                  ? activityStats?.stage_wiedervorlage_diese_kw ?? 0
-                  : activityStats?.stage_wiedervorlage_letzte_kw ?? 0
-              }
-              subtext="neu qualifiziert"
-              tone="blue"
-            />
-            <StageFlowArrow />
-            <StageFlowBox
-              label="→ Infomaterial"
-              value={
-                selectedKw === "diese"
-                  ? activityStats?.stage_infos_diese_kw ?? 0
-                  : activityStats?.stage_infos_letzte_kw ?? 0
-              }
-              subtext="versandt"
-              tone="teal"
-            />
-            <StageFlowArrow />
-            <StageFlowBox
-              label="→ Verloren"
-              value={
-                selectedKw === "diese"
-                  ? activityStats?.lost_diese_kw ?? 0
-                  : activityStats?.lost_letzte_kw ?? 0
-              }
-              subtext="ausgeschieden"
-              tone="red"
-            />
-          </div>
-        </div>
-      </section>
+      {/* Block 5 — WerteRaum Funnel */}
+      <WerteraumFunnel steps={funnel} />
     </div>
   );
 }
 
 /* ---------- Subcomponents ---------- */
 
-function StageFlowBox({
+// eo ipso Cockpit-Palette
+const COCKPIT = {
+  deep: "#0E1A2B", // Navy
+  fire: "#FF4A1C", // Fire
+  gold: "#F0C674", // Gold
+} as const;
+
+function MachineBanner({
+  stats,
+}: {
+  stats:
+    | { mails: number; activities: number; calls: number; termine: number }
+    | undefined;
+}) {
+  const counters: { icon: React.ElementType; label: string; value: number }[] = [
+    { icon: Mail, label: "Mails", value: stats?.mails ?? 0 },
+    { icon: Activity, label: "Aktivitäten", value: stats?.activities ?? 0 },
+    { icon: Phone, label: "Telefonate", value: stats?.calls ?? 0 },
+    { icon: CalendarCheck, label: "Termine", value: stats?.termine ?? 0 },
+  ];
+  return (
+    <section
+      className="relative overflow-hidden rounded-[12px] p-6 md:p-8 shadow-sm"
+      style={{ backgroundColor: COCKPIT.deep }}
+    >
+      {/* linker Akzentbalken Fire mit Glow */}
+      <span
+        aria-hidden
+        className="absolute left-0 top-0 h-full w-1.5"
+        style={{
+          backgroundColor: COCKPIT.fire,
+          boxShadow: `0 0 16px 2px ${COCKPIT.fire}`,
+        }}
+      />
+      <div className="pl-3 md:pl-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="relative flex h-2.5 w-2.5">
+            <span
+              className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
+              style={{ backgroundColor: COCKPIT.fire }}
+            />
+            <span
+              className="relative inline-flex h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: COCKPIT.fire }}
+            />
+          </span>
+          <span
+            className="text-[11px] font-semibold uppercase tracking-[0.14em]"
+            style={{ color: COCKPIT.fire }}
+          >
+            Outreach läuft automatisch
+          </span>
+        </div>
+
+        <h2 className="text-white text-[18px] md:text-[22px] font-bold leading-snug max-w-3xl flex items-start gap-2">
+          <Zap
+            className="h-5 w-5 mt-0.5 shrink-0"
+            style={{ color: COCKPIT.gold }}
+            aria-hidden
+          />
+          Die Akquise-Maschine arbeitet, während das Team an Projekten arbeitet.
+        </h2>
+
+        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-xl overflow-hidden bg-white/10">
+          {counters.map((c) => (
+            <MachineCounter
+              key={c.label}
+              icon={c.icon}
+              label={c.label}
+              value={c.value}
+            />
+          ))}
+        </div>
+
+        <p className="mt-5 text-[13px] text-white/60 max-w-3xl">
+          KI bewertet, textet und versendet — Dienstag bis Freitag, ohne
+          manuellen Aufwand pro Mail.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function MachineCounter({
+  icon: Icon,
   label,
   value,
-  subtext,
-  tone,
 }: {
+  icon: React.ElementType;
   label: string;
   value: number;
-  subtext: string;
-  tone: "blue" | "teal" | "red";
 }) {
-  const toneStyles =
-    tone === "red"
-      ? "bg-red-50 border-red-200"
-      : tone === "teal"
-        ? "bg-teal-50 border-teal-200"
-        : "bg-blue-50 border-blue-200";
-  const numberStyle = tone === "red" ? "text-red-600" : "text-blue-600";
   return (
     <div
-      className={cn(
-        "flex-1 rounded-xl border p-5 text-center flex flex-col items-center justify-center gap-1",
-        toneStyles,
-      )}
+      className="flex flex-col gap-1 p-4 md:p-5"
+      style={{ backgroundColor: COCKPIT.deep }}
     >
-      <p className="text-xs font-medium text-foreground">{label}</p>
+      <Icon className="h-4 w-4 text-white/40" aria-hidden />
       <p
-        className={cn(
-          "text-3xl font-bold tabular-nums leading-none",
-          numberStyle,
-        )}
+        className="text-[28px] md:text-[34px] font-bold leading-none tabular-nums text-white"
+        style={{ textShadow: `0 0 18px ${COCKPIT.fire}33` }}
       >
         {value.toLocaleString("de-DE")}
       </p>
-      <p className="text-[11px] text-muted-foreground">{subtext}</p>
+      <p className="text-[12px] text-white/55">{label}</p>
     </div>
   );
 }
 
-function StageFlowArrow() {
+function WerteraumFunnel({ steps }: { steps: FunnelStep[] | undefined }) {
+  const data = steps ?? [];
+  const max = data.length ? Math.max(...data.map((s) => s.value), 1) : 1;
+  // absteigende Balkenfarben: kalt (Navy) → warm (Gold) → heiß (Fire)
+  const barColors = [COCKPIT.deep, "#3B5168", COCKPIT.gold, COCKPIT.fire];
   return (
-    <span
-      aria-hidden
-      className="text-gray-300 text-2xl self-center mx-1 select-none"
-    >
-      →
-    </span>
+    <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+      <div className="mb-5">
+        <h2 className="text-[16px] font-semibold text-foreground">
+          WerteRaum: aus kalten Schulen werden Gespräche
+        </h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">
+          Kumulativer Fortschritt der Akquise — von erfasst bis Termin
+        </p>
+      </div>
+
+      {data.length === 0 ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {data.map((step, i) => {
+            const prev = i === 0 ? null : data[i - 1].value;
+            const pct =
+              prev && prev > 0 ? Math.round((step.value / prev) * 100) : null;
+            const width = Math.max((step.value / max) * 100, 6);
+            const color = barColors[i] ?? COCKPIT.deep;
+            return (
+              <div key={step.label} className="flex items-center gap-3">
+                <div className="w-32 shrink-0 text-right text-[13px] font-medium text-foreground">
+                  {step.label}
+                </div>
+                <div className="flex-1 h-11 rounded-lg bg-muted/40 overflow-hidden">
+                  <div
+                    className="h-full rounded-lg flex items-center justify-end px-3 transition-[width] duration-500"
+                    style={{ width: `${width}%`, backgroundColor: color }}
+                  >
+                    <span
+                      className={cn(
+                        "text-[16px] font-bold tabular-nums",
+                        i >= 2 ? "text-[#0E1A2B]" : "text-white",
+                      )}
+                    >
+                      {step.value.toLocaleString("de-DE")}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-16 shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                  {pct !== null ? `${pct}%` : ""}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -815,60 +767,6 @@ function KpiTooltip({
         </div>
       )}
     </div>
-  );
-}
-
-function ComparisonRow({
-  icon,
-  label,
-  previous,
-  current,
-  invertedGood = false,
-}: {
-  icon: string;
-  label: string;
-  previous: number;
-  current: number;
-  /** When true, an INCREASE is bad (e.g. lost deals). Default: increase = good. */
-  invertedGood?: boolean;
-}) {
-  const diff = current - previous;
-  const isFlat = diff === 0;
-  const isUp = diff > 0;
-  const isGood = isFlat ? null : isUp !== invertedGood;
-  const trendColor = isFlat
-    ? "text-gray-400"
-    : isGood
-      ? "text-emerald-600"
-      : "text-red-500";
-  const Arrow = isFlat ? null : isUp ? ArrowUp : ArrowDown;
-  return (
-    <TableRow>
-      <TableCell className="font-medium">
-        <span aria-hidden className="mr-2">
-          {icon}
-        </span>
-        {label}
-      </TableCell>
-      <TableCell className="text-right tabular-nums text-gray-500">
-        {previous.toLocaleString("de-DE")}
-      </TableCell>
-      <TableCell className="text-right tabular-nums text-foreground font-semibold">
-        {current.toLocaleString("de-DE")}
-      </TableCell>
-      <TableCell className={cn("text-right tabular-nums", trendColor)}>
-        <span className="inline-flex items-center gap-1 justify-end text-[12px] font-medium">
-          {Arrow ? (
-            <Arrow className="h-3.5 w-3.5" aria-hidden />
-          ) : (
-            <span aria-hidden>—</span>
-          )}
-          <span>
-            {isFlat ? "0" : `${isUp ? "+" : ""}${diff.toLocaleString("de-DE")}`}
-          </span>
-        </span>
-      </TableCell>
-    </TableRow>
   );
 }
 
