@@ -11,12 +11,21 @@ interface DealCardData {
   priority: string | null;
   ownerName: string | null;
   phone?: string | null;
+  bundesland?: string | null;
 }
 
 const priorityDot: Record<string, string> = {
   low: "bg-muted-foreground",
   medium: "bg-warning",
   high: "bg-destructive",
+};
+
+// Bundesland-Badge: echte Werte aus contacts.bundesland. NRW kommt in zwei Schreibweisen vor.
+const bundeslandBadge: Record<string, { short: string; cls: string }> = {
+  "NRW": { short: "NRW", cls: "bg-blue-100 text-blue-700" },
+  "Nordrhein-Westfalen": { short: "NRW", cls: "bg-blue-100 text-blue-700" },
+  "Bayern": { short: "BAY", cls: "bg-green-100 text-green-700" },
+  "Niedersachsen": { short: "NDS", cls: "bg-amber-100 text-amber-700" },
 };
 
 export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStart: (e: React.DragEvent, dealId: string) => void }) {
@@ -43,6 +52,22 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
+          {(() => {
+            const bl = deal.bundesland?.trim();
+            if (!bl) {
+              return (
+                <span title="Bundesland fehlt" className="rounded px-1 py-[1px] text-[9px] font-bold leading-none bg-muted text-muted-foreground">
+                  ?
+                </span>
+              );
+            }
+            const b = bundeslandBadge[bl];
+            return (
+              <span title={bl} className={cn("rounded px-1 py-[1px] text-[9px] font-bold leading-none", b?.cls ?? "bg-gray-100 text-gray-700")}>
+                {b?.short ?? bl.slice(0, 3).toUpperCase()}
+              </span>
+            );
+          })()}
           {deal.priority && (
             <span className={cn("h-1.5 w-1.5 rounded-full", priorityDot[deal.priority] ?? priorityDot.medium)} />
           )}
