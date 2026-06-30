@@ -6,6 +6,23 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { type OutreachStats } from "@/lib/supabaseEIC";
 
+/** Build a WerteRaum campaign card from the per-Bundesland breakdown.
+ *  Defensive: if the entry is missing (e.g. 0 contacts), renders zero values instead of crashing. */
+function werteraumCard(stats: OutreachStats, bundesland: string, label: string): CampaignCardData {
+  const e = stats.by_bundesland?.find((b) => b.bundesland === bundesland);
+  return {
+    slug: `werteraum-${bundesland.toLowerCase()}`,
+    name: label,
+    status: "Aktiv",
+    total: e?.gesamt ?? 0,
+    emailSent: e?.email_sent ?? 0,
+    linkClicked: e?.link_clicked ?? 0,
+    pending: e?.pending ?? 0,
+    clusters: { A: e?.cluster_a ?? 0, B: e?.cluster_b ?? 0, C: e?.cluster_c ?? 0, D: e?.cluster_d ?? 0 },
+    to: "/campaigns/werteraum",
+  };
+}
+
 const CLUSTER_COLORS = { A: "#1D9E75", B: "#378ADD", C: "#BA7517", D: "#9ca3af" } as const;
 
 type CampaignCardData = {
@@ -105,19 +122,10 @@ export default function Campaigns() {
   const { data, isLoading, error } = useOutreachStats();
   const { data: vrData, isLoading: vrLoading, error: vrError } = useVrStiftungenStats();
 
-  const werteraum: CampaignCardData | null = data
-    ? {
-        slug: "werteraum",
-        name: "WerteRaum Mailing 2026",
-        status: "Aktiv",
-        total: data.gesamt,
-        emailSent: data.email_sent,
-        linkClicked: data.link_clicked,
-        pending: data.pending,
-        clusters: { A: data.cluster_a, B: data.cluster_b, C: data.cluster_c, D: data.cluster_d },
-        to: "/campaigns/werteraum",
-      }
-    : null;
+  // Split the former single "WerteRaum Mailing 2026" card into two per-Bundesland cards
+  // (NRW + Bayern), fed from stats.by_bundesland. "Unbekannt" is intentionally not rendered.
+  const werteraumNrw: CampaignCardData | null = data ? werteraumCard(data, "NRW", "WerteRaum NRW") : null;
+  const werteraumBayern: CampaignCardData | null = data ? werteraumCard(data, "Bayern", "WerteRaum Bayern") : null;
 
   const vrStiftungen: CampaignCardData | null = vrData
     ? {
@@ -133,7 +141,7 @@ export default function Campaigns() {
       }
     : null;
 
-  const campaigns = [werteraum, vrStiftungen].filter(Boolean) as CampaignCardData[];
+  const campaigns = [werteraumNrw, werteraumBayern, vrStiftungen].filter(Boolean) as CampaignCardData[];
   const anyLoading = isLoading || vrLoading;
   const firstError = (error || vrError) as Error | null;
 
