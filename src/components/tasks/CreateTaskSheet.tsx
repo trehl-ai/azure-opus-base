@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { EntitySearchSelect } from "@/components/shared/EntitySearchSelect";
 
 interface Props {
   open: boolean;
@@ -35,7 +36,19 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
+  const [taskType, setTaskType] = useState("");
+  const [dealId, setDealId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<Date>();
+
+  // Wert = Slug (deckungsgleich mit deal_activities.activity_type, in Tasks.tsx vereint), Anzeige = Label
+  const TASK_TYPES = [
+    { value: "briefing", label: "Briefing" },
+    { value: "casting", label: "Casting" },
+    { value: "follow-up", label: "Follow-up" },
+    { value: "nachbereitung", label: "Nachbereitung" },
+    { value: "angebot", label: "Angebot" },
+    { value: "sonstiges", label: "Sonstiges" },
+  ];
 
   const { data: projects } = useQuery({
     queryKey: ["projects-list"],
@@ -50,18 +63,22 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setStatus(""); setPriority("medium");
-    setProjectId(""); setAssignedUserId(""); setDueDate(undefined);
+    setProjectId(""); setAssignedUserId(""); setTaskType(""); setDealId(null); setDueDate(undefined);
   };
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("tasks").insert({
+      // (supabase as any): generierte types.ts auf main hinkt der DB hinterher (task_type/deal_id
+      // dort regen-bedingt entfernt, in DB vorhanden) — gleiche Konvention wie EntitySearchSelect
+      const { error } = await (supabase as any).from("tasks").insert({
         project_id: projectId,
         title: title.trim(),
         description: description.trim() || null,
         status: status || defaultStatus,
         priority,
         assigned_user_id: assignedUserId || null,
+        task_type: taskType || null,
+        deal_id: dealId,
         due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
         created_by_user_id: user?.id ?? null,
       });
@@ -124,6 +141,17 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
               <SelectTrigger><SelectValue placeholder="Zuweisen" /></SelectTrigger>
               <SelectContent>{users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}</SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Aufgabenart</Label>
+            <Select value={taskType} onValueChange={setTaskType}>
+              <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+              <SelectContent>{TASK_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Deal (optional)</Label>
+            <EntitySearchSelect entityType="deal" value={dealId} onChange={(id) => setDealId(id)} placeholder="Deal verknüpfen…" />
           </div>
           <div className="space-y-1.5">
             <Label>Fälligkeitsdatum</Label>
