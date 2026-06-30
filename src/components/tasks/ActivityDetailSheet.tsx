@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare, ExternalLink, CheckCircle, Plus, Pencil } from "lucide-react";
+import { Phone, Mail, FileText, CheckSquare, Calendar, Users, MessageSquare, ExternalLink, CheckCircle, Plus, Pencil, Reply, MousePointerClick } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import type { Database } from "@/integrations/supabase/types";
@@ -15,7 +15,7 @@ import { EditActivitySheet } from "@/components/activities/EditActivitySheet";
 
 type DealActivity = Database["public"]["Tables"]["deal_activities"]["Row"];
 
-// 1:1 aus Activities.tsx übernommen (Type-Icons + Farben).
+// Type-Icons + Farben — synchron zur Tasks-Liste (Tasks.tsx).
 const ACTIVITY_ICONS: Record<string, any> = {
   call: Phone,
   email: Mail,
@@ -24,15 +24,19 @@ const ACTIVITY_ICONS: Record<string, any> = {
   meeting: Calendar,
   briefing: Users,
   casting: Users,
+  email_reply: Reply,
+  link_click: MousePointerClick,
 };
 const ACTIVITY_COLORS: Record<string, string> = {
   call: "text-blue-500",
-  email: "text-purple-500",
-  note: "text-gray-500",
-  task: "text-orange-500",
-  meeting: "text-green-500",
+  email: "text-orange-500",
+  note: "text-gray-400",
+  task: "text-green-500",
+  meeting: "text-purple-500",
   briefing: "text-pink-500",
   casting: "text-yellow-500",
+  email_reply: "text-orange-400",
+  link_click: "text-gray-400",
 };
 
 export type ActivityDetail = {
