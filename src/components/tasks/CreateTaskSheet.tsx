@@ -40,7 +40,15 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
   const [dealId, setDealId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<Date>();
 
-  const TASK_TYPES = ["Briefing", "Casting", "Follow-up", "Nachbereitung", "Angebot", "Sonstiges"];
+  // Wert = Slug (deckungsgleich mit deal_activities.activity_type, in Tasks.tsx vereint), Anzeige = Label
+  const TASK_TYPES = [
+    { value: "briefing", label: "Briefing" },
+    { value: "casting", label: "Casting" },
+    { value: "follow-up", label: "Follow-up" },
+    { value: "nachbereitung", label: "Nachbereitung" },
+    { value: "angebot", label: "Angebot" },
+    { value: "sonstiges", label: "Sonstiges" },
+  ];
 
   const { data: projects } = useQuery({
     queryKey: ["projects-list"],
@@ -60,7 +68,9 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("tasks").insert({
+      // (supabase as any): generierte types.ts auf main hinkt der DB hinterher (task_type/deal_id
+      // dort regen-bedingt entfernt, in DB vorhanden) — gleiche Konvention wie EntitySearchSelect
+      const { error } = await (supabase as any).from("tasks").insert({
         project_id: projectId,
         title: title.trim(),
         description: description.trim() || null,
@@ -136,7 +146,7 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
             <Label>Aufgabenart</Label>
             <Select value={taskType} onValueChange={setTaskType}>
               <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
-              <SelectContent>{TASK_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+              <SelectContent>{TASK_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
