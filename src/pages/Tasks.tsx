@@ -104,7 +104,7 @@ export default function Tasks() {
 
   // Tasks-Query — Telegram-Intake u.a. tasks-Rows, nur offene Top-Level-Tasks.
   // SESSION-Client (supabase, RLS-geschützt) — NICHT supabaseEIC. as-any-Cast wie PR #53,
-  // da types.ts (qgvedroebvmwhnjmeyip) `tasks` evtl. nicht kennt.
+  // da die Lovable-generierte types.ts die tasks-Tabelle evtl. nicht kennt.
   const { data: tasksRaw } = useQuery({
     queryKey: ["open-tasks"],
     queryFn: async () => {
