@@ -22,6 +22,7 @@ import CampaignWerteraum from "./pages/CampaignWerteraum.tsx";
 import CampaignVrStiftungen from "./pages/CampaignVrStiftungen.tsx";
 import Projects from "./pages/Projects.tsx";
 import ProjectDetail from "./pages/ProjectDetail.tsx";
+import Leadflows from "./pages/Leadflows.tsx";
 import Tasks from "./pages/Tasks.tsx";
 import Intake from "./pages/Intake.tsx";
 import SettingsPage from "./pages/Settings.tsx";
@@ -117,6 +118,7 @@ const App = () => (
               <Route path="/campaigns/vr-stiftungen" element={<P><CampaignVrStiftungen /></P>} />
               <Route path="/projects" element={<P><Projects /></P>} />
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
+              <Route path="/leadflows" element={<P><Leadflows /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
               <Route path="/ideas" element={<P><Ideas /></P>} />
               <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />

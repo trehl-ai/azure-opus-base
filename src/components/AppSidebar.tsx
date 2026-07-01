@@ -17,6 +17,7 @@ import {
   Lightbulb,
   Shield,
   Megaphone,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -40,7 +41,9 @@ const navSections = [
   {
     sectionLabel: "OPERATIONS",
     items: [
-      { label: "Projects", icon: FolderKanban, path: "/projects", module: "projects" },
+      { label: "Leadflows", icon: Workflow, path: "/leadflows", module: "contacts" },
+      // Projects vorerst ausgeblendet (hidden) — Route + Daten bleiben erhalten, Deep-Links funktionieren weiter.
+      { label: "Projects", icon: FolderKanban, path: "/projects", module: "projects", hidden: true },
       { label: "Tasks", icon: CheckSquare, path: "/tasks", module: "tasks" },
       { label: "💡 Ideen", icon: Lightbulb, path: "/ideas", module: "contacts" },
     ],
@@ -83,7 +86,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
   const hideDashboard = user?.id === RESTRICTED_USER_ID;
   const filteredSections = navSections.map(section => ({
     ...section,
-    items: section.items.filter(item => !(hideDashboard && item.path === "/dashboard")),
+    items: section.items.filter(item => !("hidden" in item && item.hidden) && !(hideDashboard && item.path === "/dashboard")),
   }));
 
   const handleClick = () => {
