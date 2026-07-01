@@ -102,7 +102,9 @@ export default function Tasks() {
     },
   });
 
-  // Tasks-Query — Telegram-Intake u.a. tasks-Rows, nur offene Top-Level-Tasks.
+  // Tasks-Query — Telegram-Intake u.a. tasks-Rows, nur NICHT-erledigte Top-Level-Tasks.
+  // "offen" = alles außer done: tasks-doneSlug = 'erledigt', also status != 'erledigt'
+  // (deckt offen/in-bearbeitung/blockiert ab). NICHT .eq('offen') — das verstecken würde.
   // SESSION-Client (supabase, RLS-geschützt) — NICHT supabaseEIC. as-any-Cast wie PR #53,
   // da die Lovable-generierte types.ts die tasks-Tabelle evtl. nicht kennt.
   const { data: tasksRaw } = useQuery({
@@ -112,7 +114,7 @@ export default function Tasks() {
         .from("tasks")
         .select("id,title,status,due_date,task_type,assigned_user_id,created_by_user_id,project_id,deal_id,created_at")
         .is("parent_task_id", null)
-        .eq("status", "offen");
+        .neq("status", "erledigt");
       if (error) throw error;
       return data;
     },
