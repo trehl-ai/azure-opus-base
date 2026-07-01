@@ -263,11 +263,14 @@ function MatchTile({
   contact: ContactHit;
   onOpen: () => void;
 }) {
+  const [dossierOpen, setDossierOpen] = useState(false);
   const [pitchOpen, setPitchOpen] = useState(false);
   const fullName = `${contact.first_name} ${contact.last_name}`.trim();
   const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
   const note = snippet(contact.notes);
   const matchPct = Math.round(contact.similarity * 100);
+  // research_dossier ist der Substanz-Content und steht deshalb VOR dem Pitch.
+  const dossier = (contact.research_dossier ?? "").trim();
   const pitch = (contact.pitch_text ?? contact.event_pitch_text ?? "").trim();
 
   return (
@@ -316,8 +319,31 @@ function MatchTile({
         </div>
       )}
 
-      {/* Pitch-Anschreiben (aufklappbar) */}
+      {/* Business Intelligence / Dossier (aufklappbar) — Substanz-Content, steht vor dem Pitch */}
       <div className="mt-4 border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => setDossierOpen((v) => !v)}
+          aria-expanded={dossierOpen}
+          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:text-brand/80 transition-colors"
+        >
+          {dossierOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          <FileText className="h-3.5 w-3.5" />
+          Business Intelligence
+        </button>
+        {dossierOpen && (
+          <div className="mt-2 rounded-[10px] bg-muted/40 border border-border px-3 py-2.5">
+            {dossier ? (
+              <p className="text-[13px] text-foreground/90 whitespace-pre-wrap">{dossier}</p>
+            ) : (
+              <p className="text-[13px] text-muted-foreground italic">— kein Dossier —</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Pitch-Anschreiben (aufklappbar) */}
+      <div className="mt-3 border-t border-border pt-3">
         <button
           type="button"
           onClick={() => setPitchOpen((v) => !v)}
