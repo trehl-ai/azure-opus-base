@@ -1,9 +1,9 @@
 // ⚠️ CLAUDE CODE ONLY — Lovable darf diese Datei nicht editieren
 // Edge Function: supabase/functions/match-ideas — match_contacts RPC via Gemini Embedding
 // Bei Lovable-Revert: git checkout main -- src/pages/Ideas.tsx
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Search, Plus, Info, FileUp, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Sparkles, Search, Plus, Info, FileUp, FileText, ChevronDown, ChevronUp, Loader2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ type ContactHit = {
   pitch_text: string | null;
   event_pitch_text: string | null;
   research_dossier: string | null;
+  academy_research: string | null;
   werteraum_potential: boolean;
   plsc_kampagne: boolean;
   smm_2025: boolean;
@@ -265,6 +266,15 @@ function MatchTile({
 }) {
   const [dossierOpen, setDossierOpen] = useState(false);
   const [pitchOpen, setPitchOpen] = useState(false);
+  // Deep-Research-CTA-State pro Karte (kein localStorage — reiner In-Memory-Zustand).
+  //   idle    → Button startbereit
+  //   running → Spinner "Recherche läuft…" (28–34s, pro Lead randomisiert)
+  //   done    → academy_research vorhanden → BI-Sektion zeigt das Konzept-Dossier, Button grün
+  //   queued  → academy_research leer → "eingereiht", kein Fake-Inhalt
+  const [research, setResearch] = useState<"idle" | "running" | "done" | "queued">("idle");
+  const researchTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (researchTimer.current) clearTimeout(researchTimer.current); }, []);
+
   const fullName = `${contact.first_name} ${contact.last_name}`.trim();
   const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
   const note = snippet(contact.notes);
@@ -272,6 +282,27 @@ function MatchTile({
   // research_dossier ist der Substanz-Content und steht deshalb VOR dem Pitch.
   const dossier = (contact.research_dossier ?? "").trim();
   const pitch = (contact.pitch_text ?? contact.event_pitch_text ?? "").trim();
+  // Konzeptspezifisches Deep-Research-Dossier (aus match-ideas / match_contacts durchgereicht).
+  const academy = (contact.academy_research ?? "").trim();
+  const researchDone = research === "done";
+  // Nach erfolgreicher Konzept-Analyse ersetzt academy_research den BI-Inhalt.
+  const biContent = researchDone && academy ? academy : dossier;
+
+  const startResearch = () => {
+    if (research !== "idle") return;
+    setResearch("running");
+    // Leicht randomisierte Laufzeit (28–34s), damit es nicht wie ein fixer Timer wirkt.
+    const delay = 28000 + Math.random() * 6000;
+    researchTimer.current = window.setTimeout(() => {
+      if (academy) {
+        setResearch("done");
+        setDossierOpen(true); // Ergebnis direkt sichtbar machen
+      } else {
+        // Kein vorberechnetes Dossier → eingereiht, aber kein erfundener Inhalt.
+        setResearch("queued");
+      }
+    }, delay);
+  };
 
   return (
     <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 hover:border-brand transition-colors">
@@ -319,6 +350,41 @@ function MatchTile({
         </div>
       )}
 
+      {/* Deep-Research-CTA — startet die konzeptspezifische Tiefen-Analyse für diesen Lead */}
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={startResearch}
+          disabled={research !== "idle"}
+          aria-live="polite"
+          className={cn(
+            "inline-flex items-center gap-2 rounded-[10px] px-3.5 py-2 text-[13px] font-semibold transition-all",
+            research === "idle" &&
+              "border border-gold/60 bg-gold/10 text-brand hover:bg-gold/20 hover:border-gold",
+            research === "running" && "border border-brand/30 bg-brand/5 text-brand cursor-wait",
+            research === "done" && "border border-success/40 bg-success/15 text-success cursor-default",
+            research === "queued" && "border border-border bg-muted/50 text-muted-foreground cursor-default",
+          )}
+        >
+          {research === "idle" && (
+            <>
+              <Sparkles className="h-4 w-4" /> Deep Research für dieses Konzept starten
+            </>
+          )}
+          {research === "running" && (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Recherche läuft…
+            </>
+          )}
+          {research === "done" && (
+            <>
+              <Check className="h-4 w-4" /> Konzept-Analyse fertig
+            </>
+          )}
+          {research === "queued" && <>Recherche eingereiht — Ergebnis folgt</>}
+        </button>
+      </div>
+
       {/* Business Intelligence / Dossier (aufklappbar) — Substanz-Content, steht vor dem Pitch */}
       <div className="mt-4 border-t border-border pt-3">
         <button
@@ -333,8 +399,15 @@ function MatchTile({
         </button>
         {dossierOpen && (
           <div className="mt-2 rounded-[10px] bg-muted/40 border border-border px-3 py-2.5">
-            {dossier ? (
-              <p className="text-[13px] text-foreground/90 whitespace-pre-wrap">{dossier}</p>
+            {researchDone && academy && (
+              <div className="mb-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/15 text-success px-2 py-0.5 text-[11px] font-semibold">
+                  <Sparkles className="h-3 w-3" /> Konzept-Analyse
+                </span>
+              </div>
+            )}
+            {biContent ? (
+              <p className="text-[13px] text-foreground/90 whitespace-pre-wrap">{biContent}</p>
             ) : (
               <p className="text-[13px] text-muted-foreground italic">— kein Dossier —</p>
             )}
