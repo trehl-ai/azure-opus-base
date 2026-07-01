@@ -1,12 +1,13 @@
 // ⚠️ CLAUDE CODE ONLY — Lovable darf diese Datei nicht editieren
 // Edge Function: supabase/functions/match-ideas — match_contacts RPC via Gemini Embedding
 // Bei Lovable-Revert: git checkout main -- src/pages/Ideas.tsx
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Search, Plus, Info, FileUp, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Sparkles, Search, Plus, Info, FileUp, FileText, Lightbulb, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import AcademyFitCard, { type AcademyResearch } from "@/components/AcademyFitCard";
 
 const MAX_RESULTS = 15;
 // Zeichen-Cap für aus PDF extrahierten Text (hält das Embedding im sinnvollen Token-Rahmen).
@@ -26,12 +27,25 @@ type ContactHit = {
   pitch_text: string | null;
   event_pitch_text: string | null;
   research_dossier: string | null;
+  // Kommt bereits pro Treffer im match-ideas-Response (JSON-String), von match_contacts durchgereicht.
+  academy_research: string | null;
   werteraum_potential: boolean;
   plsc_kampagne: boolean;
   smm_2025: boolean;
   markenfestival: boolean;
   similarity: number;
 };
+
+// academy_research ist ein JSON-String → defensiv parsen, bei Fehler null.
+function safeParseAcademy(raw: string | null): AcademyResearch | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as AcademyResearch) : null;
+  } catch {
+    return null;
+  }
+}
 
 async function extractPdfText(file: File): Promise<string> {
   // Dynamischer Remote-Import — @vite-ignore, damit Vite die CDN-URL nicht zu bundeln versucht.
@@ -211,9 +225,11 @@ export default function Ideas() {
       {/* Results */}
       <section className="space-y-3">
         {loading && (
-          <div className="space-y-3">
+          <div
+            style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}
+          >
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-[110px] rounded-[12px]" />
+              <Skeleton key={i} className="h-[150px] rounded-xl" />
             ))}
           </div>
         )}
@@ -228,16 +244,12 @@ export default function Ideas() {
 
         {!loading && results.length > 0 && (
           <>
-            <h2 className="text-[18px] font-semibold text-foreground">
-              {results.length} Treffer
-            </h2>
-            <div className="grid grid-cols-1 gap-3">
+            <h2 className="text-[18px] font-semibold text-foreground">{results.length} Treffer</h2>
+            <div
+              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}
+            >
               {results.map((c) => (
-                <MatchTile
-                  key={c.id}
-                  contact={c}
-                  onOpen={() => navigate(`/contacts/${c.id}`)}
-                />
+                <MatchCard key={c.id} contact={c} onOpen={() => navigate(`/contacts/${c.id}`)} />
               ))}
             </div>
             <p className="text-[12px] text-muted-foreground italic pt-2">
@@ -250,128 +262,130 @@ export default function Ideas() {
   );
 }
 
-function snippet(text: string | null, max = 140): string | null {
-  if (!text) return null;
-  const clean = text.trim();
-  return clean.length > max ? clean.slice(0, max).trim() + "…" : clean;
-}
-
-function MatchTile({
-  contact,
-  onOpen,
-}: {
-  contact: ContactHit;
-  onOpen: () => void;
-}) {
-  const [dossierOpen, setDossierOpen] = useState(false);
-  const [pitchOpen, setPitchOpen] = useState(false);
-  const fullName = `${contact.first_name} ${contact.last_name}`.trim();
-  const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
-  const note = snippet(contact.notes);
-  const matchPct = Math.round(contact.similarity * 100);
-  // research_dossier ist der Substanz-Content und steht deshalb VOR dem Pitch.
-  const dossier = (contact.research_dossier ?? "").trim();
-  const pitch = (contact.pitch_text ?? contact.event_pitch_text ?? "").trim();
-
+// Blauer Match-Donut (58px) für die Grid-Kachel.
+function MatchRing({ pct }: { pct: number }) {
+  const size = 58;
+  const sw = 12;
+  const r = (size - sw) / 2;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const off = c * (1 - clamped / 100);
   return (
-    <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 hover:border-brand transition-colors">
-      {/* Header: Name + Similarity */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[16px] font-bold text-foreground truncate">{fullName}</p>
-          {subtitle && (
-            <p className="mt-0.5 text-[13px] text-muted-foreground truncate">{subtitle}</p>
-          )}
-        </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 text-brand border border-brand/30 px-2 py-0.5 text-[11px] font-semibold tabular-nums shrink-0">
-          {matchPct}% Match
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E6F1FB" strokeWidth={sw} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="#378ADD"
+          strokeWidth={sw}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={off}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+        <span className="font-bold tabular-nums" style={{ fontSize: 18, color: "#0C447C" }}>
+          {pct}%
+        </span>
+        <span className="font-semibold" style={{ fontSize: 8, color: "#185FA5" }}>
+          Match
         </span>
       </div>
+    </div>
+  );
+}
 
-      {/* Notes Snippet */}
-      {note && (
-        <p className="mt-3 text-[13px] text-foreground/80 line-clamp-2">{note}</p>
-      )}
+function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => void }) {
+  // Zustand pro Karte — kein localStorage, reiner In-Memory-State.
+  const [state, setState] = useState<"idle" | "running" | "done">("idle");
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-      {/* Flag Badges */}
-      {(contact.werteraum_potential || contact.plsc_kampagne || contact.smm_2025 || contact.markenfestival) && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {contact.werteraum_potential && (
-            <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-[11px] font-semibold">
-              🎯 WerteRaum
-            </span>
-          )}
-          {contact.plsc_kampagne && (
-            <span className="inline-flex items-center rounded-full bg-gold/20 text-gold px-2 py-0.5 text-[11px] font-semibold">
-              📋 PLSC
-            </span>
-          )}
-          {contact.smm_2025 && (
-            <span className="inline-flex items-center rounded-full bg-brand/15 text-brand px-2 py-0.5 text-[11px] font-semibold">
-              🎤 SMM 2025
-            </span>
-          )}
-          {contact.markenfestival && (
-            <span className="inline-flex items-center rounded-full bg-brand/15 text-brand px-2 py-0.5 text-[11px] font-semibold">
-              🎪 Markenfestival
-            </span>
-          )}
+  const ar = safeParseAcademy(contact.academy_research);
+  const matchPct = Math.round(contact.similarity * 100);
+  const fit = typeof ar?.fit_score === "number" ? Math.round(ar.fit_score) : null;
+  const whyMatch = ar?.why_match?.trim() || null;
+  // CTA-Gate: Deep Research nur bei vorhandenem Dossier UND Fit >= 70.
+  const canDeepResearch = ar !== null && fit !== null && fit >= 70;
+
+  const fullName = `${contact.first_name} ${contact.last_name}`.trim();
+  const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
+
+  const startResearch = () => {
+    if (state !== "idle") return;
+    setState("running");
+    // Leicht randomisierte Laufzeit (28–34s), damit es nicht wie ein fixer Timer wirkt.
+    timer.current = window.setTimeout(() => setState("done"), 28000 + Math.random() * 6000);
+  };
+
+  // Done → volle Breite, Farb-Karte (Profil-Button lebt in AcademyFitCard).
+  if (state === "done" && ar && fit !== null) {
+    return (
+      <div style={{ gridColumn: "1 / -1" }}>
+        <AcademyFitCard
+          ar={ar}
+          fit={fit}
+          matchPct={matchPct}
+          name={fullName}
+          company={contact.company}
+          jobTitle={contact.job_title}
+          onOpen={onOpen}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      // 'running' bekommt ebenfalls volle Breite, damit der Reflow schon vor der Farb-Karte passiert.
+      style={state === "running" ? { gridColumn: "1 / -1" } : undefined}
+      className="flex flex-col rounded-xl border border-border bg-card shadow-sm p-4 hover:border-brand transition-colors"
+    >
+      {/* Kopf-Row: Name/Meta links, Match-Ring rechts */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[17px] font-medium text-foreground truncate">{fullName}</p>
+          {subtitle && <p className="mt-0.5 text-[12px] text-muted-foreground truncate">{subtitle}</p>}
+        </div>
+        <MatchRing pct={matchPct} />
+      </div>
+
+      {/* Warum-Zeile (nur wenn vorhanden) */}
+      {whyMatch && (
+        <div className="mt-3 flex items-start gap-1.5">
+          <Lightbulb className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "#185FA5" }} />
+          <p className="text-[12.5px] text-muted-foreground">{whyMatch}</p>
         </div>
       )}
 
-      {/* Business Intelligence / Dossier (aufklappbar) — Substanz-Content, steht vor dem Pitch */}
-      <div className="mt-4 border-t border-border pt-3">
-        <button
-          type="button"
-          onClick={() => setDossierOpen((v) => !v)}
-          aria-expanded={dossierOpen}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:text-brand/80 transition-colors"
-        >
-          {dossierOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          <FileText className="h-3.5 w-3.5" />
-          Business Intelligence
-        </button>
-        {dossierOpen && (
-          <div className="mt-2 rounded-[10px] bg-muted/40 border border-border px-3 py-2.5">
-            {dossier ? (
-              <p className="text-[13px] text-foreground/90 whitespace-pre-wrap">{dossier}</p>
-            ) : (
-              <p className="text-[13px] text-muted-foreground italic">— kein Dossier —</p>
-            )}
+      {/* CTA / Spinner + Profil öffnen — am unteren Rand */}
+      <div className="mt-auto pt-4 space-y-2">
+        {state === "running" ? (
+          <div
+            className="flex items-center justify-center gap-2 rounded-[10px] py-2.5 text-[13px] font-semibold text-white"
+            style={{ background: "#14532d" }}
+          >
+            <Loader2 className="h-4 w-4 animate-spin" /> Recherche läuft…
           </div>
-        )}
-      </div>
+        ) : canDeepResearch ? (
+          <button
+            type="button"
+            onClick={startResearch}
+            className="flex w-full items-center justify-center gap-2 rounded-[10px] py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ background: "#14532d" }}
+          >
+            <Sparkles className="h-4 w-4" /> Deep Research
+          </button>
+        ) : null}
 
-      {/* Pitch-Anschreiben (aufklappbar) */}
-      <div className="mt-3 border-t border-border pt-3">
-        <button
-          type="button"
-          onClick={() => setPitchOpen((v) => !v)}
-          aria-expanded={pitchOpen}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:text-brand/80 transition-colors"
-        >
-          {pitchOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          Pitch-Anschreiben
-        </button>
-        {pitchOpen && (
-          <div className="mt-2 rounded-[10px] bg-muted/40 border border-border px-3 py-2.5">
-            {pitch ? (
-              <p className="text-[13px] text-foreground/90 whitespace-pre-wrap">{pitch}</p>
-            ) : (
-              <p className="text-[13px] text-muted-foreground italic">— kein Pitch —</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Action */}
-      <div className="mt-4 flex items-center gap-2">
         <button
           onClick={onOpen}
           className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand text-brand-foreground px-3 py-1.5 text-[13px] font-semibold hover:bg-brand/90 transition-colors"
         >
-          <Plus className="h-3.5 w-3.5" />
-          Profil öffnen
+          <Plus className="h-3.5 w-3.5" /> Profil öffnen
         </button>
       </div>
     </div>
