@@ -306,10 +306,11 @@ function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => voi
 
   const ar = safeParseAcademy(contact.academy_research);
   const matchPct = Math.round(contact.similarity * 100);
-  const fit = typeof ar?.fit_score === "number" ? Math.round(ar.fit_score) : null;
+  // fit_score kann als Number ODER numerischer String ("68") ankommen → robust casten.
+  const fit = ar ? Number(ar.fit_score) : NaN;
   const whyMatch = ar?.why_match?.trim() || null;
-  // CTA-Gate: Deep Research nur bei vorhandenem Dossier UND Fit >= 70.
-  const canDeepResearch = ar !== null && fit !== null && fit >= 70;
+  // CTA-Gate: NUR bei validem Fit-Score >= 70. NICHT gegen matchPct/similarity, NICHT nur ar !== null.
+  const showCta = Number.isFinite(fit) && fit >= 70;
 
   const fullName = `${contact.first_name} ${contact.last_name}`.trim();
   const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
@@ -322,7 +323,7 @@ function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => voi
   };
 
   // Done → volle Breite, Farb-Karte (Profil-Button lebt in AcademyFitCard).
-  if (state === "done" && ar && fit !== null) {
+  if (state === "done" && ar && Number.isFinite(fit)) {
     return (
       <div style={{ gridColumn: "1 / -1" }}>
         <AcademyFitCard
@@ -370,7 +371,7 @@ function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => voi
           >
             <Loader2 className="h-4 w-4 animate-spin" /> Recherche läuft…
           </div>
-        ) : canDeepResearch ? (
+        ) : showCta ? (
           <button
             type="button"
             onClick={startResearch}
