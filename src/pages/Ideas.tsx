@@ -1,14 +1,20 @@
 // ⚠️ CLAUDE CODE ONLY — Lovable darf diese Datei nicht editieren
 // Edge Function: supabase/functions/match-ideas — match_contacts RPC via Gemini Embedding
 // Bei Lovable-Revert: git checkout main -- src/pages/Ideas.tsx
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Search, Plus, Info } from "lucide-react";
+import { Sparkles, Search, Plus, Info, FileUp, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const MAX_RESULTS = 15;
+// Zeichen-Cap für aus PDF extrahierten Text (hält das Embedding im sinnvollen Token-Rahmen).
+const PDF_TEXT_CAP = 4000;
+// pdf.js via CDN-ESM — keine zusätzliche Build-Abhängigkeit nötig.
+const PDFJS_VERSION = "4.7.76";
+const PDFJS_URL = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.mjs`;
+const PDFJS_WORKER_URL = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`;
 
 type ContactHit = {
   id: string;
@@ -17,12 +23,31 @@ type ContactHit = {
   job_title: string | null;
   company: string | null;
   notes: string | null;
+  pitch_text: string | null;
+  event_pitch_text: string | null;
+  research_dossier: string | null;
   werteraum_potential: boolean;
   plsc_kampagne: boolean;
   smm_2025: boolean;
   markenfestival: boolean;
   similarity: number;
 };
+
+async function extractPdfText(file: File): Promise<string> {
+  // Dynamischer Remote-Import — @vite-ignore, damit Vite die CDN-URL nicht zu bundeln versucht.
+  const pdfjs = await import(/* @vite-ignore */ PDFJS_URL);
+  pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+  const data = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data }).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map((it: { str?: string }) => it.str ?? "").join(" ") + "\n";
+    if (text.length >= PDF_TEXT_CAP) break;
+  }
+  return text.replace(/\s+/g, " ").trim().slice(0, PDF_TEXT_CAP);
+}
 
 export default function Ideas() {
   const navigate = useNavigate();
@@ -31,11 +56,16 @@ export default function Ideas() {
   const [hasSearched, setHasSearched] = useState(false);
   const [results, setResults] = useState<ContactHit[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfName, setPdfName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSearch = async () => {
+  // Bestehende Suchlogik — optional mit override-Text (PDF-Pfad umgeht den State-Closure-Delay).
+  const handleSearch = async (searchText?: string) => {
     setError(null);
-    if (!query.trim()) return;
-    if (query.trim().length < 3) {
+    const q = (searchText ?? query).trim();
+    if (!q) return;
+    if (q.length < 3) {
       setError("Bitte mindestens 3 Zeichen eingeben.");
       return;
     }
@@ -46,7 +76,7 @@ export default function Ideas() {
 
     const { data, error: fnError } = await supabase.functions.invoke("match-ideas", {
       body: {
-        query: query.trim(),
+        query: q,
         match_threshold: 0.65,
         match_count: MAX_RESULTS,
       },
@@ -61,6 +91,36 @@ export default function Ideas() {
 
     setResults((data?.results ?? []) as ContactHit[]);
     setLoading(false);
+  };
+
+  const handlePdf = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setError("Bitte eine PDF-Datei auswählen.");
+      return;
+    }
+    setPdfLoading(true);
+    setPdfName(file.name);
+    try {
+      const text = await extractPdfText(file);
+      if (text.length < 3) {
+        setError("Aus diesem PDF konnte kein Text extrahiert werden (evtl. gescanntes Bild).");
+        setPdfLoading(false);
+        return;
+      }
+      setQuery(text);
+      setPdfLoading(false);
+      // Bestehende match_contacts-Suche mit dem extrahierten Text auslösen.
+      await handleSearch(text);
+    } catch (e) {
+      console.error("pdf extract error:", e);
+      setError("PDF konnte nicht gelesen werden.");
+      setPdfLoading(false);
+    } finally {
+      // gleiche Datei erneut wählbar machen
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -94,18 +154,44 @@ export default function Ideas() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSearch();
           }}
-          maxLength={1000}
+          maxLength={PDF_TEXT_CAP}
           rows={4}
-          placeholder="Beschreibe deine Idee, dein Produkt oder dein Ziel..."
+          placeholder="Beschreibe deine Idee, dein Produkt oder dein Ziel — oder lade ein PDF hoch..."
           className="w-full rounded-[10px] border border-border bg-canvas px-4 py-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/40 resize-y"
         />
+
+        {/* PDF-Upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="hidden"
+          onChange={(e) => handlePdf(e.target.files?.[0])}
+        />
         <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-[12px] text-muted-foreground">
-            Tipp: Drücke <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[11px]">⌘/Ctrl + Enter</kbd>
-          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={pdfLoading || loading}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-[10px] border border-border bg-canvas px-3 py-2 text-[13px] font-medium text-foreground transition-colors",
+                "hover:border-brand hover:bg-brand/5 disabled:opacity-50 disabled:cursor-not-allowed",
+              )}
+            >
+              <FileUp className="h-4 w-4" />
+              {pdfLoading ? "PDF wird gelesen…" : "PDF hochladen"}
+            </button>
+            {pdfName && !pdfLoading && (
+              <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground truncate max-w-[200px]">
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{pdfName}</span>
+              </span>
+            )}
+          </div>
           <button
-            onClick={handleSearch}
-            disabled={loading || query.trim().length === 0}
+            onClick={() => handleSearch()}
+            disabled={loading || pdfLoading || query.trim().length === 0}
             className={cn(
               "inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2.5 text-[14px] font-semibold transition-all",
               "bg-brand text-brand-foreground border-2 border-gold hover:bg-brand/90 hover:shadow-md",
@@ -116,6 +202,9 @@ export default function Ideas() {
             {loading ? "Suche läuft…" : "Passende Kontakte finden"}
           </button>
         </div>
+        <p className="mt-2 text-[12px] text-muted-foreground">
+          Tipp: <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[11px]">⌘/Ctrl + Enter</kbd> zum Suchen · PDF wird clientseitig zu Text extrahiert und startet die Suche automatisch.
+        </p>
         {error && <p className="mt-3 text-[13px] text-destructive">{error}</p>}
       </section>
 
@@ -174,10 +263,12 @@ function MatchTile({
   contact: ContactHit;
   onOpen: () => void;
 }) {
+  const [pitchOpen, setPitchOpen] = useState(false);
   const fullName = `${contact.first_name} ${contact.last_name}`.trim();
   const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
   const note = snippet(contact.notes);
   const matchPct = Math.round(contact.similarity * 100);
+  const pitch = (contact.pitch_text ?? contact.event_pitch_text ?? "").trim();
 
   return (
     <div className="rounded-[12px] border border-border bg-card shadow-sm p-5 hover:border-brand transition-colors">
@@ -224,6 +315,28 @@ function MatchTile({
           )}
         </div>
       )}
+
+      {/* Pitch-Anschreiben (aufklappbar) */}
+      <div className="mt-4 border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => setPitchOpen((v) => !v)}
+          aria-expanded={pitchOpen}
+          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:text-brand/80 transition-colors"
+        >
+          {pitchOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          Pitch-Anschreiben
+        </button>
+        {pitchOpen && (
+          <div className="mt-2 rounded-[10px] bg-muted/40 border border-border px-3 py-2.5">
+            {pitch ? (
+              <p className="text-[13px] text-foreground/90 whitespace-pre-wrap">{pitch}</p>
+            ) : (
+              <p className="text-[13px] text-muted-foreground italic">— kein Pitch —</p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Action */}
       <div className="mt-4 flex items-center gap-2">
