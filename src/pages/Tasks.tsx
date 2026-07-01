@@ -14,21 +14,31 @@ import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ActivityDetailSheet, type ActivityDetail } from "@/components/tasks/ActivityDetailSheet";
 
-// Reine Activity-View — Quelle ist ausschliesslich deal_activities.
+// Unified-View — Quellen: deal_activities + tasks (Telegram-Intake).
 type UnifiedTodo = {
   id: string;
   title: string;
   due_date: string | null;
   owner_user_id: string | null;
-  type: string | null;         // activity_type
+  type: string | null;         // activity_type bzw. task_type
   status: string;
+  source: "activity" | "task"; // steuert Status-Vokabular (siehe DONE_STATUS)
   company: string | null;
   deal_id: string | null;
   deal_title: string | null;
   description: string | null;
   contact_id: string | null;
   created_by_user_id: string | null;
+  created_at: string | null;
 };
+
+// Status-Vokabular NICHT vermischen: deal_activities = open/completed/sent (done='completed'),
+// tasks = offen/in-bearbeitung/erledigt/blockiert (done='erledigt').
+const DONE_STATUS: Record<UnifiedTodo["source"], string> = {
+  activity: "completed",
+  task: "erledigt",
+};
+const isDoneItem = (t: UnifiedTodo) => t.status === DONE_STATUS[t.source];
 
 // Type-Icons 1:1 aus Activities.tsx — ersetzen das frühere Source-Badge.
 const ACTIVITY_ICONS: Record<string, any> = {
@@ -63,8 +73,6 @@ const TIME_FILTERS: { key: TimeFilter; label: string }[] = [
   { key: "week", label: "Diese Woche" },
 ];
 
-const isDone = (status: string) => status === "completed";
-
 export default function Tasks() {
   const isMobile = useIsMobile();
   const { data: users } = useUsers();
@@ -80,13 +88,13 @@ export default function Tasks() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [selectedActivity, setSelectedActivity] = useState<ActivityDetail | null>(null);
 
-  // Deal-Activities-Query — nur offene. deal_activities ist die EINZIGE Quelle.
+  // Deal-Activities-Query — nur offene.
   const { data: activitiesRaw } = useQuery({
     queryKey: ["open-activities"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("deal_activities")
-        .select("id, title, status, due_date, activity_type, owner_user_id, created_by_user_id, deal_id, description, contact_id, deal:deals(title, company:companies(name))")
+        .select("id, title, status, due_date, activity_type, owner_user_id, created_by_user_id, deal_id, description, contact_id, created_at, deal:deals(title, company:companies(name))")
         .is("deleted_at", null)
         .or("status.eq.open,status.is.null");
       if (error) throw error;
@@ -94,7 +102,25 @@ export default function Tasks() {
     },
   });
 
-  // deal_activities → UnifiedTodo
+  // Tasks-Query — Telegram-Intake u.a. tasks-Rows, nur NICHT-erledigte Top-Level-Tasks.
+  // "offen" = alles außer done: tasks-doneSlug = 'erledigt', also status != 'erledigt'
+  // (deckt offen/in-bearbeitung/blockiert ab). NICHT .eq('offen') — das verstecken würde.
+  // SESSION-Client (supabase, RLS-geschützt) — NICHT supabaseEIC. as-any-Cast wie PR #53,
+  // da die Lovable-generierte types.ts die tasks-Tabelle evtl. nicht kennt.
+  const { data: tasksRaw } = useQuery({
+    queryKey: ["open-tasks"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("tasks")
+        .select("id,title,status,due_date,task_type,assigned_user_id,created_by_user_id,project_id,deal_id,created_at")
+        .is("parent_task_id", null)
+        .neq("status", "erledigt");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // deal_activities + tasks → UnifiedTodo
   const unified: UnifiedTodo[] = useMemo(() => {
     const out: UnifiedTodo[] = [];
     (activitiesRaw ?? []).forEach((a) => {
@@ -106,23 +132,43 @@ export default function Tasks() {
         owner_user_id: a.owner_user_id ?? null,
         type: a.activity_type ?? null,
         status: a.status ?? "open",
+        source: "activity",
         company: deal?.company?.name ?? null,
         deal_id: a.deal_id ?? null,
         deal_title: deal?.title ?? null,
         description: a.description ?? null,
         contact_id: a.contact_id ?? null,
         created_by_user_id: a.created_by_user_id ?? null,
+        created_at: a.created_at ?? null,
       });
     });
-    // due_date ASC NULLS LAST
+    (tasksRaw ?? []).forEach((t) => {
+      out.push({
+        id: t.id,
+        title: t.title,
+        due_date: t.due_date ?? null,
+        owner_user_id: t.assigned_user_id ?? null,   // gleicher auth-Raum, kein ID-Mapping
+        type: t.task_type ?? null,
+        status: t.status ?? "offen",
+        source: "task",
+        company: null,
+        deal_id: t.deal_id ?? null,
+        deal_title: null,
+        description: null,
+        contact_id: null,
+        created_by_user_id: t.created_by_user_id ?? null,
+        created_at: t.created_at ?? null,
+      });
+    });
+    // due_date ASC NULLS LAST, dann created_at DESC als stabiler Tiebreak
     out.sort((a, b) => {
       if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
       if (a.due_date) return -1;
       if (b.due_date) return 1;
-      return 0;
+      return (b.created_at ?? "").localeCompare(a.created_at ?? "");
     });
     return out;
-  }, [activitiesRaw]);
+  }, [activitiesRaw, tasksRaw]);
 
   // Distinct Aufgabenarten (aus activity_type)
   const distinctTypes = useMemo(() => {
@@ -141,7 +187,7 @@ export default function Tasks() {
       if (timeFilter !== "all") {
         const due = u.due_date ? parseISO(u.due_date) : null;
         if (timeFilter === "today" && (!due || !isToday(due))) return false;
-        if (timeFilter === "overdue" && (!due || !isPast(due) || isToday(due) || isDone(u.status))) return false;
+        if (timeFilter === "overdue" && (!due || !isPast(due) || isToday(due) || isDoneItem(u))) return false;
         if (timeFilter === "week" && (!due || !isThisWeek(due, { locale: de }))) return false;
       }
       return true;
@@ -149,9 +195,9 @@ export default function Tasks() {
   }, [unified, filterUser, filterType, timeFilter]);
 
   const today = startOfDay(new Date());
-  const dueState = (due: string | null, status: string): "overdue" | "today" | "future" | "none" => {
+  const dueState = (due: string | null, done: boolean): "overdue" | "today" | "future" | "none" => {
     if (!due) return "none";
-    if (isDone(status)) return "future";
+    if (done) return "future";
     const d = new Date(due);
     if (isBefore(d, today)) return "overdue";
     if (isSameDay(d, today)) return "today";
@@ -175,16 +221,20 @@ export default function Tasks() {
     return <I className={cn("h-4 w-4 shrink-0", ACTIVITY_COLORS[type ?? ""] || "text-muted-foreground")} />;
   };
 
-  // Kompaktes Status-Pill (text-xs): completed = grün, sonst gedämpft.
-  const statusLabel: Record<string, string> = { open: "Offen", completed: "Erledigt", sent: "Gesendet" };
-  const renderStatus = (status: string) => (
+  // Kompaktes Status-Pill (text-xs): done = grün, sonst gedämpft.
+  // Labels für beide Vokabulare (deal_activities + tasks).
+  const statusLabel: Record<string, string> = {
+    open: "Offen", completed: "Erledigt", sent: "Gesendet",
+    offen: "Offen", "in-bearbeitung": "In Bearbeitung", erledigt: "Erledigt", blockiert: "Blockiert",
+  };
+  const renderStatus = (item: UnifiedTodo) => (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-        isDone(status) ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground",
+        isDoneItem(item) ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground",
       )}
     >
-      {statusLabel[status] ?? status}
+      {statusLabel[item.status] ?? item.status}
     </span>
   );
 
@@ -249,7 +299,7 @@ export default function Tasks() {
             <p className="text-center text-muted-foreground py-8">Keine Einträge gefunden.</p>
           ) : filtered.map((item) => {
             const owner = users?.find((u) => u.id === item.owner_user_id) ?? null;
-            const ds = dueState(item.due_date, item.status);
+            const ds = dueState(item.due_date, isDoneItem(item));
             const subtitle = item.company ?? item.deal_title ?? undefined;
             return (
               <MobileCard
@@ -257,7 +307,7 @@ export default function Tasks() {
                 onClick={() => handleRowClick(item)}
                 title={item.title}
                 subtitle={subtitle}
-                className={cn(isDone(item.status) && "opacity-50", ds === "overdue" && "border-destructive/30", ds === "today" && "border-warning/40")}
+                className={cn(isDoneItem(item) && "opacity-50", ds === "overdue" && "border-destructive/30", ds === "today" && "border-warning/40")}
                 badge={typeIcon(item.type)}
                 rightContent={
                   <div className="flex flex-col items-end gap-1 shrink-0">
@@ -293,16 +343,16 @@ export default function Tasks() {
                 <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Keine Einträge gefunden.</TableCell></TableRow>
               ) : filtered.map((item) => {
                 const owner = users?.find((u) => u.id === item.owner_user_id) ?? null;
-                const ds = dueState(item.due_date, item.status);
+                const ds = dueState(item.due_date, isDoneItem(item));
                 return (
                   <TableRow
                     key={item.id}
-                    className={cn("cursor-pointer", rowBg[ds], isDone(item.status) && "opacity-50")}
+                    className={cn("cursor-pointer", rowBg[ds], isDoneItem(item) && "opacity-50")}
                     onClick={() => handleRowClick(item)}
                   >
                     {/* Icon-Spalte — schmal, reines Icon mit Typ-Farbe */}
                     <TableCell className="w-8 py-2 px-2 align-middle">{typeIcon(item.type)}</TableCell>
-                    <TableCell className={cn("py-2 text-sm font-medium", isDone(item.status) && "line-through")}>
+                    <TableCell className={cn("py-2 text-sm font-medium", isDoneItem(item) && "line-through")}>
                       <span className="block truncate max-w-[280px]">{item.title}</span>
                     </TableCell>
                     <TableCell className="py-2">
@@ -324,7 +374,7 @@ export default function Tasks() {
                     </TableCell>
                     <TableCell className="py-2 text-sm text-muted-foreground">{item.type ?? "–"}</TableCell>
                     <TableCell className="py-2 text-sm">{owner ? `${owner.first_name ?? ""} ${owner.last_name ?? ""}`.trim() : "–"}</TableCell>
-                    <TableCell className="py-2">{renderStatus(item.status)}</TableCell>
+                    <TableCell className="py-2">{renderStatus(item)}</TableCell>
                   </TableRow>
                 );
               })}
