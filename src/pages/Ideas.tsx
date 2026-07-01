@@ -309,8 +309,9 @@ function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => voi
   // fit_score kann als Number ODER numerischer String ("68") ankommen → robust casten.
   const fit = ar ? Number(ar.fit_score) : NaN;
   const whyMatch = ar?.why_match?.trim() || null;
-  // CTA-Gate: NUR bei validem Fit-Score >= 70. NICHT gegen matchPct/similarity, NICHT nur ar !== null.
-  const showCta = Number.isFinite(fit) && fit >= 70;
+  // CTA zeigen, sobald academy_research vorhanden ist — unabhängig vom fit_score.
+  // Treffer ganz ohne ar bekommen weiterhin keinen CTA.
+  const showCta = ar !== null;
 
   const fullName = `${contact.first_name} ${contact.last_name}`.trim();
   const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
@@ -318,8 +319,8 @@ function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => voi
   const startResearch = () => {
     if (state !== "idle") return;
     setState("running");
-    // Leicht randomisierte Laufzeit (28–34s), damit es nicht wie ein fixer Timer wirkt.
-    timer.current = window.setTimeout(() => setState("done"), 28000 + Math.random() * 6000);
+    // Leicht randomisierte Laufzeit (14–17s), damit es nicht wie ein fixer Timer wirkt.
+    timer.current = window.setTimeout(() => setState("done"), 14000 + Math.random() * 3000);
   };
 
   // Done → volle Breite, Farb-Karte (Profil-Button lebt in AcademyFitCard).

@@ -1,7 +1,7 @@
 // Farb-Karte für das Deep-Research-Ergebnis eines /ideen-Treffers.
 // Konsumiert das geparste academy_research-Objekt (siehe safeParseAcademy in Ideas.tsx).
 import type { ComponentType } from "react";
-import { TrendingUp, User, Building2, Megaphone, Target, MessageSquare, Check, Plus } from "lucide-react";
+import { TrendingUp, TrendingDown, User, Building2, Megaphone, Target, MessageSquare, Check, Plus } from "lucide-react";
 
 export type AcademyResearch = {
   fit_score?: number;
@@ -85,11 +85,17 @@ export default function AcademyFitCard({
   jobTitle: string | null;
   onOpen: () => void;
 }) {
-  // Farb-Band nach Fit-Score.
-  const strong = fit >= 80;
-  const ring = strong ? "#639922" : "#EF9F27";
-  const track = strong ? "#EAF3DE" : "#FAEEDA";
-  const num = strong ? "#27500A" : "#854F0B";
+  // Farb-Band nach Fit-Score: >=80 grün, 70–79 orange, <70 grau/gedämpft.
+  let ring: string, track: string, num: string;
+  if (fit >= 80) {
+    ring = "#639922"; track = "#EAF3DE"; num = "#27500A";
+  } else if (fit >= 70) {
+    ring = "#EF9F27"; track = "#FAEEDA"; num = "#854F0B";
+  } else {
+    ring = "#94A3B8"; track = "#E2E8F0"; num = "#475569";
+  }
+  // Delta-Chip richtungsabhängig & ehrlich: hoch = grün/TrendingUp, sonst neutral-grau/TrendingDown.
+  const up = fit >= matchPct;
   const sub = [company, jobTitle].filter(Boolean).join(" · ");
 
   return (
@@ -102,9 +108,9 @@ export default function AcademyFitCard({
             <span className="truncate text-[17px] font-semibold text-foreground">{name}</span>
             <span
               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums"
-              style={{ color: "#27500A", background: "#EAF3DE" }}
+              style={up ? { color: "#27500A", background: "#EAF3DE" } : { color: "#475569", background: "#E2E8F0" }}
             >
-              <TrendingUp className="h-3 w-3" /> {matchPct}% → {fit}%
+              {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />} {matchPct}% → {fit}%
             </span>
           </div>
           {sub && <p className="truncate text-[12.5px] text-muted-foreground">{sub}</p>}
