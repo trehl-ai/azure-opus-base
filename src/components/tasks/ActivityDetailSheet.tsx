@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +50,7 @@ export type ActivityDetail = {
   contact_id: string | null;
   status: string;
   created_by_user_id: string | null;
+  source?: "activity" | "task";
 };
 
 interface Props {
@@ -123,6 +124,60 @@ export function ActivityDetailSheet({ activity, open, onOpenChange }: Props) {
     },
   });
 
+  // Task-Panel (source:"task"): Kontakt/Firma NUR aus description/title geparst und
+  // direkt gesucht — verknüpfungs-UNABHÄNGIG. company_contacts wird bewusst NICHT
+  // genutzt (Flow 1 legt die Verknüpfung bei neuen Karten nicht an → wäre demo-unsicher).
+  const isTask = activity?.source === "task";
+  const parsed = useMemo(() => {
+    const desc = activity?.description ?? "";
+    const email = desc.match(/Email:\s*([^\s|]+@[^\s|]+)/i)?.[1]?.trim() ?? null;
+    const company = desc.match(/Firma:\s*(.+?)\s*(?:\||\n|$)/i)?.[1]?.trim() ?? null;
+    // Titel-Fallback: "…ergänzen: <Vor Nach>"
+    const name = activity?.title?.match(/ergänzen:\s*(.+)$/i)?.[1]?.trim() ?? null;
+    return { email, company, name };
+  }, [activity?.description, activity?.title]);
+
+  const { data: taskLinks } = useQuery({
+    queryKey: ["task-links", activity?.id, parsed.email, parsed.company, parsed.name],
+    enabled: !!activity && open && isTask,
+    queryFn: async () => {
+      // KONTAKT: exakte Email (Prio 1), sonst Titel-Name per ILIKE (Prio 2). Soft-delete-aware.
+      let contact: { id: string; first_name: string | null; last_name: string | null } | null = null;
+      if (parsed.email) {
+        const { data } = await supabase
+          .from("contacts")
+          .select("id, first_name, last_name")
+          .eq("email", parsed.email)
+          .is("deleted_at", null)
+          .limit(1);
+        contact = (data?.[0] as typeof contact) ?? null;
+      }
+      if (!contact && parsed.name) {
+        const [first, ...rest] = parsed.name.split(/\s+/);
+        const last = rest.join(" ");
+        let q = supabase.from("contacts").select("id, first_name, last_name").is("deleted_at", null);
+        if (first) q = q.ilike("first_name", `%${first}%`);
+        if (last) q = q.ilike("last_name", `%${last}%`);
+        const { data } = await q.limit(1);
+        contact = (data?.[0] as typeof contact) ?? null;
+      }
+      // FIRMA: "Firma: <name>" direkt gegen companies (ILIKE, soft-delete-aware).
+      let company: { id: string; name: string } | null = null;
+      if (parsed.company) {
+        const { data } = await supabase
+          .from("companies")
+          .select("id, name")
+          .ilike("name", parsed.company)
+          .is("deleted_at", null)
+          .limit(1);
+        company = (data?.[0] as typeof company) ?? null;
+      }
+      return { contact, company };
+    },
+  });
+
+  const goTo = (path: string) => { onOpenChange(false); navigate(path); };
+
   const type = activity?.type ?? "";
   const Icon = ACTIVITY_ICONS[type] || MessageSquare;
   const iconColor = ACTIVITY_COLORS[type] || "text-gray-400";
@@ -154,6 +209,39 @@ export function ActivityDetailSheet({ activity, open, onOpenChange }: Props) {
             <>
               {/* Scrollbarer Body: Kontakt → Notiz → Fällig → Deal-Link */}
               <div className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1">
+                {/* Task-Verknüpfungen (nur source:"task") — description-basiert, nie ins Leere */}
+                {isTask && (parsed.name || parsed.email || parsed.company) && (
+                  <div className="rounded-md border p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Verknüpfungen</p>
+                    {/* Kontakt: Treffer → Link, sonst grauer "Erkannt"-Text */}
+                    {taskLinks?.contact ? (
+                      <button
+                        type="button"
+                        onClick={() => goTo(`/contacts/${taskLinks.contact!.id}`)}
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        → Kontakt: {`${taskLinks.contact.first_name ?? ""} ${taskLinks.contact.last_name ?? ""}`.trim()}
+                      </button>
+                    ) : (parsed.name || parsed.email) ? (
+                      <p className="text-sm text-muted-foreground">Erkannt: {parsed.name ?? parsed.email}</p>
+                    ) : null}
+                    {/* Firma: Treffer → Link, sonst grauer "Erkannt"-Text */}
+                    {taskLinks?.company ? (
+                      <button
+                        type="button"
+                        onClick={() => goTo(`/companies/${taskLinks.company!.id}`)}
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        → Firma: {taskLinks.company.name}
+                      </button>
+                    ) : parsed.company ? (
+                      <p className="text-sm text-muted-foreground">Erkannt: {parsed.company}</p>
+                    ) : null}
+                  </div>
+                )}
+
                 {/* Kontakt */}
                 {contact && (
                   <div className="rounded-md border p-3 space-y-1">
