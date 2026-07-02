@@ -3,7 +3,7 @@
 ## Stack
 - Frontend: React + TypeScript (Lovable Pro)
 - Backend: Supabase ttgvhqygmgtnjgwunuwz (Frankfurt eu-central-1)
-- URL: https://crm.ts-connect.cloud
+- URL: https://ts-connect.cloud  (Prod-Domain; NICHT crm.ts-connect.cloud — das ist ein separates Vercel-Projekt: stellar-react-stack / "TomI CRM")
 - Repo: trehl-ai/azure-opus-base
 
 ## Supabase Tabellen
@@ -13,7 +13,7 @@ webhook_log, intake_messages
 
 ## Auth
 Email Magic Link + Google OAuth
-site_url: https://crm.ts-connect.cloud
+site_url: https://ts-connect.cloud
 
 ## Modulare Architektur — Core-Schema (Phase 2, ab #159)
 Verbindlicher Bauplan: `docs/ARCHITECTURE.md` + `docs/MODULE_GUIDE.md`. Modularer Monolith, eine DB (ttgv), Einbahn-Abhängigkeit **Core ⟵ Module** (Core kennt kein Modul). CI erzwingt die Grenzen: `typecheck` (required), `drift-check`, POLICY-LINT, CONTRACT-LINT.
