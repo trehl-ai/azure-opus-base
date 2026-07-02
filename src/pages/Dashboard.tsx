@@ -99,10 +99,10 @@ const LEAD_TIER_STYLES: Record<
 };
 
 type TopLead = {
-  first_name: string | null;
-  last_name: string | null;
-  company: string | null;
-  job_title: string | null;
+  contact_id: string;
+  name: string | null;
+  unternehmen: string | null;
+  position: string | null;
   lead_score: number | null;
 };
 
@@ -123,14 +123,11 @@ export default function Dashboard() {
   const { data: topLeads, isLoading: topLeadsLoading } = useQuery<TopLead[]>({
     queryKey: ["dashboard_top_leads"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("first_name, last_name, company, job_title, lead_score")
-        .eq("source", "ssteo_import")
-        .order("lead_score", { ascending: false })
-        .limit(10);
+      // Gemergte Quelle: companies via company_contacts statt contacts.company-Freitext.
+      // as-any-Cast: generierte types.ts kennt diese neue RPC (noch) nicht.
+      const { data, error } = await (supabase as any).rpc("get_top_leads", { p_limit: 10 });
       if (error) throw error;
-      return (data ?? []) as unknown as TopLead[];
+      return (data ?? []) as TopLead[];
     },
     staleTime: 60_000,
   });
@@ -360,7 +357,7 @@ export default function Dashboard() {
             Top 10 Leads
           </h2>
           <p className="text-[12px] text-muted-foreground mt-0.5">
-            Aus ssteo_import — sortiert nach Lead Score
+            Sortiert nach Lead Score
           </p>
         </div>
         {topLeadsLoading ? (
@@ -387,15 +384,13 @@ export default function Dashboard() {
               {topLeads.map((lead, i) => {
                 const tier = getLeadScoreTier(lead.lead_score);
                 const styles = LEAD_TIER_STYLES[tier];
-                const fullName =
-                  [lead.first_name, lead.last_name].filter(Boolean).join(" ") ||
-                  "—";
+                const fullName = (lead.name ?? "").trim() || "—";
                 return (
-                  <TableRow key={`${fullName}-${i}`}>
+                  <TableRow key={lead.contact_id ?? `${fullName}-${i}`}>
                     <TableCell className="font-medium">{fullName}</TableCell>
-                    <TableCell>{lead.company ?? "—"}</TableCell>
+                    <TableCell>{lead.unternehmen ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {lead.job_title ?? "—"}
+                      {lead.position ?? "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       <span
