@@ -118,7 +118,7 @@ const App = () => (
               <Route path="/projects" element={<P><Projects /></P>} />
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
-              <Route path="/ideas" element={<P><Ideas /></P>} />
+              <Route path="/ideas" element={<P requiredRoles={["admin", "management", "projektmanager"]}><Ideas /></P>} />
               <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
               <Route path="/compose" element={<P><Compose /></P>} />
               <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
