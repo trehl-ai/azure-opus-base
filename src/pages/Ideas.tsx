@@ -69,6 +69,8 @@ export default function Ideas() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [results, setResults] = useState<ContactHit[]>([]);
+  // Bulk academy_intel-Status pro Treffer (contact.id → status/fit_score), aus ttgv nachgeladen.
+  const [intelStatus, setIntelStatus] = useState<Record<string, { status: string; fit_score: number | null }>>({});
   const [error, setError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfName, setPdfName] = useState<string | null>(null);
@@ -87,6 +89,7 @@ export default function Ideas() {
     setLoading(true);
     setHasSearched(true);
     setResults([]);
+    setIntelStatus({});
 
     const { data, error: fnError } = await supabase.functions.invoke("match-ideas", {
       body: {
@@ -104,6 +107,24 @@ export default function Ideas() {
     }
 
     setResults((data?.results ?? []) as ContactHit[]);
+
+    // Bulk-Status für alle Treffer aus academy_intel (ttgv) holen.
+    const contactIds = (data?.results ?? []).map((r: ContactHit) => r.id);
+    if (contactIds.length > 0) {
+      // (supabase as any).rpc: generierte types.ts kennt diese ttgv-RPC (noch) nicht.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: statusRows, error: statusError } = await (supabase as any).rpc(
+        "get_academy_intel_status_bulk",
+        { p_contact_ids: contactIds },
+      );
+      if (!statusError) {
+        const map: Record<string, { status: string; fit_score: number | null }> = {};
+        (statusRows ?? []).forEach((row: { contact_id: string; status: string; fit_score: number | null }) => {
+          map[row.contact_id] = { status: row.status, fit_score: row.fit_score };
+        });
+        setIntelStatus(map);
+      }
+    }
     setLoading(false);
   };
 
@@ -249,7 +270,7 @@ export default function Ideas() {
               style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}
             >
               {results.map((c) => (
-                <MatchCard key={c.id} contact={c} onOpen={() => navigate(`/contacts/${c.id}`)} />
+                <MatchCard key={c.id} contact={c} onOpen={() => navigate(`/contacts/${c.id}`)} intelStatus={intelStatus[c.id]} />
               ))}
             </div>
             <p className="text-[12px] text-muted-foreground italic pt-2">
@@ -298,33 +319,68 @@ function MatchRing({ pct }: { pct: number }) {
   );
 }
 
-function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => void }) {
-  // Zustand pro Karte — kein localStorage, reiner In-Memory-State.
-  const [state, setState] = useState<"idle" | "running" | "done">("idle");
-  const timer = useRef<number | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+type CardIntelState = "idle" | "loading" | "done" | "blocked" | "error";
 
-  const ar = safeParseAcademy(contact.academy_research);
+function MatchCard({
+  contact,
+  onOpen,
+  intelStatus,
+}: {
+  contact: ContactHit;
+  onOpen: () => void;
+  intelStatus?: { status: string; fit_score: number | null };
+}) {
+  // Live academy_intel-Flow (kein localStorage, reiner In-Memory-State).
+  const [cardState, setCardState] = useState<CardIntelState>(
+    intelStatus?.status === "entity_gate_blocked" ? "blocked" : "idle",
+  );
+  const [ar, setAr] = useState<AcademyResearch | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const matchPct = Math.round(contact.similarity * 100);
-  // fit_score kann als Number ODER numerischer String ("68") ankommen → robust casten.
   const fit = ar ? Number(ar.fit_score) : NaN;
-  const whyMatch = ar?.why_match?.trim() || null;
-  // CTA zeigen, sobald academy_research vorhanden ist — unabhängig vom fit_score.
-  // Treffer ganz ohne ar bekommen weiterhin keinen CTA.
-  const showCta = ar !== null;
-
   const fullName = `${contact.first_name} ${contact.last_name}`.trim();
   const subtitle = [contact.job_title, contact.company].filter(Boolean).join(" · ");
 
-  const startResearch = () => {
-    if (state !== "idle") return;
-    setState("running");
-    // Leicht randomisierte Laufzeit (14–17s), damit es nicht wie ein fixer Timer wirkt.
-    timer.current = window.setTimeout(() => setState("done"), 14000 + Math.random() * 3000);
-  };
+  async function startResearch() {
+    setCardState("loading");
+    setErrorMsg(null);
+    try {
+      if (intelStatus?.status === "generated") {
+        // Bereits generiert → Cache-Kontext laden statt neu zu triggern.
+        // (supabase as any).rpc: generierte types.ts kennt diese ttgv-RPC (noch) nicht.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any).rpc(
+          "get_academy_intel_context",
+          { p_contact_id: contact.id },
+        );
+        if (error) throw error;
+        setAr((data?.cached_intel ?? null) as AcademyResearch | null);
+        setCardState("done");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("academy-intel-trigger", {
+        body: { contact_id: contact.id },
+      });
+      if (error) throw error;
+      if (data?.status === "generated") {
+        setAr((data.intel ?? null) as AcademyResearch | null);
+        setCardState("done");
+      } else if (data?.status === "entity_gate_blocked") {
+        setErrorMsg(data.message ?? "Nicht verfügbar — Recherche nicht domain-verifizierbar.");
+        setCardState("blocked");
+      } else {
+        setErrorMsg("Unerwarteter Fehler bei der Generierung.");
+        setCardState("error");
+      }
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Netzwerkfehler.");
+      setCardState("error");
+    }
+  }
 
-  // Done → volle Breite, Farb-Karte (Profil-Button lebt in AcademyFitCard).
-  if (state === "done" && ar && Number.isFinite(fit)) {
+  // Done → volle Breite, Farb-Karte (Profil-Button lebt in AcademyFitCard). Nutzt den ar-State.
+  if (cardState === "done" && ar && Number.isFinite(fit)) {
     return (
       <div style={{ gridColumn: "1 / -1" }}>
         <AcademyFitCard
@@ -340,10 +396,12 @@ function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => voi
     );
   }
 
+  const idleLabel = intelStatus?.status === "generated" ? "Ansehen" : "Academy-Fit recherchieren";
+
   return (
     <div
-      // 'running' bekommt ebenfalls volle Breite, damit der Reflow schon vor der Farb-Karte passiert.
-      style={state === "running" ? { gridColumn: "1 / -1" } : undefined}
+      // 'loading' bekommt volle Breite, damit der Reflow schon vor der Farb-Karte passiert.
+      style={cardState === "loading" ? { gridColumn: "1 / -1" } : undefined}
       className="flex flex-col rounded-xl border border-border bg-card shadow-sm p-4 hover:border-brand transition-colors"
     >
       {/* Kopf-Row: Name/Meta links, Match-Ring rechts */}
@@ -355,33 +413,47 @@ function MatchCard({ contact, onOpen }: { contact: ContactHit; onOpen: () => voi
         <MatchRing pct={matchPct} />
       </div>
 
-      {/* Warum-Zeile (nur wenn vorhanden) */}
-      {whyMatch && (
-        <div className="mt-3 flex items-start gap-1.5">
-          <Lightbulb className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "#185FA5" }} />
-          <p className="text-[12.5px] text-muted-foreground">{whyMatch}</p>
-        </div>
-      )}
-
-      {/* CTA / Spinner + Profil öffnen — am unteren Rand */}
+      {/* CTA + Profil öffnen — am unteren Rand */}
       <div className="mt-auto pt-4 space-y-2">
-        {state === "running" ? (
-          <div
-            className="flex items-center justify-center gap-2 rounded-[10px] py-2.5 text-[13px] font-semibold text-white"
+        {/* error → Fehlermeldung klein/rot ÜBER dem Button */}
+        {cardState === "error" && errorMsg && (
+          <p className="text-[12px]" style={{ color: "#b91c1c" }}>{errorMsg}</p>
+        )}
+
+        {cardState === "loading" ? (
+          <button
+            type="button"
+            disabled
+            className="flex w-full items-center justify-center gap-2 rounded-[10px] py-2.5 text-[13px] font-semibold text-white opacity-80 cursor-not-allowed"
             style={{ background: "#14532d" }}
           >
-            <Loader2 className="h-4 w-4 animate-spin" /> Recherche läuft…
-          </div>
-        ) : showCta ? (
+            <Loader2 className="h-4 w-4 animate-spin" /> Recherche läuft (~15s)…
+          </button>
+        ) : cardState === "blocked" ? (
+          <button
+            type="button"
+            disabled
+            className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-muted py-2.5 text-[13px] font-semibold text-muted-foreground cursor-not-allowed"
+          >
+            Nicht verfügbar
+          </button>
+        ) : (
           <button
             type="button"
             onClick={startResearch}
             className="flex w-full items-center justify-center gap-2 rounded-[10px] py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
             style={{ background: "#14532d" }}
           >
-            <Sparkles className="h-4 w-4" /> Deep Research
+            <Sparkles className="h-4 w-4" /> {cardState === "error" ? "Erneut versuchen" : idleLabel}
           </button>
-        ) : null}
+        )}
+
+        {/* blocked → Grund klein/grau UNTER dem Button */}
+        {cardState === "blocked" && (
+          <p className="text-[12px] text-muted-foreground">
+            {errorMsg ?? "Recherche nicht domain-verifizierbar."}
+          </p>
+        )}
 
         <button
           onClick={onOpen}

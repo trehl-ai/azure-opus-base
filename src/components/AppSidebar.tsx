@@ -42,7 +42,7 @@ const navSections = [
     items: [
       { label: "Projects", icon: FolderKanban, path: "/projects", module: "projects" },
       { label: "Tasks", icon: CheckSquare, path: "/tasks", module: "tasks" },
-      { label: "💡 Ideen", icon: Lightbulb, path: "/ideas", module: "contacts" },
+      { label: "💡 Ideen", icon: Lightbulb, path: "/ideas", module: "ideas" },
     ],
   },
   {
