@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import TopKundenChart from "@/components/TopKundenChart";
+import WerteraumBundeslandKachel from "@/components/WerteraumBundeslandKachel";
 import {
   Table,
   TableBody,
@@ -420,6 +421,9 @@ export default function Dashboard() {
 
       {/* Block 5 — WerteRaum Funnel */}
       <WerteraumFunnel steps={funnel} />
+
+      {/* Block 6 — WerteRaum Schulen je Bundesland (eigener Block, nicht im Funnel) */}
+      <WerteraumBundeslandKachel />
     </div>
   );
 }
