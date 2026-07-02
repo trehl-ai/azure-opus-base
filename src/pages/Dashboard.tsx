@@ -27,6 +27,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import TopKundenChart from "@/components/TopKundenChart";
 import {
   Table,
   TableBody,
@@ -214,6 +215,9 @@ export default function Dashboard() {
           onClick={() => navigate("/contacts")}
         />
       </section>
+
+      {/* Block 1a — Top Kunden nach gewonnenem Umsatz (volle Breite, direkt unter KPI-Grid) */}
+      <TopKundenChart />
 
       {/* Block 1b — Maschinen-Banner */}
       <MachineBanner stats={machine} />
