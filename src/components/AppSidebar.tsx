@@ -17,6 +17,7 @@ import {
   Lightbulb,
   Shield,
   Megaphone,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -43,6 +44,7 @@ const navSections = [
       { label: "Projects", icon: FolderKanban, path: "/projects", module: "projects" },
       { label: "Tasks", icon: CheckSquare, path: "/tasks", module: "tasks" },
       { label: "💡 Ideen", icon: Lightbulb, path: "/ideas", module: "ideas" },
+      { label: "🎯 Sponsoring", icon: Target, path: "/sponsoring", module: "sponsoring" },
     ],
   },
   {

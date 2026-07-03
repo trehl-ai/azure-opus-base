@@ -28,6 +28,7 @@ import SettingsPage from "./pages/Settings.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import AuthCallback from "./pages/AuthCallback.tsx";
 import Ideas from "./pages/Ideas.tsx";
+import Sponsoring from "./pages/Sponsoring.tsx";
 import OutlookAdminConsent from "./pages/settings/OutlookAdminConsent.tsx";
 import Dsgvo from "./pages/Dsgvo.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -119,6 +120,7 @@ const App = () => (
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
               <Route path="/ideas" element={<P requiredRoles={["admin", "management", "projektmanager"]}><Ideas /></P>} />
+              <Route path="/sponsoring" element={<P requiredRoles={["admin", "management", "projektmanager"]}><Sponsoring /></P>} />
               <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
               <Route path="/compose" element={<P><Compose /></P>} />
               <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />

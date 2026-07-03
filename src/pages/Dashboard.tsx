@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { getLeadScoreTier, LEAD_TIER_STYLES } from "@/lib/leadScore";
 import { Skeleton } from "@/components/ui/skeleton";
 import TopKundenChart from "@/components/TopKundenChart";
 import WerteraumBundeslandKachel from "@/components/WerteraumBundeslandKachel";
@@ -78,26 +79,6 @@ function getGreeting(d = new Date()) {
   return "Guten Abend";
 }
 
-type LeadScoreTier = "hot" | "warm" | "medium" | "cold";
-
-function getLeadScoreTier(score: number | null | undefined): LeadScoreTier {
-  if (score == null) return "cold";
-  if (score >= 80) return "hot";
-  if (score >= 60) return "warm";
-  if (score >= 40) return "medium";
-  return "cold";
-}
-
-const LEAD_TIER_STYLES: Record<
-  LeadScoreTier,
-  { label: string; bg: string; text: string }
-> = {
-  hot: { label: "HOT", bg: "bg-[#ef4444]", text: "text-white" },
-  warm: { label: "WARM", bg: "bg-[#f97316]", text: "text-white" },
-  medium: { label: "MEDIUM", bg: "bg-[#eab308]", text: "text-black" },
-  cold: { label: "COLD", bg: "bg-[#94a3b8]", text: "text-white" },
-};
-
 type TopLead = {
   contact_id: string;
   name: string | null;
@@ -125,6 +106,7 @@ export default function Dashboard() {
     queryFn: async () => {
       // Gemergte Quelle: companies via company_contacts statt contacts.company-Freitext.
       // as-any-Cast: generierte types.ts kennt diese neue RPC (noch) nicht.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any).rpc("get_top_leads", { p_limit: 10 });
       if (error) throw error;
       return (data ?? []) as TopLead[];
