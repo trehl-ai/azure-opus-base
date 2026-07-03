@@ -25,6 +25,7 @@ const permissionMatrix: Record<string, Record<Action, Role[]>> = {
   projects:         { read: ["admin", "sales", "projektmanager", "management", "read_only"], write: ["admin", "management", "projektmanager", "sales"] },
   tasks:            { read: ["admin", "sales", "projektmanager", "management", "read_only"], write: ["admin", "management"] },
   ideas:            { read: ["admin", "management", "projektmanager"],                        write: ["admin", "management", "projektmanager"] },
+  sponsoring:       { read: ["admin", "management", "projektmanager"],                        write: ["admin", "management", "projektmanager"] },
   csv_import:       { read: ["admin", "sales"],                                              write: ["admin", "sales"] },
   email_intake:     { read: ["admin", "sales"],                                              write: ["admin", "sales"] },
   settings:         { read: ["admin"],                                                       write: ["admin"] },
