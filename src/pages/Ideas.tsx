@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles, Search, Plus, Info, FileUp, FileText, Lightbulb, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import AcademyFitCard, { type AcademyResearch } from "@/components/AcademyFitCard";
 
@@ -75,6 +76,28 @@ export default function Ideas() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfName, setPdfName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Multi-Concept: verfügbare Konzepte + aktuelle Auswahl (Default academy-of-stars, rückwärtskompat).
+  const [concepts, setConcepts] = useState<{ slug: string; title: string }[]>([]);
+  const [selectedSlug, setSelectedSlug] = useState<string>("academy-of-stars");
+
+  // Concepts beim Mount laden (ttgv concepts-Tabelle; nicht in generierter types.ts → (supabase as any)).
+  useEffect(() => {
+    (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("concepts")
+        .select("slug,title")
+        .eq("is_active", true)
+        .order("title");
+      if (!error && Array.isArray(data)) {
+        setConcepts(data);
+        // Falls academy-of-stars nicht existiert, ersten Eintrag wählen.
+        if (data.length > 0 && !data.some((c: { slug: string }) => c.slug === "academy-of-stars")) {
+          setSelectedSlug(data[0].slug);
+        }
+      }
+    })();
+  }, []);
 
   // Bestehende Suchlogik — optional mit override-Text (PDF-Pfad umgeht den State-Closure-Delay).
   const handleSearch = async (searchText?: string) => {
@@ -115,7 +138,7 @@ export default function Ideas() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: statusRows, error: statusError } = await (supabase as any).rpc(
         "get_academy_intel_status_bulk",
-        { p_contact_ids: contactIds },
+        { p_contact_ids: contactIds, p_concept_slug: selectedSlug },
       );
       if (!statusError) {
         const map: Record<string, { status: string; fit_score: number | null }> = {};
@@ -158,6 +181,31 @@ export default function Ideas() {
     }
   };
 
+  // Konzeptwechsel bei vorhandenen Treffern → Bulk-Status fürs neue Konzept neu laden
+  // (sonst zeigen die Karten den Status des alten Konzepts). Absichtlich nur [selectedSlug]:
+  // ein frischer Search setzt intelStatus bereits selbst.
+  useEffect(() => {
+    if (results.length === 0) return;
+    (async () => {
+      const ids = results.map((r) => r.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: statusRows, error } = await (supabase as any).rpc(
+        "get_academy_intel_status_bulk",
+        { p_contact_ids: ids, p_concept_slug: selectedSlug },
+      );
+      if (!error && Array.isArray(statusRows)) {
+        const map: Record<string, { status: string; fit_score: number | null }> = {};
+        statusRows.forEach((row: { contact_id: string; status: string; fit_score: number | null }) => {
+          map[row.contact_id] = { status: row.status, fit_score: row.fit_score };
+        });
+        setIntelStatus(map);
+      } else {
+        setIntelStatus({});
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSlug]);
+
   return (
     <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-canvas p-4 md:p-6 lg:p-8 space-y-6">
       <header className="flex flex-col gap-1">
@@ -179,6 +227,22 @@ export default function Ideas() {
 
       {/* Input */}
       <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
+        {/* Konzept-Auswahl (Multi-Concept) */}
+        {concepts.length > 0 && (
+          <div className="mb-4">
+            <label className="text-[14px] font-medium text-foreground mb-2 block">Konzept</label>
+            <Select value={selectedSlug} onValueChange={setSelectedSlug}>
+              <SelectTrigger className="w-full sm:w-[320px]">
+                <SelectValue placeholder="Konzept wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {concepts.map((c) => (
+                  <SelectItem key={c.slug} value={c.slug}>{c.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <label htmlFor="idea" className="text-[14px] font-medium text-foreground mb-2 block">
           Beschreibe deine Idee oder dein Konzept
         </label>
@@ -270,7 +334,7 @@ export default function Ideas() {
               style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}
             >
               {results.map((c) => (
-                <MatchCard key={c.id} contact={c} onOpen={() => navigate(`/contacts/${c.id}`)} intelStatus={intelStatus[c.id]} />
+                <MatchCard key={c.id + "_" + selectedSlug} contact={c} conceptSlug={selectedSlug} onOpen={() => navigate(`/contacts/${c.id}`)} intelStatus={intelStatus[c.id]} />
               ))}
             </div>
             <p className="text-[12px] text-muted-foreground italic pt-2">
@@ -323,10 +387,12 @@ type CardIntelState = "idle" | "loading" | "done" | "blocked" | "error";
 
 function MatchCard({
   contact,
+  conceptSlug,
   onOpen,
   intelStatus,
 }: {
   contact: ContactHit;
+  conceptSlug: string;
   onOpen: () => void;
   intelStatus?: { status: string; fit_score: number | null };
 }) {
@@ -352,7 +418,7 @@ function MatchCard({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await (supabase as any).rpc(
           "get_academy_intel_context",
-          { p_contact_id: contact.id },
+          { p_contact_id: contact.id, p_concept_slug: conceptSlug },
         );
         if (error) throw error;
         setAr((data?.cached_intel ?? null) as AcademyResearch | null);
@@ -360,7 +426,7 @@ function MatchCard({
         return;
       }
       const { data, error } = await supabase.functions.invoke("academy-intel-trigger", {
-        body: { contact_id: contact.id },
+        body: { contact_id: contact.id, concept_slug: conceptSlug },
       });
       if (error) throw error;
       if (data?.status === "generated") {
