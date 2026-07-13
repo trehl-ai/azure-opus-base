@@ -63,25 +63,6 @@ export function useMoveDeal() {
   });
 }
 
-export function useDeleteDeal() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("deals").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Deal gelöscht" });
-      qc.invalidateQueries({ queryKey: queryKeys.deals.all });
-      navigate("/deals");
-    },
-    onError: (err: Error) => toast({ variant: "destructive", title: "Fehler", description: err.message }),
-  });
-}
-
 export function useWonDeal(id: string) {
   const qc = useQueryClient();
   const { toast } = useToast();

@@ -87,9 +87,12 @@ export default function DealDetail() {
     return d;
   };
   const [followupDate, setFollowupDate] = useState<Date>(defaultFollowupDate);
-  const { isAdmin, canManageAllTasks } = useUserRole();
-  // Loeschen = deals_delete (RLS is_admin()). Bearbeiten/Won/Lost/Reopen = deals_update
-  // (RLS user_can_access_pipeline → jeder Zugriffsberechtigte) bleiben fuer alle sichtbar.
+  const { canWriteDeals, canManageAllTasks } = useUserRole();
+  // Archivieren = Soft-Delete (update deleted_at) → RLS deals_update = can_write_deals()
+  //   (admin/management/projektmanager, via user_can_access_pipeline). Das UI-Gate
+  //   canWriteDeals spiegelt dieses Praedikat 1:1. Endgueltiges Loeschen bleibt admin-only
+  //   im Papierkorb (GeneralSettings). Bearbeiten/Won/Lost/Reopen = deals_update,
+  //   bleiben fuer alle Zugriffsberechtigten sichtbar.
   // deal_activities update UND delete teilen dasselbe RLS-Praedikat:
   //   can_manage_all_tasks() OR created_by_user_id = auth.uid()
   // → ein Gate deckt Edit und Delete pro Aktivitaet ab.
@@ -167,7 +170,7 @@ export default function DealDetail() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Deal gelöscht" });
+      toast({ title: "Deal archiviert" });
       qc.invalidateQueries({ queryKey: ["deals-board"] });
       qc.invalidateQueries({ queryKey: ["deals"] });
       qc.invalidateQueries({ queryKey: ["deal", id] });
@@ -414,12 +417,12 @@ export default function DealDetail() {
               ↩ Als offen markieren
             </Button>
           )}
-          {isAdmin && (
+          {canWriteDeals && (
           <AlertDialog>
-            <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+            <AlertDialogTrigger asChild><Button variant="outline" size="icon" aria-label="Archivieren" title="Archivieren"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
             <AlertDialogContent>
-              <AlertDialogHeader><AlertDialogTitle>Deal löschen?</AlertDialogTitle><AlertDialogDescription>Dieser Vorgang kann nicht rückgängig gemacht werden.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Abbrechen</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Löschen</AlertDialogAction></AlertDialogFooter>
+              <AlertDialogHeader><AlertDialogTitle>Deal archivieren?</AlertDialogTitle><AlertDialogDescription>Der Deal wird archiviert und aus allen Ansichten ausgeblendet. Ein Administrator kann ihn wiederherstellen.</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Abbrechen</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate()}>Archivieren</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
           )}
