@@ -11,6 +11,7 @@ import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
 import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
 import { EditActivitySheet } from "@/components/activities/EditActivitySheet";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
+import { DealFinancePanel } from "@/components/deals/DealFinancePanel";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,14 @@ const priorityColors: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
   medium: "bg-warning/10 text-warning",
   high: "bg-destructive/10 text-destructive",
+};
+
+// EIC-001 fulfillment lifecycle (deals.fulfillment_status, CHECK-constrained in DB).
+const FULFILLMENT_LABEL: Record<string, string> = {
+  beauftragt: "Beauftragt",
+  in_umsetzung: "In Umsetzung",
+  abgerechnet: "Abgerechnet",
+  bezahlt: "Bezahlt",
 };
 
 // Includes legacy types (follow_up, wiedervorlage, notiz, angebot, absage) for
@@ -393,6 +402,11 @@ export default function DealDetail() {
           <span className={cn("rounded-full px-3 py-1 text-[12px] font-medium", statusColors[deal.status] ?? statusColors.open)}>
             {deal.status.toUpperCase()}
           </span>
+          {deal.fulfillment_status && FULFILLMENT_LABEL[deal.fulfillment_status] && (
+            <span className="rounded-full px-3 py-1 text-[12px] font-medium bg-primary/10 text-primary">
+              {FULFILLMENT_LABEL[deal.fulfillment_status]}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
@@ -447,6 +461,7 @@ export default function DealDetail() {
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
           {isWerteraumSchulen && <TabsTrigger value="roadshow">Roadshow-Checkliste</TabsTrigger>}
+          <TabsTrigger value="finance">PL-Controlling</TabsTrigger>
           <TabsTrigger value="activities">Aktivitäten</TabsTrigger>
           <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
@@ -638,6 +653,11 @@ export default function DealDetail() {
             <RoadshowChecklist dealId={id!} />
           </TabsContent>
         )}
+
+        {/* PL-Controlling — read-only deal_finance (mirror deal_roadshow_details) */}
+        <TabsContent value="finance" className="mt-4">
+          <DealFinancePanel dealId={id!} />
+        </TabsContent>
 
         {/* Project */}
         {deal.status === "won" && (
