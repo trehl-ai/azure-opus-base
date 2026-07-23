@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { getLeadScoreTier, LEAD_TIER_STYLES } from "@/lib/leadScore";
 import { Skeleton } from "@/components/ui/skeleton";
 import TopKundenChart from "@/components/TopKundenChart";
+import { RevenueByYearCard } from "@/components/RevenueByYearCard";
 import WerteraumBundeslandKachel from "@/components/WerteraumBundeslandKachel";
 import {
   Table,
@@ -198,6 +199,9 @@ export default function Dashboard() {
 
       {/* Block 1a — Top Kunden nach gewonnenem Umsatz (volle Breite, direkt unter KPI-Grid) */}
       <TopKundenChart />
+
+      {/* Block 1a2 — Umsatz nach Jahr (deal_revenue_periods, Read-only) */}
+      <RevenueByYearCard />
 
       {/* Block 1b — Maschinen-Banner */}
       <MachineBanner stats={machine} />
