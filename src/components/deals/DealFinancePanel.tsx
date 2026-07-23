@@ -1,97 +1,155 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabaseEIC } from "@/lib/supabaseEIC";
 
-type DealFinance = {
-  deal_id: string;
-  angebotspreis: number | null;
-  bestellpreis: number | null;
-  fremdkosten_plan: number | null;
-  fremdkosten_ist: number | null;
-  fk_anteil_plan: number | null; // 0..1 (generated)
-  fk_anteil_ist: number | null;  // 0..1 (generated)
-  kalk_nr: string | null;
-  bestellnr: string | null;
-  kostencode: string | null;
-  angebots_datum: string | null;
-  bestell_datum: string | null;
-  leistungszeitraum: string | null;
-  rechnungs_datum: string | null;
-  zahlung_status: string | null;
-  anmerkung: string | null;
-};
+type DF = Record<string, any>;
 
-const eur = (n: number | null) =>
-  n == null ? "–" : new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n);
-const pct = (f: number | null) =>
-  f == null ? "–" : new Intl.NumberFormat("de-DE", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(f);
-const dt = (s: string | null) =>
-  !s ? "–" : new Intl.DateTimeFormat("de-DE").format(new Date(s));
+const NUM = ["angebotspreis","bestellpreis","fremdkosten_plan","fremdkosten_ist"];
+const TXT = ["kalk_nr","bestellnr","kostencode","leistungszeitraum","rechnungs_nr","leistung_details","anmerkung"];
+const DATE = ["angebots_datum","bestell_datum","rechnungs_datum","bezahlt_am"];
 
-function FkBar({ f }: { f: number | null }) {
-  if (f == null) return <span className="text-muted-foreground">–</span>;
-  const w = Math.min(100, Math.max(0, f * 100));
+const eur = (n: any) => n == null || n === "" ? "–" :
+  new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(Number(n));
+const pct = (f: any) => f == null ? "–" :
+  new Intl.NumberFormat("de-DE",{style:"percent",minimumFractionDigits:1,maximumFractionDigits:1}).format(Number(f));
+
+const inputCls = "w-full rounded border border-border bg-background px-2 py-1 text-sm";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 w-24 rounded bg-muted overflow-hidden">
-        <div className="h-full bg-primary" style={{ width: `${w}%` }} />
-      </div>
-      <span className="tabular-nums text-sm">{pct(f)}</span>
+    <div className="grid grid-cols-[170px_1fr] items-center gap-2 py-1 border-b border-border/40 last:border-0">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="text-sm">{children}</div>
     </div>
   );
 }
 
 export function DealFinancePanel({ dealId }: { dealId: string }) {
-  const [row, setRow] = useState<DealFinance | null>(null);
+  const [row, setRow] = useState<DF | null>(null);
+  const [draft, setDraft] = useState<DF>({});
+  const [edit, setEdit] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      setLoading(true); setErr(null);
-      const { data, error } = await (supabaseEIC as any)
-        .from("deal_finance").select("*").eq("deal_id", dealId).maybeSingle();
-      if (!active) return;
-      if (error) setErr(error.message);
-      setRow((data as DealFinance) ?? null);
-      setLoading(false);
-    })();
-    return () => { active = false; };
+  const load = useCallback(async () => {
+    setLoading(true); setErr(null);
+    const { data, error } = await (supabaseEIC as any)
+      .from("deal_finance").select("*").eq("deal_id", dealId).maybeSingle();
+    if (error) setErr(error.message);
+    setRow(data ?? null);
+    setDraft(data ?? { deal_id: dealId });
+    setLoading(false);
   }, [dealId]);
 
+  useEffect(() => { load(); }, [load]);
+
+  const set = (k: string, v: any) => setDraft((d) => ({ ...d, [k]: v }));
+
+  async function save() {
+    setSaving(true); setErr(null); setMsg(null);
+    const payload: DF = { deal_id: dealId };
+    for (const k of NUM) payload[k] = draft[k] === "" || draft[k] == null ? null : Number(draft[k]);
+    for (const k of TXT) payload[k] = draft[k] === "" ? null : draft[k] ?? null;
+    for (const k of DATE) payload[k] = draft[k] === "" ? null : draft[k] ?? null;
+    payload.zahlung_status = draft.zahlung_status === "" ? null : draft.zahlung_status ?? null;
+    payload.leistung_art = draft.leistung_art === "" ? null : draft.leistung_art ?? null;
+    const { error } = await (supabaseEIC as any)
+      .from("deal_finance").upsert(payload, { onConflict: "deal_id" });
+    setSaving(false);
+    if (error) { setErr(error.message); return; }
+    setEdit(false); setMsg("Gespeichert."); await load();
+    setTimeout(() => setMsg(null), 3000);
+  }
+
   if (loading) return <div className="text-sm text-muted-foreground">Controlling wird geladen …</div>;
-  if (err) return <div className="text-sm text-destructive">Fehler: {err}</div>;
-  if (!row) return <div className="text-sm text-muted-foreground">Keine Controlling-Daten zu diesem Deal.</div>;
 
-  const marge_plan = row.fk_anteil_plan == null ? null : 1 - row.fk_anteil_plan;
-  const marge_ist  = row.fk_anteil_ist == null ? null : 1 - row.fk_anteil_ist;
+  const src = edit ? draft : (row ?? {});
+  const margePlan = row?.fk_anteil_plan == null ? null : 1 - Number(row.fk_anteil_plan);
+  const margeIst = row?.fk_anteil_ist == null ? null : 1 - Number(row.fk_anteil_ist);
 
-  const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div className="grid grid-cols-[160px_1fr] gap-2 py-1 border-b border-border/50 last:border-0">
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="text-sm">{children}</div>
-    </div>
+  const numField = (k: string, label: string) => (
+    <Field label={label}>
+      {edit
+        ? <input type="number" step="0.01" className={inputCls} value={src[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
+        : eur(src[k])}
+    </Field>
+  );
+  const txtField = (k: string, label: string) => (
+    <Field label={label}>
+      {edit
+        ? <input type="text" className={inputCls} value={src[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
+        : (src[k] ?? "–")}
+    </Field>
+  );
+  const dateField = (k: string, label: string) => (
+    <Field label={label}>
+      {edit
+        ? <input type="date" className={inputCls} value={src[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
+        : (src[k] ? new Intl.DateTimeFormat("de-DE").format(new Date(src[k])) : "–")}
+    </Field>
   );
 
   return (
-    <div className="rounded-lg border border-border p-4 space-y-1">
-      <div className="mb-2 text-sm font-semibold text-primary">PL-Controlling</div>
-      <Row label="Angebotspreis">{eur(row.angebotspreis)}</Row>
-      <Row label="Bestellpreis">{eur(row.bestellpreis)}</Row>
-      <Row label="Fremdkosten (Plan)">{eur(row.fremdkosten_plan)}</Row>
-      <Row label="Fremdkosten (Ist)">{eur(row.fremdkosten_ist)}</Row>
-      <Row label="FK-Anteil (Plan)"><FkBar f={row.fk_anteil_plan} /></Row>
-      <Row label="FK-Anteil (Ist)"><FkBar f={row.fk_anteil_ist} /></Row>
-      <Row label="Marge (Plan)"><span className="tabular-nums">{pct(marge_plan)}</span></Row>
-      <Row label="Marge (Ist)"><span className="tabular-nums">{pct(marge_ist)}</span></Row>
-      <Row label="Kalk-Nr.">{row.kalk_nr ?? "–"}</Row>
-      <Row label="Bestellnr. (SAP)">{row.bestellnr ?? "–"}</Row>
-      <Row label="Kostencode">{row.kostencode ?? "–"}</Row>
-      <Row label="Angebotsdatum">{dt(row.angebots_datum)}</Row>
-      <Row label="Bestelldatum">{dt(row.bestell_datum)}</Row>
-      <Row label="Leistungszeitraum">{row.leistungszeitraum ?? "–"}</Row>
-      <Row label="Rechnungsdatum">{dt(row.rechnungs_datum)}</Row>
-      {row.anmerkung ? <Row label="Anmerkung">{row.anmerkung}</Row> : null}
+    <div className="rounded-lg border border-border p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-sm font-semibold text-primary">PL-Controlling</div>
+        <div className="flex items-center gap-2">
+          {msg && <span className="text-xs text-muted-foreground">{msg}</span>}
+          {edit ? (
+            <>
+              <button onClick={save} disabled={saving}
+                className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground disabled:opacity-50">
+                {saving ? "Speichert …" : "Speichern"}
+              </button>
+              <button onClick={() => { setDraft(row ?? { deal_id: dealId }); setEdit(false); setErr(null); }}
+                className="rounded border border-border px-3 py-1 text-xs">Abbrechen</button>
+            </>
+          ) : (
+            <button onClick={() => setEdit(true)}
+              className="rounded border border-border px-3 py-1 text-xs">Bearbeiten</button>
+          )}
+        </div>
+      </div>
+      {err && <div className="mb-2 text-sm text-destructive">Fehler: {err}</div>}
+
+      {numField("angebotspreis","Angebotspreis")}
+      {numField("bestellpreis","Bestellpreis")}
+      {numField("fremdkosten_plan","Fremdkosten (Plan)")}
+      {numField("fremdkosten_ist","Fremdkosten (Ist)")}
+      <Field label="FK-Anteil Plan / Ist">
+        <span className="tabular-nums">{pct(row?.fk_anteil_plan)} / {pct(row?.fk_anteil_ist)}</span>
+        <span className="ml-2 text-xs text-muted-foreground">(berechnet)</span>
+      </Field>
+      <Field label="Marge Plan / Ist">
+        <span className="tabular-nums">{pct(margePlan)} / {pct(margeIst)}</span>
+      </Field>
+      {txtField("leistung_details","Details / Leistung")}
+      <Field label="Leistungsart">
+        {edit ? (
+          <select className={inputCls} value={src.leistung_art ?? ""} onChange={(e) => set("leistung_art", e.target.value)}>
+            <option value="">–</option><option value="K">K – Konzept</option>
+            <option value="VA">VA – Veranstaltung</option><option value="P">P – Produktion</option>
+          </select>
+        ) : (src.leistung_art ?? "–")}
+      </Field>
+      {txtField("kalk_nr","Kalk-Nr.")}
+      {txtField("bestellnr","Bestellnr. (SAP)")}
+      {txtField("kostencode","Kostencode")}
+      {dateField("angebots_datum","Angebotsdatum")}
+      {dateField("bestell_datum","Bestelldatum")}
+      {txtField("leistungszeitraum","Leistungszeitraum")}
+      {txtField("rechnungs_nr","Rechnungsnr.")}
+      {dateField("rechnungs_datum","Rechnungsdatum")}
+      <Field label="Zahlung">
+        {edit ? (
+          <select className={inputCls} value={src.zahlung_status ?? ""} onChange={(e) => set("zahlung_status", e.target.value)}>
+            <option value="">–</option><option value="offen">offen</option><option value="bezahlt">bezahlt</option>
+          </select>
+        ) : (src.zahlung_status ?? "–")}
+      </Field>
+      {dateField("bezahlt_am","Zahlungseingang")}
+      {txtField("anmerkung","Anmerkung")}
     </div>
   );
 }
