@@ -12,6 +12,7 @@ import { AddActivityDialog } from "@/components/deals/AddActivityDialog";
 import { EditActivitySheet } from "@/components/activities/EditActivitySheet";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
 import { DealFinancePanel } from "@/components/deals/DealFinancePanel";
+import { DealInstallmentsPanel } from "@/components/deals/DealInstallmentsPanel";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
@@ -407,6 +408,26 @@ export default function DealDetail() {
               {FULFILLMENT_LABEL[deal.fulfillment_status]}
             </span>
           )}
+          {/* EIC-001: fulfillment_status editierbar — deals nur über Session-Client (no-supabaseeic-rls) */}
+          <select
+            value={deal.fulfillment_status ?? ""}
+            onChange={async (e) => {
+              const value = e.target.value;
+              const { error } = await (supabase as any)
+                .from("deals").update({ fulfillment_status: value || null }).eq("id", id);
+              if (error) { toast({ variant: "destructive", title: "Fehler", description: error.message }); return; }
+              qc.invalidateQueries({ queryKey: ["deal", id] });
+              qc.invalidateQueries({ queryKey: ["deals-board"] });
+            }}
+            className="rounded-full border border-border bg-primary/10 px-3 py-1 text-[12px] font-medium text-primary"
+            title="Fulfillment-Status"
+          >
+            <option value="">Fulfillment –</option>
+            <option value="beauftragt">Beauftragt</option>
+            <option value="in_umsetzung">In Umsetzung</option>
+            <option value="abgerechnet">Abgerechnet</option>
+            <option value="bezahlt">Bezahlt</option>
+          </select>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Bearbeiten</Button>
@@ -654,9 +675,12 @@ export default function DealDetail() {
           </TabsContent>
         )}
 
-        {/* PL-Controlling — read-only deal_finance (mirror deal_roadshow_details) */}
+        {/* PL-Controlling — deal_finance editierbar + Zahlungsplan (deal_installments) */}
         <TabsContent value="finance" className="mt-4">
-          <DealFinancePanel dealId={id!} />
+          <div className="space-y-4">
+            <DealFinancePanel dealId={id!} />
+            <DealInstallmentsPanel dealId={id!} />
+          </div>
         </TabsContent>
 
         {/* Project */}
