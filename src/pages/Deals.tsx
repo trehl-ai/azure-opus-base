@@ -30,15 +30,6 @@ import { fetchAllRows } from "@/lib/paginatedFetch";
 const eur = (v: number) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
 
-// Stages, die aus dem Kanban-Render ausgeblendet werden (Filter nach ID, nicht Name).
-// Sie bleiben in der DB erhalten — nur die Anzeige im Board/Stage-Selector wird unterdrückt.
-const HIDDEN_STAGE_IDS = [
-  "616dd027-993c-4875-bca7-0f5cc436a38b", // Qualifiziert — NRW
-  "21c7ad65-0905-41cf-846a-9fc276545cc9", // Qualifiziert — BW
-  "d1f00bca-fcdd-4a55-a373-9c06e0544f05", // Qualifiziert — Niedersachsen
-  "996ba733-5d04-44df-950a-f7e8af6245de", // Qualifiziert — RLP
-];
-
 export default function Deals() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -188,7 +179,9 @@ export default function Deals() {
     setSearchParams(searchParams, { replace: true });
   };
 
-  // Stages
+  // Stages — select("*") liefert auch die Spalte is_hidden (noch nicht in
+  // types.ts typisiert, daher (supabase as any); types.ts NICHT manuell
+  // regenerieren, das übernimmt Lovable-Sync).
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", activePipelineId],
     queryFn: async () => {
@@ -199,10 +192,14 @@ export default function Deals() {
     enabled: !!activePipelineId,
   });
 
-  // Im Board sichtbare Stages: HIDDEN_STAGE_IDS werden nur aus der Anzeige
-  // gefiltert. Das rohe `stages` bleibt für Datenlogik erhalten (Export-Namen,
-  // Drag/Move-Lookups), damit Deals in ausgeblendeten Stages korrekt aufgelöst werden.
-  const visibleStages = stages?.filter((s: any) => !HIDDEN_STAGE_IDS.includes(s.id));
+  // Im Board sichtbare Stages: gesteuert über pipeline_stages.is_hidden
+  // (ersetzt die frühere hartkodierte HIDDEN_STAGE_IDS-Liste — kein
+  // Namensmuster- oder ID-Matching mehr). Das rohe `stages` bleibt für
+  // Datenlogik erhalten (Export-Namen, Drag/Move-Lookups).
+  const visibleStages = stages?.filter((s: any) => !s.is_hidden);
+  // IDs der ausgeblendeten Stages — für den serverseitigen Ausschluss in der
+  // Board-Datenquelle (statt clientseitig zu laden und zu verwerfen).
+  const hiddenStageIds: string[] = (stages ?? []).filter((s: any) => s.is_hidden).map((s: any) => s.id);
 
   // Set initial mobile stage
   const effectiveMobileStageId = mobileStageId || visibleStages?.[0]?.id || "";
@@ -210,11 +207,12 @@ export default function Deals() {
   // Deals — paginiert laden. Eine WerteRaum-Pipeline hat > 1000 Deals; PostgREST
   // kappt bei 1000. Ohne Nachladen fielen (unter created_at desc) die ältesten
   // Deals still weg → "Alle Owner" zeigte WENIGER Karten als ein Einzel-Filter.
-  // Verschärft durch die 4 ausgeblendeten "Qualifiziert — <Bundesland>"-Stages
-  // (position 1, ~550 frisch importierte Deals): sie belegen unter created_at desc
-  // die vordersten Zeilen und verdrängen die älteren sichtbaren Deals aus den 1000.
+  // Die ausgeblendeten Stages (is_hidden) werden SERVERSEITIG ausgeschlossen,
+  // statt sie zu laden und clientseitig zu verwerfen — das senkt das Ladevolumen
+  // (WerteRaum: ~1165 → ~617) und der count:'exact'-Check unten bezieht sich
+  // exakt auf dieselbe sichtbare Menge (sonst dauerhafter Fehlalarm).
   const { data: dealsData } = useQuery({
-    queryKey: ["deals-board", activePipelineId, ownerFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
+    queryKey: ["deals-board", activePipelineId, ownerFilter, dateFrom?.toISOString(), dateTo?.toISOString(), hiddenStageIds.join(",")],
     queryFn: async () => {
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
       const buildQuery = () => {
@@ -226,8 +224,10 @@ export default function Deals() {
           )
           .eq("pipeline_id", activePipelineId)
           .is("deleted_at", null);
+        // Ausgeblendete Stages serverseitig ausschließen (is_hidden-gesteuert).
+        if (hiddenStageIds.length > 0) q = q.not("pipeline_stage_id", "in", `(${hiddenStageIds.join(",")})`);
         // "Alle Owner" = KEIN owner_user_id-Filter → Deals ohne Owner
-        // (owner_user_id IS NULL, hier ~940 Stück) bleiben enthalten.
+        // (owner_user_id IS NULL) bleiben enthalten.
         if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
         if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
         if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
@@ -238,7 +238,9 @@ export default function Deals() {
       const { rows, total } = await fetchAllRows<any>(buildQuery);
       return { rows, total };
     },
-    enabled: !!activePipelineId,
+    // Erst laden, wenn die Stages (und damit hiddenStageIds) bekannt sind —
+    // sonst würde der erste Fetch die ausgeblendeten Deals mitziehen.
+    enabled: !!activePipelineId && stages !== undefined,
   });
 
   const deals = dealsData?.rows;
