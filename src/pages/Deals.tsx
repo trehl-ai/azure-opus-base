@@ -25,6 +25,7 @@ import { PresenceAvatars } from "@/components/shared/PresenceAvatars";
 import { format } from "date-fns";
 import { cn, getAvatarColor, getInitials } from "@/lib/utils";
 import { exportToExcel, todayString } from "@/lib/excelExport";
+import { fetchAllRows } from "@/lib/paginatedFetch";
 
 const eur = (v: number) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
@@ -85,18 +86,22 @@ export default function Deals() {
     setExporting(true);
     try {
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
-      let q = (supabase as any)
-        .from("deals")
-        .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)")
-        .eq("pipeline_id", activePipelineId)
-        .is("deleted_at", null);
-      if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
-      if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
-      if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
-      const { data, error } = await q.order("created_at", { ascending: false });
-      if (error) throw error;
+      // Paginiert exportieren — sonst kappt PostgREST bei 1000 Zeilen und der
+      // Excel-Export wäre bei "Alle Owner" ebenso unvollständig wie das Board.
+      const buildQuery = () => {
+        let q = (supabase as any)
+          .from("deals")
+          .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)", { count: "exact" })
+          .eq("pipeline_id", activePipelineId)
+          .is("deleted_at", null);
+        if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
+        if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
+        if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
+        return q.order("created_at", { ascending: false }).order("id", { ascending: true });
+      };
+      const { rows } = await fetchAllRows<any>(buildQuery);
 
-      let exportData = data ?? [];
+      let exportData = rows;
       if (eignungFilter !== "all") {
         // Roadshow-Eignung lebt in deal_roadshow_details. Falls nicht geladen, gilt der Deal als "grau" (Offen).
         exportData = exportData.filter((r: any) => {
@@ -202,27 +207,47 @@ export default function Deals() {
   // Set initial mobile stage
   const effectiveMobileStageId = mobileStageId || visibleStages?.[0]?.id || "";
 
-  // Deals
-  const { data: deals } = useQuery({
+  // Deals — paginiert laden. Eine WerteRaum-Pipeline hat > 1000 Deals; PostgREST
+  // kappt bei 1000. Ohne Nachladen fielen (unter created_at desc) die ältesten
+  // Deals still weg → "Alle Owner" zeigte WENIGER Karten als ein Einzel-Filter.
+  // Verschärft durch die 4 ausgeblendeten "Qualifiziert — <Bundesland>"-Stages
+  // (position 1, ~550 frisch importierte Deals): sie belegen unter created_at desc
+  // die vordersten Zeilen und verdrängen die älteren sichtbaren Deals aus den 1000.
+  const { data: dealsData } = useQuery({
     queryKey: ["deals-board", activePipelineId, ownerFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
     queryFn: async () => {
-      let q = (supabase as any)
-        .from("deals")
-        .select("id, title, value_amount, currency, priority, pipeline_stage_id, status, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile, bundesland)")
-        .eq("pipeline_id", activePipelineId)
-        .is("deleted_at", null);
-
       const effectiveOwner = showOwnerToggle && !showAll ? (user?.id ?? ownerFilter) : ownerFilter;
-      if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
-      if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
-      if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
-
-      const { data, error } = await q.order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const buildQuery = () => {
+        let q = (supabase as any)
+          .from("deals")
+          .select(
+            "id, title, value_amount, currency, priority, pipeline_stage_id, status, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile, bundesland)",
+            { count: "exact" },
+          )
+          .eq("pipeline_id", activePipelineId)
+          .is("deleted_at", null);
+        // "Alle Owner" = KEIN owner_user_id-Filter → Deals ohne Owner
+        // (owner_user_id IS NULL, hier ~940 Stück) bleiben enthalten.
+        if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
+        if (dateFrom) q = q.gte("expected_close_date", format(dateFrom, "yyyy-MM-dd"));
+        if (dateTo) q = q.lte("expected_close_date", format(dateTo, "yyyy-MM-dd"));
+        // Stabile Gesamtsortierung mit eindeutigem Tiebreaker (id), sonst können
+        // sich die range()-Fenster beim Nachladen überlappen.
+        return q.order("created_at", { ascending: false }).order("id", { ascending: true });
+      };
+      const { rows, total } = await fetchAllRows<any>(buildQuery);
+      return { rows, total };
     },
     enabled: !!activePipelineId,
   });
+
+  const deals = dealsData?.rows;
+  // Vollständigkeits-Check: geladene Menge vs. DB-Gesamtzahl (count: exact).
+  // Bei Abweichung (z.B. paralleler Insert während des Nachladens) sichtbar
+  // warnen, statt still Karten zu verlieren.
+  const dealsLoaded = deals?.length ?? 0;
+  const dealsTotal = dealsData?.total ?? null;
+  const dealsCountMismatch = dealsTotal !== null && dealsLoaded !== dealsTotal;
 
   // Letzte E-Mail-Aktivität pro Deal — Basis für die Wiedervorlage-Sortierung.
   // Embed-Filter auf deals!inner(pipeline_id) statt .in(dealIds), um lange URLs
@@ -490,6 +515,13 @@ export default function Deals() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Vollständigkeits-Warnung — geladene Karten != DB-Gesamtzahl. */}
+      {dealsCountMismatch && (
+        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-[13px] text-destructive">
+          ⚠ Nur {dealsLoaded} von {dealsTotal} Deals geladen — es werden nicht alle Karten angezeigt. Bitte Seite neu laden.
+        </div>
+      )}
 
       {/* WerteRaum Ressourcen — slim horizontal strip above the board, only for the "Werteraum - Schulen" pipeline */}
       {activePipelineId === "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e" && (
