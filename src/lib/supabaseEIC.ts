@@ -30,8 +30,10 @@ export type OutreachStats = {
   link_clicked: number;
   replied: number;
   terminated: number;
-  /** Real opt-outs only (Abmeldung / unsubscribe). Distinct from `terminated`. */
-  opt_out: number;
+  /** Real opt-outs only (Abmeldung / unsubscribe). Distinct from `terminated`.
+   *  NOTE: get_outreach_stats() liefert dieses Feld aktuell NICHT — der Wert ist zur Laufzeit
+   *  immer undefined. Optional, bis die RPC es ergänzt. */
+  opt_out?: number;
   /** Contacts moved to "Terminiert" before any mail went out — NOT opt-outs. */
   terminated_before_mailing: number;
   cluster_a: number;
