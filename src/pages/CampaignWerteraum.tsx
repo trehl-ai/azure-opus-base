@@ -94,7 +94,6 @@ export default function CampaignWerteraum() {
 
   const stats = statsQ.data;
   const total = stats?.gesamt ?? 0;
-  const conversion = total > 0 ? ((stats?.terminated ?? 0) / total) * 100 : 0;
 
   const funnel = stats
     ? [
@@ -133,7 +132,6 @@ export default function CampaignWerteraum() {
             { label: "Link geklickt", value: stats?.link_clicked ?? 0 },
             { label: "Geantwortet", value: stats?.replied ?? 0, tone: "success" as const },
             { label: "Opt-Out", value: stats?.terminated ?? 0, subtitle: "Nicht kontaktieren" },
-            { label: "Conversion", value: `${conversion.toFixed(1)}%` },
           ] satisfies {
             label: string;
             value: number | string;
