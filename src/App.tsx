@@ -20,6 +20,7 @@ import ContactDetail from "./pages/ContactDetail.tsx";
 import Campaigns from "./pages/Campaigns.tsx";
 import CampaignWerteraum from "./pages/CampaignWerteraum.tsx";
 import CampaignVrStiftungen from "./pages/CampaignVrStiftungen.tsx";
+import CampaignDetail from "./pages/CampaignDetail.tsx";
 import Projects from "./pages/Projects.tsx";
 import ProjectDetail from "./pages/ProjectDetail.tsx";
 import Tasks from "./pages/Tasks.tsx";
@@ -116,6 +117,7 @@ const App = () => (
               <Route path="/campaigns" element={<P><Campaigns /></P>} />
               <Route path="/campaigns/werteraum" element={<P><CampaignWerteraum /></P>} />
               <Route path="/campaigns/vr-stiftungen" element={<P><CampaignVrStiftungen /></P>} />
+              <Route path="/campaigns/:slug/detail/:key" element={<P><CampaignDetail /></P>} />
               <Route path="/projects" element={<P><Projects /></P>} />
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
