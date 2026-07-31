@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import {
   Megaphone,
@@ -264,6 +264,9 @@ function Fusszahl({ wert, label, farbe }: { wert: number; label: string; farbe?:
 
 function UnterkampagnenTabelle({ slug }: { slug: string }) {
   const { data, isLoading, error } = useUnterkampagnen(slug);
+  // Ganze Zeile klickbar statt einer "Details"-Spalte — gleiche Konvention wie
+  // Contacts.tsx / Companies.tsx / Deals.tsx.
+  const navigate = useNavigate();
 
   if (isLoading)
     return (
@@ -297,7 +300,11 @@ function UnterkampagnenTabelle({ slug }: { slug: string }) {
         </thead>
         <tbody>
           {data.map((u) => (
-            <tr key={u.key} className="border-t border-border/60 hover:bg-muted/40">
+            <tr
+              key={u.key}
+              onClick={() => navigate(`/campaigns/${slug}/detail/${encodeURIComponent(u.key)}`)}
+              className="cursor-pointer border-t border-border/60 transition-colors hover:bg-muted/50"
+            >
               <td className="px-5 py-2.5 font-medium">
                 {u.name}
                 {u.name === "Ohne Zuordnung" && (
@@ -332,12 +339,7 @@ function UnterkampagnenTabelle({ slug }: { slug: string }) {
                 {u.start_datum ? volldatum(u.start_datum) : "—"}
               </td>
               <td className="px-5 py-2.5 text-right">
-                <Link
-                  to={`/campaigns/${slug}/detail/${encodeURIComponent(u.key)}`}
-                  className="text-[12px] font-medium text-primary hover:underline"
-                >
-                  Details
-                </Link>
+                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </td>
             </tr>
           ))}
