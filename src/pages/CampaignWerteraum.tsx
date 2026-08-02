@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { type OutreachStats } from "@/lib/supabaseEIC";
 import { PlausibleWidget } from "@/components/campaigns/PlausibleWidget";
+import { VersandbereitschaftChart } from "@/components/campaigns/VersandbereitschaftChart";
 
 const WERTERAUM_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e";
 
@@ -160,6 +161,10 @@ export default function CampaignWerteraum() {
           </Card>
         ))}
       </div>
+
+      {/* Aus der Kampagnen-Uebersicht hierher verschoben: die Aufschluesselung nach
+          Bundeslaendern ist eine reine WerteRaum-Innensicht. */}
+      <VersandbereitschaftChart />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
