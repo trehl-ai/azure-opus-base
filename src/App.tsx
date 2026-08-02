@@ -88,6 +88,20 @@ const RootRedirect = () => {
   return <Navigate to={user?.id === RESTRICTED_USER_ID ? "/deals" : "/dashboard"} replace />;
 };
 
+/**
+ * Gleiche Mechanik wie DashboardGate, nur fuer /ideas und /sponsoring.
+ *
+ * Die requiredRoles-Pruefung auf diesen beiden Routen greift zwar bereits, endet aber in
+ * <AccessDenied /> (ProtectedRoute.tsx:44) — der Restricted User landet also auf einer
+ * Sperrseite statt dort, wo er arbeiten soll. Beide Routen liegen zudem in der Sidebar
+ * hinter einem Modulfilter, ein direkter URL-Aufruf umgeht den.
+ */
+const RestrictedGate = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (user?.id === RESTRICTED_USER_ID) return <Navigate to="/deals" replace />;
+  return <>{children}</>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -121,8 +135,8 @@ const App = () => (
               <Route path="/projects" element={<P><Projects /></P>} />
               <Route path="/projects/:id" element={<P><ProjectDetail /></P>} />
               <Route path="/tasks" element={<P><Tasks /></P>} />
-              <Route path="/ideas" element={<P requiredRoles={["admin", "management", "projektmanager"]}><Ideas /></P>} />
-              <Route path="/sponsoring" element={<P requiredRoles={["admin", "management", "projektmanager"]}><Sponsoring /></P>} />
+              <Route path="/ideas" element={<P requiredRoles={["admin", "management", "projektmanager"]}><RestrictedGate><Ideas /></RestrictedGate></P>} />
+              <Route path="/sponsoring" element={<P requiredRoles={["admin", "management", "projektmanager"]}><RestrictedGate><Sponsoring /></RestrictedGate></P>} />
               <Route path="/import" element={<P requiredRoles={["admin", "sales"]}><Import /></P>} />
               <Route path="/compose" element={<P><Compose /></P>} />
               <Route path="/intake" element={<P requiredRoles={["admin", "sales"]}><Intake /></P>} />
