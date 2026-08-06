@@ -10,6 +10,25 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manuell ausloesbar - siehe Begruendung in typecheck.yml.
+  #
+  # ACHTUNG BASE_REF: POLICY-LINT prueft nur GEAENDERTE SQL. Bei workflow_dispatch
+  # gibt es weder github.event.before noch eine PR-Basis. Ohne Vorgabe faellt
+  # lint-policies.sh auf origin/main zurueck - auf main selbst ist der Diff dann
+  # leer und der Lauf meldet "keine relevanten SQL-Dateien - OK", ohne etwas
+  # geprueft zu haben. Ein gruener Haken ohne Pruefung ist schlimmer als keiner.
+  # Deshalb: Standardbasis HEAD~1, und alle_sql fuer die Vollpruefung.
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: "Vergleichsbasis fuer POLICY-LINT (Commit-SHA, Branch oder HEAD~1)"
+        required: false
+        default: "HEAD~1"
+      alle_sql:
+        description: "Alle Migrationen pruefen statt nur den Diff"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -24,8 +43,25 @@ jobs:
           fetch-depth: 0
       - name: POLICY-LINT (geänderte SQL)
         env:
-          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-        run: bash scripts/lint-policies.sh
+          EREIGNIS:  ${{ github.event_name }}
+          PR_BASIS:  ${{ github.event.pull_request.base.sha }}
+          PUSH_BASIS: ${{ github.event.before }}
+          MANUELL_BASIS: ${{ inputs.base_ref }}
+          ALLE_SQL:  ${{ inputs.alle_sql }}
+        run: |
+          set -euo pipefail
+          if [ "$EREIGNIS" = "workflow_dispatch" ] && [ "$ALLE_SQL" = "true" ]; then
+            echo "Vollpruefung: alle Migrationen"
+            bash scripts/lint-policies.sh supabase/migrations/*.sql
+          else
+            case "$EREIGNIS" in
+              pull_request)      BASIS="$PR_BASIS" ;;
+              workflow_dispatch) BASIS="${MANUELL_BASIS:-HEAD~1}" ;;
+              *)                 BASIS="$PUSH_BASIS" ;;
+            esac
+            echo "Vergleichsbasis: ${BASIS:-(leer, Skript-Fallback)}"
+            BASE_REF="$BASIS" bash scripts/lint-policies.sh
+          fi
 
   contract-lint:
     runs-on: ubuntu-latest
