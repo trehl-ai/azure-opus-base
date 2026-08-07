@@ -5,38 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 // `supabase` client, never supabaseEIC (auth.uid()=NULL → 0 rows silently).
 // See memory: eoipso_rls_session_client_rule + eslint rule no-supabaseeic-rls.
 
-const WR_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e"; // Werteraum - Schulen
+export const WR_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e"; // Werteraum - Schulen
 const WR_STAGE_TERMINIERT_ID = "6cfd9d0a-cdfa-4048-b711-bf63bd4640b6"; // WR-Stage "Terminiert"
 
 /* ------------------------------------------------------------------ */
-/* Gewonnener Umsatz — SUM(value_amount) WHERE status='won'           */
-/*                     AND deleted_at IS NULL                          */
-/* Soft-deleted Deals werden NICHT mitgezählt → 67 Deals / 1.825 M €. */
+/* Gewonnener Umsatz                                                   */
+/* Frueher: useWonTotal() holte alle won-Zeilen und summierte im       */
+/* Browser. Das ist an der 1000-Zeilen-Kappung von PostgREST vorbei    */
+/* nicht sicher und kannte weder Pipeline- noch Jahresfilter.          */
+/* Jetzt: won_value / won_deal_count kommen aus get_dashboard_stats.   */
 /* ------------------------------------------------------------------ */
-export interface WonTotal {
-  value: number;
-  count: number;
-}
-
-export function useWonTotal() {
-  return useQuery({
-    queryKey: ["dashboard", "won_total"],
-    queryFn: async (): Promise<WonTotal> => {
-      const { data, error } = await (supabase as any)
-        .from("deals")
-        .select("value_amount")
-        .eq("status", "won")
-        .is("deleted_at", null);
-      if (error) throw error;
-      const rows = (data ?? []) as { value_amount: number | null }[];
-      return {
-        value: rows.reduce((sum, r) => sum + (r.value_amount ?? 0), 0),
-        count: rows.length,
-      };
-    },
-    staleTime: 60_000,
-  });
-}
 
 /* ------------------------------------------------------------------ */
 /* Maschinen-Banner — Live-Counter der Akquise-Aktivität              */

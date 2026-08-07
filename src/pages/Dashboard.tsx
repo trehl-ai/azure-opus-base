@@ -45,9 +45,9 @@ import {
   type HoverCompanyExpected,
 } from "@/hooks/useDashboardStats";
 import {
-  useWonTotal,
   useMachineStats,
   useWerteraumFunnel,
+  WR_PIPELINE_ID,
   type FunnelStep,
 } from "@/hooks/queries/useDashboardManagement";
 
@@ -88,13 +88,25 @@ type TopLead = {
   lead_score: number | null;
 };
 
+/** Ausschnitt der Startseite. WerteRaum ist der Normalfall des Tagesgeschaefts. */
+type DashboardScope = "werteraum" | "gesamt";
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { stats, loading } = useDashboardStats();
-  const { data: wonTotal } = useWonTotal();
+  const [scope, setScope] = useState<DashboardScope>("werteraum");
+  const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet">("gesamt");
+
+  // null = kein Pipeline-Filter. Wirkt auf Kacheln, Lead-Score-Verteilung,
+  // Top Kunden und Umsatz nach Jahr — nicht auf den Pipeline-Vergleich
+  // (Block 2), der die Pipelines gerade GEGENEINANDER zeigt.
+  const pipelineId = scope === "werteraum" ? WR_PIPELINE_ID : null;
+  // Laufendes Kalenderjahr statt einer festen 2026: die Kachel soll im
+  // Januar 2027 nicht stillschweigend das Vorjahr weiterzeigen.
+  const wonYear = useMemo(() => new Date().getFullYear(), []);
+
+  const { stats, loading } = useDashboardStats(pipelineId, wonYear);
   const { data: machine } = useMachineStats();
   const { data: funnel } = useWerteraumFunnel();
-  const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet">("gesamt");
 
   const today = useMemo(
     () => format(new Date(), "EEEE, d. MMMM yyyy", { locale: de }),
@@ -116,11 +128,11 @@ export default function Dashboard() {
   });
 
   const wonCompanies = stats?.hover_won_companies ?? [];
-  const wonDealCount = wonTotal?.count ?? 0;
-  const wonSubtext = !wonTotal
+  const wonDealCount = stats?.won_deal_count ?? 0;
+  const wonSubtext = !stats
     ? undefined
     : wonDealCount === 0
-      ? "Noch keine gewonnenen Deals"
+      ? `Noch keine gewonnenen Deals in ${wonYear}`
       : wonDealCount === 1
         ? `${wonCompanies[0]?.company_name ?? "—"} abgeschlossen`
         : `${wonDealCount.toLocaleString("de-DE")} Deals gewonnen`;
@@ -128,13 +140,16 @@ export default function Dashboard() {
   return (
     <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-canvas p-4 md:p-6 lg:p-8 space-y-6">
       {/* Header */}
-      <header className="flex flex-col gap-1">
-        <h1 className="text-[28px] md:text-[32px] font-bold tracking-tight text-brand">
-          eo ipso CRM
-        </h1>
-        <p className="text-[14px] text-muted-foreground">
-          {greeting} · <span className="capitalize">{today}</span>
-        </p>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-[28px] md:text-[32px] font-bold tracking-tight text-brand">
+            eo ipso CRM
+          </h1>
+          <p className="text-[14px] text-muted-foreground">
+            {greeting} · <span className="capitalize">{today}</span>
+          </p>
+        </div>
+        <ScopeSwitch scope={scope} onChange={setScope} />
       </header>
 
       {/* Block 1 — KPI Cards */}
@@ -144,26 +159,34 @@ export default function Dashboard() {
           rows={stats?.hover_pipeline_companies ?? []}
           variant="value"
         >
+          {/* Offene Deals ohne Jahresfilter: expected_close_date ist bei 3.208
+              von 3.224 offenen Deals leer (gemessen 07.08.2026) — ein
+              Jahresfilter darueber waere irrefuehrend, er wuerde 99,5 % der
+              Pipeline ausblenden. Deshalb bewusst "alle Jahre". */}
           <KpiCard
             icon={Handshake}
             label="Pipeline-Wert"
             value={loading ? null : eurFormatter.format(stats?.pipeline_value ?? 0)}
             subtext={
-              stats ? `${(stats.deal_count ?? 0).toLocaleString("de-DE")} aktive Deals` : undefined
+              stats
+                ? `${(stats.deal_count ?? 0).toLocaleString("de-DE")} offene Deals, alle Jahre`
+                : undefined
             }
             tone="brand"
             onClick={() => navigate("/deals")}
           />
         </KpiTooltip>
         <KpiTooltip
-          title="Top gewonnene Companies"
+          title={`Top gewonnene Companies ${wonYear}`}
           rows={stats?.hover_won_companies ?? []}
           variant="value"
         >
+          {/* status='won' UND won_at im laufenden Jahr — nicht ueber
+              pipeline_stage_id, deren Namen sich je Pipeline unterscheiden. */}
           <KpiCard
             icon={Trophy}
-            label="Gewonnen"
-            value={!wonTotal ? null : eurFormatter.format(wonTotal.value)}
+            label={`Gewonnen ${wonYear}`}
+            value={!stats ? null : eurFormatter.format(stats.won_value ?? 0)}
             subtext={wonSubtext}
             tone="success"
           />
@@ -173,14 +196,19 @@ export default function Dashboard() {
           rows={stats?.hover_probability_companies ?? []}
           variant="expected"
         >
+          {/* Ebenfalls status='open' ohne Jahresfilter — gleiche Begruendung
+              wie bei "Pipeline-Wert". */}
           <KpiCard
             icon={Percent}
             label="Gewichteter Forecast"
             value={loading ? null : eurFormatter.format(stats?.expected_value ?? 0)}
-            subtext="wahrscheinlichkeitsgewichtete Pipeline"
+            subtext="offene Deals, alle Jahre"
             tone="gold"
           />
         </KpiTooltip>
+        {/* Kontakte haben selbst keine Pipeline. Im WerteRaum-Ausschnitt zaehlen
+            die Kontakte, die an einem WerteRaum-Deal haengen — direkt oder
+            ueber die Firma. */}
         <KpiCard
           icon={Users}
           label="Kontakte"
@@ -198,15 +226,17 @@ export default function Dashboard() {
       </section>
 
       {/* Block 1a — Top Kunden nach gewonnenem Umsatz (volle Breite, direkt unter KPI-Grid) */}
-      <TopKundenChart />
+      <TopKundenChart pipelineId={pipelineId} wonYear={wonYear} />
 
-      {/* Block 1a2 — Umsatz nach Jahr (deal_revenue_periods, Read-only) */}
-      <RevenueByYearCard />
+      {/* Block 1a2 — Umsatz nach Jahr (Read-only) */}
+      <RevenueByYearCard pipelineId={pipelineId} />
 
       {/* Block 1b — Maschinen-Banner */}
       <MachineBanner stats={machine} />
 
-      {/* Block 2 — Pipeline Wert Chart */}
+      {/* Block 2 — Pipeline Wert Chart.
+          Folgt dem Umschalter BEWUSST NICHT: das Diagramm vergleicht die
+          Pipelines gegeneinander, auf eine gefiltert bliebe ein Balken uebrig. */}
       <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -217,6 +247,7 @@ export default function Dashboard() {
               {chartMode === "gesamt"
                 ? "Summe der gewonnenen Deals je Pipeline"
                 : "Gewichteter Forecast je Pipeline (offen × Wahrscheinlichkeit)"}
+              {" · alle Pipelines, alle Jahre"}
             </p>
           </div>
           <div role="tablist" aria-label="Chart-Modus" className="flex gap-1 shrink-0">
@@ -410,6 +441,48 @@ export default function Dashboard() {
 }
 
 /* ---------- Subcomponents ---------- */
+
+/**
+ * Umschalter WerteRaum | Gesamt, oben rechts im Kopf.
+ * Default ist WerteRaum — das ist der Ausschnitt, in dem gearbeitet wird.
+ */
+function ScopeSwitch({
+  scope,
+  onChange,
+}: {
+  scope: DashboardScope;
+  onChange: (s: DashboardScope) => void;
+}) {
+  const options: { key: DashboardScope; label: string }[] = [
+    { key: "werteraum", label: "WerteRaum" },
+    { key: "gesamt", label: "Gesamt" },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Ausschnitt der Startseite"
+      className="flex shrink-0 gap-1 rounded-lg border border-border bg-card p-1"
+    >
+      {options.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          role="tab"
+          aria-selected={scope === o.key}
+          onClick={() => onChange(o.key)}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+            scope === o.key
+              ? "bg-brand text-white"
+              : "text-muted-foreground hover:bg-muted",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // eo ipso Cockpit-Palette
 const COCKPIT = {
