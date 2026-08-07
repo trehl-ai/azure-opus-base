@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import {
@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  aggregiereBereitschaft,
   FARBE,
   KUERZEL,
   monatJahr,
@@ -19,9 +20,12 @@ import {
   nf,
   tagMonat,
   useKampagnen,
+  useReadiness,
   useUnterkampagnen,
   volldatum,
   type Kampagne,
+  type ReadinessAggregat,
+  type SegmentFilter,
   type Unterkampagne,
 } from "@/components/campaigns/kampagnenDaten";
 
@@ -181,11 +185,115 @@ function Fusszahl({ wert, label, farbe }: { wert: number; label: string; farbe?:
   );
 }
 
+const SEGMENTE: Array<{ wert: SegmentFilter; label: string }> = [
+  { wert: "grundschule", label: "Grundschule" },
+  { wert: "weiterfuehrend", label: "Weiterführend" },
+  { wert: "alle", label: "Alle" },
+];
+
+/** Segment-Umschalter. Filtert serverseitig (.eq auf schulstufe), nicht im Browser. */
+function SegmentTabs({
+  wert,
+  setzen,
+  laedt,
+}: {
+  wert: SegmentFilter;
+  setzen: (w: SegmentFilter) => void;
+  laedt: boolean;
+}) {
+  return (
+    <div
+      className="flex items-center gap-1 border-t border-border bg-muted/20 px-5 py-2.5"
+      role="tablist"
+      aria-label="Segment"
+    >
+      {SEGMENTE.map((s) => (
+        <button
+          key={s.wert}
+          type="button"
+          role="tab"
+          aria-selected={wert === s.wert}
+          onClick={() => setzen(s.wert)}
+          className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+            wert === s.wert
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {s.label}
+        </button>
+      ))}
+      {laedt && <Loader2 className="ml-1 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+    </div>
+  );
+}
+
+/**
+ * Dreiteilige Bereitschaftsleiste je Bundesland. Loest die Prozentleiste "angereichert" ab:
+ * ein einzelner Prozentwert sagte nicht, WAS fehlt. Rot ist der Blocker (keine Adresse),
+ * gelb ist versandfaehig ueber die Fallback-Anrede, gruen ist vollstaendig.
+ *
+ * Absolute Zahlen statt Prozent — bei 13 Bundeslaendern unterschiedlicher Groesse sind
+ * "62 %" nebeneinander nicht vergleichbar, "809 von 2.154" schon.
+ */
+function BereitschaftsLeiste({ a }: { a: ReadinessAggregat | undefined }) {
+  if (!a || !a.leads)
+    return <span className="text-[12px] text-muted-foreground">—</span>;
+
+  const teile = [
+    { wert: a.keineEmail, klasse: "bg-destructive", label: "keine E-Mail" },
+    { wert: a.emailOhneName, klasse: "bg-warning", label: "ohne Namen" },
+    { wert: a.komplett, klasse: "bg-success", label: "komplett" },
+  ];
+  const summe = a.keineEmail + a.emailOhneName + a.komplett;
+
+  return (
+    <div className="min-w-[200px]">
+      <div
+        className="flex gap-[2px] overflow-hidden rounded-[3px]"
+        role="img"
+        aria-label={teile.map((t) => `${nf.format(t.wert)} ${t.label}`).join(", ")}
+      >
+        {/* Segmente ohne Wert wuerden nur ihren 2px-Abstand hinterlassen. */}
+        {teile
+          .filter((t) => t.wert > 0)
+          .map((t) => (
+            <div
+              key={t.label}
+              className={`h-1.5 ${t.klasse}`}
+              style={{ width: summe ? `${(t.wert / summe) * 100}%` : "0%" }}
+            />
+          ))}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+        {teile.map((t) => (
+          <span key={t.label} className="flex items-center gap-1">
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${t.klasse}`} />
+            <strong className="font-semibold tabular-nums text-foreground">{nf.format(t.wert)}</strong>
+            {t.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function UnterkampagnenTabelle({ slug }: { slug: string }) {
+  // Der Readiness-View kennt nur WerteRaum-Schulen. Viktoria behaelt die alte Darstellung —
+  // ein leeres Aggregat wuerde dort ueberall Nullen zeigen und wie ein Datenverlust aussehen.
+  const istWerteRaum = slug === "werteraum";
+  const [segment, setSegment] = useState<SegmentFilter>("grundschule");
   const { data, isLoading, error } = useUnterkampagnen(slug);
+  const {
+    data: readinessZeilen,
+    isLoading: readinessLaedt,
+    error: readinessFehler,
+  } = useReadiness(segment, istWerteRaum);
   // Ganze Zeile klickbar statt einer "Details"-Spalte — gleiche Konvention wie
   // Contacts.tsx / Companies.tsx / Deals.tsx.
   const navigate = useNavigate();
+
+  const jeBundesland = useMemo(() => aggregiereBereitschaft(readinessZeilen), [readinessZeilen]);
 
   if (isLoading)
     return (
@@ -202,69 +310,151 @@ function UnterkampagnenTabelle({ slug }: { slug: string }) {
   if (!data?.length)
     return <div className="px-5 py-4 text-sm text-muted-foreground">Keine Unterkampagnen.</div>;
 
+  // Bundeslaender, die Schulen in der Queue haben, aber (noch) keine Deal-Zeile liefern,
+  // wuerden sonst unsichtbar bleiben. Sie werden hinten angehaengt statt weggelassen.
+  const nurReadiness = istWerteRaum
+    ? [...jeBundesland.keys()].filter((bl) => !data.some((u) => u.name === bl)).sort()
+    : [];
+
   return (
-    <div className="overflow-x-auto border-t border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-            <th className="px-5 py-2 font-medium">Unterkampagne</th>
-            <th className="px-3 py-2 text-right font-medium">Leads</th>
-            <th className="px-3 py-2 text-right font-medium">wartet auf Freigabe</th>
-            <th className="px-3 py-2 font-medium">angereichert</th>
-            <th className="px-3 py-2 text-right font-medium">kontaktiert</th>
-            <th className="px-3 py-2 text-right font-medium">gewonnen</th>
-            <th className="px-3 py-2 font-medium">Versandstart</th>
-            <th className="px-5 py-2" />
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((u) => (
-            <tr
-              key={u.key}
-              onClick={() => navigate(`/campaigns/${slug}/detail/${encodeURIComponent(u.key)}`)}
-              className="cursor-pointer border-t border-border/60 transition-colors hover:bg-muted/50"
-            >
-              <td className="px-5 py-2.5 font-medium">
-                {u.name}
-                {u.name === "Ohne Zuordnung" && (
-                  <span className="ml-2 text-[11px] font-normal text-muted-foreground">
-                    Deals ohne Bundesland
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{nf.format(u.leads)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-                {u.geparkt ? nf.format(u.geparkt) : "—"}
-              </td>
-              <td className="px-3 py-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, u.angereichert_prozent)}%`,
-                        backgroundColor: FARBE.gruen,
-                      }}
-                    />
-                  </div>
-                  <span className="tabular-nums text-[12px]">{u.angereichert_prozent}%</span>
-                </div>
-              </td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{nf.format(u.kontaktiert)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-success">
-                {u.gewonnen ? nf.format(u.gewonnen) : "—"}
-              </td>
-              <td className="px-3 py-2.5 text-muted-foreground">
-                {u.start_datum ? volldatum(u.start_datum) : "—"}
-              </td>
-              <td className="px-5 py-2.5 text-right">
-                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              </td>
+    <>
+      {istWerteRaum && <SegmentTabs wert={segment} setzen={setSegment} laedt={readinessLaedt} />}
+
+      {readinessFehler && (
+        <div className="border-t border-border px-5 py-3 text-sm text-destructive">
+          Bereitschaft konnte nicht geladen werden: {(readinessFehler as Error).message}
+        </div>
+      )}
+
+      <div className="overflow-x-auto border-t border-border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <th className="px-5 py-2 font-medium">Unterkampagne</th>
+              <th className="px-3 py-2 text-right font-medium">Leads</th>
+              <th className="px-3 py-2 text-right font-medium">wartet auf Freigabe</th>
+              <th className="px-3 py-2 font-medium">{istWerteRaum ? "Bereitschaft" : "angereichert"}</th>
+              {istWerteRaum && <th className="px-3 py-2 text-right font-medium">versandfähig</th>}
+              <th className="px-3 py-2 text-right font-medium">kontaktiert</th>
+              <th className="px-3 py-2 text-right font-medium">gewonnen</th>
+              <th className="px-3 py-2 font-medium">Versandstart</th>
+              <th className="px-5 py-2" />
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {data.map((u) => {
+              const a = jeBundesland.get(u.name);
+              // Im Segment-Tab zaehlt die gefilterte Queue, nicht die Gesamtzahl der RPC —
+              // sonst stuenden 885 Leads neben einer Leiste ueber 520 Schulen.
+              const leads = istWerteRaum ? (a?.leads ?? 0) : u.leads;
+              const versandstart = istWerteRaum ? (a?.versandstart ?? null) : u.start_datum;
+              return (
+                <tr
+                  key={u.key}
+                  onClick={() => navigate(`/campaigns/${slug}/detail/${encodeURIComponent(u.key)}`)}
+                  className="cursor-pointer border-t border-border/60 transition-colors hover:bg-muted/50"
+                >
+                  <td className="px-5 py-2.5 font-medium">
+                    {u.name}
+                    {u.name === "Ohne Zuordnung" && (
+                      <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                        Deals ohne Bundesland
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{nf.format(leads)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                    {u.geparkt ? nf.format(u.geparkt) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {istWerteRaum ? (
+                      <BereitschaftsLeiste a={a} />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${Math.min(100, u.angereichert_prozent)}%`,
+                              backgroundColor: FARBE.gruen,
+                            }}
+                          />
+                        </div>
+                        <span className="tabular-nums text-[12px]">{u.angereichert_prozent}%</span>
+                      </div>
+                    )}
+                  </td>
+                  {istWerteRaum && (
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold">
+                      {a?.versandfaehig ? nf.format(a.versandfaehig) : "—"}
+                    </td>
+                  )}
+                  <td className="px-3 py-2.5 text-right tabular-nums">{nf.format(u.kontaktiert)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-success">
+                    {u.gewonnen ? nf.format(u.gewonnen) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">
+                    {versandstart ? (
+                      volldatum(versandstart)
+                    ) : istWerteRaum ? (
+                      <span className="whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        kein Versandstart
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-5 py-2.5 text-right">
+                    <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  </td>
+                </tr>
+              );
+            })}
+
+            {nurReadiness.map((bl) => {
+              const a = jeBundesland.get(bl);
+              return (
+                <tr key={`nur-queue-${bl}`} className="border-t border-border/60">
+                  <td className="px-5 py-2.5 font-medium">
+                    {bl}
+                    <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                      noch keine Deals
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{nf.format(a?.leads ?? 0)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">—</td>
+                  <td className="px-3 py-2.5">
+                    <BereitschaftsLeiste a={a} />
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums font-semibold">
+                    {a?.versandfaehig ? nf.format(a.versandfaehig) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">—</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">—</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">
+                    {a?.versandstart ? (
+                      volldatum(a.versandstart)
+                    ) : (
+                      <span className="whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        kein Versandstart
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-5 py-2.5" />
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {istWerteRaum && (
+        <p className="border-t border-border bg-muted/20 px-5 py-2.5 text-[12px] leading-relaxed text-muted-foreground">
+          Leads = recherchierte Schulen. Kontaktiert/Gewonnen = Deals inkl. Altbestand außerhalb
+          der Recherche.
+        </p>
+      )}
+    </>
   );
 }
 
