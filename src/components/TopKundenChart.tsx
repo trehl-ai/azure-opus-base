@@ -26,12 +26,24 @@ function rankColor(rank: number): string {
   return "#85B7EB";                       // Rang 5-8
 }
 
-export default function TopKundenChart() {
+export default function TopKundenChart({
+  pipelineId,
+  wonYear,
+}: {
+  /** Pipeline-Filter; null = Gesamt. */
+  pipelineId: string | null;
+  /** Jahr ueber won_at; null = alle Jahre. */
+  wonYear: number | null;
+}) {
   const { data, isLoading } = useQuery<TopKunde[]>({
-    queryKey: ["top-kunden-won"],
+    queryKey: ["top-kunden-won", pipelineId, wonYear],
     queryFn: async () => {
       // as-any-Cast: generierte types.ts kennt diese neue RPC (noch) nicht.
-      const { data, error } = await (supabase as any).rpc("get_top_kunden_won", { p_limit: 8 });
+      const { data, error } = await (supabase as any).rpc("get_top_kunden_won", {
+        p_limit: 8,
+        p_pipeline_id: pipelineId,
+        p_won_year: wonYear,
+      });
       if (error) throw error;
       return (data ?? []) as TopKunde[];
     },
@@ -44,7 +56,9 @@ export default function TopKundenChart() {
     <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
       <div className="mb-4 flex items-start justify-between gap-3">
         <h2 className="text-[16px] font-medium text-foreground">Top Kunden</h2>
-        <p className="text-[12px] text-muted-foreground shrink-0">nach gewonnenem Umsatz</p>
+        <p className="text-[12px] text-muted-foreground shrink-0">
+          nach gewonnenem Umsatz{wonYear !== null ? ` ${wonYear}` : ""}
+        </p>
       </div>
 
       {isLoading ? (
@@ -55,7 +69,9 @@ export default function TopKundenChart() {
         </div>
       ) : rows.length === 0 ? (
         <p className="text-[13px] text-muted-foreground py-6 text-center">
-          Noch keine gewonnenen Deals
+          {wonYear !== null
+            ? `Noch keine gewonnenen Deals in ${wonYear}`
+            : "Noch keine gewonnenen Deals"}
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
