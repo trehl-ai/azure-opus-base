@@ -106,6 +106,108 @@ export function useUnterkampagnen(slug: string | null) {
   });
 }
 
+/**
+ * Die drei Bereitschaftsstufen aus `v_werteraum_readiness`. Am 07.08.2026 gegen die Live-DB
+ * geprueft: genau diese drei Werte, keine NULL, keine weiteren. Der Balken darf sich darauf
+ * verlassen — ein vierter Wert wuerde in der Leiste fehlen, deshalb steht die Pruefung hier.
+ */
+export type Bereitschaft = "keine_email" | "email_ohne_name" | "komplett";
+
+/** Segment-Umschalter ueber der Tabelle. "alle" heisst: kein serverseitiger Filter. */
+export type SegmentFilter = "grundschule" | "weiterfuehrend" | "alle";
+
+export type ReadinessZeile = {
+  bundesland: string | null;
+  bereitschaft: Bereitschaft | null;
+  versandstart: string | null;
+};
+
+export type ReadinessAggregat = {
+  leads: number;
+  keineEmail: number;
+  emailOhneName: number;
+  komplett: number;
+  /** bereitschaft <> 'keine_email' — die Zahl, auf die es ankommt. */
+  versandfaehig: number;
+  /** Fruehester Versandstart der Zeilen dieses Bundeslands, null wenn keine Kampagnenzeile. */
+  versandstart: string | null;
+};
+
+/**
+ * PostgREST deckelt jede Antwort bei 1000 Zeilen (`max-rows`). Gemessen am 07.08.2026:
+ * `schulstufe=eq.grundschule` liefert `content-range: 0-999/2154`. Ein einzelnes .select()
+ * wuerde also 1154 Zeilen verschlucken und JEDE Zahl dieser Tabelle still zu klein machen.
+ * Darum seitenweise bis zur kurzen Seite.
+ */
+const SEITE = 1000;
+
+/**
+ * Zeilen aus `v_werteraum_readiness`. Der View steht nicht in types.ts — Zugriff ueber
+ * `(supabase as any)`, types.ts wird bewusst nicht regeneriert.
+ *
+ * Geladen wird nur, was die Tabelle aggregiert. `email`, `rektor_name` und `anrede_final`
+ * bleiben absichtlich draussen: fuer eine Summenzeile braucht es keine personenbezogenen
+ * Felder, und 2154 Zeilen davon gehoeren nicht ohne Grund in den Browser.
+ *
+ * `enabled` haelt Viktoria draussen — der View kennt nur WerteRaum-Schulen.
+ */
+export function useReadiness(segment: SegmentFilter, enabled: boolean) {
+  return useQuery({
+    queryKey: ["eic", "werteraum_readiness", segment],
+    enabled,
+    queryFn: async () => {
+      const zeilen: ReadinessZeile[] = [];
+      for (let von = 0; ; von += SEITE) {
+        let q = (supabase as any)
+          .from("v_werteraum_readiness")
+          .select("id,bundesland,bereitschaft,versandstart")
+          // Stabile Sortierung ist Pflicht: ohne sie darf PostgREST die Reihenfolge
+          // zwischen zwei Seitenabrufen aendern und Zeilen doppelt oder gar nicht liefern.
+          .order("id", { ascending: true })
+          .range(von, von + SEITE - 1);
+        if (segment !== "alle") q = q.eq("schulstufe", segment);
+        const { data, error } = await q;
+        if (error) throw error;
+        const seite = (data ?? []) as ReadinessZeile[];
+        zeilen.push(...seite);
+        if (seite.length < SEITE) break;
+      }
+      return zeilen;
+    },
+  });
+}
+
+/**
+ * Zeilen → ein Aggregat je Bundesland.
+ *
+ * `versandstart` haengt im View an (bundesland, segment). Im Tab "Alle" treffen darum je
+ * Bundesland mehrere Termine aufeinander; genommen wird der fruehste — das ist der naechste,
+ * der ansteht. In den Segment-Tabs ist der Wert ohnehin eindeutig.
+ */
+export function aggregiereBereitschaft(
+  zeilen: ReadinessZeile[] | undefined,
+): Map<string, ReadinessAggregat> {
+  const je = new Map<string, ReadinessAggregat>();
+  for (const z of zeilen ?? []) {
+    const bl = z.bundesland ?? "Ohne Zuordnung";
+    let a = je.get(bl);
+    if (!a) {
+      a = { leads: 0, keineEmail: 0, emailOhneName: 0, komplett: 0, versandfaehig: 0, versandstart: null };
+      je.set(bl, a);
+    }
+    a.leads++;
+    if (z.bereitschaft === "keine_email") a.keineEmail++;
+    else if (z.bereitschaft === "email_ohne_name") a.emailOhneName++;
+    else if (z.bereitschaft === "komplett") a.komplett++;
+    // Ein unbekannter oder fehlender Wert zaehlt NICHT als versandfaehig — im Zweifel
+    // lieber eine Schule zu wenig anschreiben als eine zu viel.
+    if (z.bereitschaft && z.bereitschaft !== "keine_email") a.versandfaehig++;
+    if (z.versandstart && (!a.versandstart || z.versandstart < a.versandstart))
+      a.versandstart = z.versandstart;
+  }
+  return je;
+}
+
 /** Ortszeit als ISO-Tag — Vergleich als String, damit keine UTC-Verschiebung um einen Tag danebenliegt. */
 export function heuteIso(): string {
   const d = new Date();
