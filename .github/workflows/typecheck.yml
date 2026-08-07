@@ -4,6 +4,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manuell ausloesbar. Grund: Am 06.08.2026 fiel Actions stundenlang aus
+  # (GitHub-Vorfall, Impact critical). Ohne workflow_dispatch gab es keinen Weg,
+  # die Pflicht-Checks nachzuholen - der einzige Ausweg war ein Leer-Commit.
+  workflow_dispatch:
 
 jobs:
   typecheck:

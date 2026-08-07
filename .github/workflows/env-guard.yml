@@ -4,6 +4,8 @@ on:
     branches: [main, lovable/ui]
   pull_request:
     branches: [main]
+  # Manuell ausloesbar - siehe Begruendung in typecheck.yml.
+  workflow_dispatch:
 
 jobs:
   check-env:
