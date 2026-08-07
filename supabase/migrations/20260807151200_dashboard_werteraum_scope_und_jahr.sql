@@ -320,5 +320,3 @@ $function$;
 
 GRANT EXECUTE ON FUNCTION public.get_revenue_by_year(uuid)
   TO anon, authenticated, service_role;
-
-NOTIFY pgrst, 'reload schema';
