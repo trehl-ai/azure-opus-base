@@ -84,7 +84,10 @@ export default function TopKundenChart({
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-[13px] text-foreground truncate">
                     {r.company_name}
-                    <span className="text-muted-foreground"> · {deals} Deals</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {deals} {deals === 1 ? "Deal" : "Deals"}
+                    </span>
                   </span>
                   <span className="text-[13px] font-semibold tabular-nums text-foreground shrink-0">
                     {eur.format(revenue)}
