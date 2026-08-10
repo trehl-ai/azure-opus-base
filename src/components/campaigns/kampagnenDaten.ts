@@ -178,6 +178,78 @@ export function useReadiness(segment: SegmentFilter, enabled: boolean) {
 }
 
 /**
+ * Die sechs Zahlen der Kampagnenkachel, auf ein Segment eingeschraenkt.
+ *
+ * Deckungsgleich mit dem CTE `wr_queue` in `get_kampagnen_uebersicht` — dieselbe Grundmenge
+ * (`werteraum_school_queue`, vom View 1:1 durchgereicht) und dieselben Bedingungen.
+ */
+export type KachelKennzahlen = {
+  leads: number;
+  mitEmail: number;
+  mitWebsite: number;
+  mitName: number;
+  vollstaendig: number;
+  geparkt: number;
+};
+
+/** Zusatzbedingung einer Zaehlung. Als Daten statt als Callback, damit kein `any` noetig wird. */
+type Bedingung = { spalte: string; op: "eq" | "neq"; wert: string };
+
+/** `spalte is not null and btrim(spalte) <> ''` — NULL faellt beim Vergleich von selbst heraus. */
+const gefuellt = (spalte: string): Bedingung => ({ spalte, op: "neq", wert: "" });
+
+/**
+ * Eine Zaehlung serverseitig. `head: true` holt NUR den count-Header, keine einzige Zeile —
+ * damit ist die 1000-Zeilen-Kappung von PostgREST hier ohne Bedeutung, anders als bei
+ * `useReadiness`, das die Zeilen wirklich braucht und darum blaettern muss.
+ */
+async function zaehle(segment: SegmentFilter, bedingungen: Bedingung[] = []): Promise<number> {
+  let q = (supabase as any)
+    .from("v_werteraum_readiness")
+    .select("id", { count: "exact", head: true });
+  if (segment !== "alle") q = q.eq("schulstufe", segment);
+  for (const b of bedingungen) q = b.op === "eq" ? q.eq(b.spalte, b.wert) : q.neq(b.spalte, b.wert);
+  const { count, error } = await q;
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/**
+ * Kachelzahlen je Segment.
+ *
+ * `neq(spalte, "")` bildet `spalte is not null and btrim(spalte) <> ''` aus der RPC ab: der
+ * Vergleich gegen NULL ergibt NULL und faellt damit von selbst heraus. Am 10.08.2026 gegen die
+ * Live-DB gegengerechnet — beide Schreibweisen liefern in jedem Segment dieselbe Zahl, es gibt
+ * keine Felder aus reinen Leerzeichen. Faende sich spaeter eines, zaehlte die RPC es als leer
+ * und diese Abfrage als gefuellt.
+ *
+ * `enabled` haelt Viktoria draussen (der View kennt nur WerteRaum) und spart den Roundtrip im
+ * Tab "Alle", wo die Kachel bei den RPC-Zahlen bleibt.
+ */
+export function useReadinessKennzahlen(segment: SegmentFilter, enabled: boolean) {
+  return useQuery({
+    queryKey: ["eic", "werteraum_kachel", segment],
+    enabled,
+    // Beim Tabwechsel die Zahlen des vorigen Segments stehen lassen. Ohne das fiele die Kachel
+    // fuer einen Moment auf die Gesamtzahl zurueck — ausgerechnet auf den Wert, dessen
+    // Vermischung mit der Tabelle dieser Umbau beseitigt.
+    placeholderData: (vorherige) => vorherige,
+    queryFn: async (): Promise<KachelKennzahlen> => {
+      const [leads, mitEmail, mitWebsite, mitName, vollstaendig, geparkt] = await Promise.all([
+        zaehle(segment),
+        zaehle(segment, [gefuellt("email")]),
+        zaehle(segment, [gefuellt("website_url")]),
+        zaehle(segment, [gefuellt("rektor_name")]),
+        zaehle(segment, [gefuellt("email"), gefuellt("website_url"), gefuellt("rektor_name")]),
+        // "wartet auf Freigabe" = scrape_status 'hold', wie im CTE wr_queue.
+        zaehle(segment, [{ spalte: "scrape_status", op: "eq", wert: "hold" }]),
+      ]);
+      return { leads, mitEmail, mitWebsite, mitName, vollstaendig, geparkt };
+    },
+  });
+}
+
+/**
  * Zeilen → ein Aggregat je Bundesland.
  *
  * `versandstart` haengt im View an (bundesland, segment). Im Tab "Alle" treffen darum je
