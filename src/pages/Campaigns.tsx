@@ -21,8 +21,10 @@ import {
   tagMonat,
   useKampagnen,
   useReadiness,
+  useReadinessKennzahlen,
   useUnterkampagnen,
   volldatum,
+  type KachelKennzahlen,
   type Kampagne,
   type ReadinessAggregat,
   type SegmentFilter,
@@ -278,11 +280,20 @@ function BereitschaftsLeiste({ a }: { a: ReadinessAggregat | undefined }) {
   );
 }
 
-function UnterkampagnenTabelle({ slug }: { slug: string }) {
+function UnterkampagnenTabelle({
+  slug,
+  segment,
+  setSegment,
+}: {
+  slug: string;
+  // Der Segment-Zustand liegt eine Ebene hoeher in KampagnenKarte, weil die Kachel oben
+  // demselben Tab folgen muss wie diese Tabelle.
+  segment: SegmentFilter;
+  setSegment: (w: SegmentFilter) => void;
+}) {
   // Der Readiness-View kennt nur WerteRaum-Schulen. Viktoria behaelt die alte Darstellung —
   // ein leeres Aggregat wuerde dort ueberall Nullen zeigen und wie ein Datenverlust aussehen.
   const istWerteRaum = slug === "werteraum";
-  const [segment, setSegment] = useState<SegmentFilter>("grundschule");
   const { data, isLoading, error } = useUnterkampagnen(slug);
   const {
     data: readinessZeilen,
@@ -465,6 +476,31 @@ function KampagnenKarte({ k }: { k: Kampagne }) {
   const { data: unter, isLoading: unterLaedt } = useUnterkampagnen(k.slug);
   const welle = naechsteWelle(unter);
 
+  // Segment-Zustand der WerteRaum-Karte. Liegt hier und nicht in der Tabelle, weil Kachel und
+  // Tabelle sonst zwei verschiedene Grundmengen nebeneinander zeigen: die Kachel die 3.998 der
+  // gesamten Queue, die Tabelle darunter die 2.626 des Tabs "Grundschule".
+  const istWerteRaum = k.slug === "werteraum";
+  const [segment, setSegment] = useState<SegmentFilter>("grundschule");
+  // Im Tab "Alle" bleibt die RPC massgeblich: sie zaehlt direkt auf werteraum_school_queue und
+  // ist damit unabhaengig vom LEFT JOIN des Views.
+  const segmentAktiv = istWerteRaum && segment !== "alle";
+  const { data: kennzahlen } = useReadinessKennzahlen(segment, segmentAktiv);
+
+  const zahlen: KachelKennzahlen | null = segmentAktiv
+    ? (kennzahlen ?? null)
+    : {
+        leads: k.leads,
+        mitEmail: k.mit_email,
+        mitWebsite: k.mit_website,
+        mitName: k.mit_name,
+        vollstaendig: k.vollstaendig,
+        geparkt: k.geparkt,
+      };
+
+  // Die Zahl ohne ihre Grundmenge zu beschriften waere derselbe Fehler in neu — im Segment-Tab
+  // steht darum dabei, worauf sie sich bezieht.
+  const segmentLabel = SEGMENTE.find((s) => s.wert === segment)?.label;
+
   return (
     // Aufgeklappt zieht die Karte ueber beide Spalten — die Ebene-2-Tabelle hat acht Spalten und
     // waere in einer halben Zeilenbreite unlesbar.
@@ -492,11 +528,24 @@ function KampagnenKarte({ k }: { k: Kampagne }) {
         </div>
 
         <div className="mt-5 flex items-baseline gap-2.5">
-          <span className="text-[38px] font-medium leading-none tabular-nums">{nf.format(k.leads)}</span>
-          <span className="text-[13px] text-muted-foreground">{k.leads_label}</span>
+          {zahlen ? (
+            <span className="text-[38px] font-medium leading-none tabular-nums">
+              {nf.format(zahlen.leads)}
+            </span>
+          ) : (
+            <span className="h-[38px] w-[120px] animate-pulse rounded bg-muted" />
+          )}
+          <span className="text-[13px] text-muted-foreground">
+            {k.leads_label}
+            {segmentAktiv && segmentLabel ? ` · ${segmentLabel}` : ""}
+          </span>
         </div>
 
-        <Fortschritt leads={k.leads} mitEmail={k.mit_email} geparkt={k.geparkt} />
+        {zahlen ? (
+          <Fortschritt leads={zahlen.leads} mitEmail={zahlen.mitEmail} geparkt={zahlen.geparkt} />
+        ) : (
+          <div className="mt-4 h-1.5 animate-pulse rounded-[3px] bg-muted" />
+        )}
 
         {/* umbruchfaehig: bei schmaler Karte rutschte "gewonnen" sonst hinter den Kartenrand */}
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3 border-t border-border pt-3">
@@ -510,20 +559,31 @@ function KampagnenKarte({ k }: { k: Kampagne }) {
         <>
           <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border bg-muted/30 px-5 py-2.5 text-[12px] text-muted-foreground">
             <span>
-              E-Mail <strong className="text-foreground tabular-nums">{nf.format(k.mit_email)}</strong>
+              E-Mail{" "}
+              <strong className="text-foreground tabular-nums">
+                {zahlen ? nf.format(zahlen.mitEmail) : "—"}
+              </strong>
             </span>
             <span>
-              Website <strong className="text-foreground tabular-nums">{nf.format(k.mit_website)}</strong>
+              Website{" "}
+              <strong className="text-foreground tabular-nums">
+                {zahlen ? nf.format(zahlen.mitWebsite) : "—"}
+              </strong>
             </span>
             <span>
               Ansprechpartner{" "}
-              <strong className="text-foreground tabular-nums">{nf.format(k.mit_name)}</strong>
+              <strong className="text-foreground tabular-nums">
+                {zahlen ? nf.format(zahlen.mitName) : "—"}
+              </strong>
             </span>
             <span>
-              alle drei <strong className="text-foreground tabular-nums">{nf.format(k.vollstaendig)}</strong>
+              alle drei{" "}
+              <strong className="text-foreground tabular-nums">
+                {zahlen ? nf.format(zahlen.vollstaendig) : "—"}
+              </strong>
             </span>
           </div>
-          <UnterkampagnenTabelle slug={k.slug} />
+          <UnterkampagnenTabelle slug={k.slug} segment={segment} setSegment={setSegment} />
         </>
       )}
     </Card>
