@@ -214,10 +214,10 @@ function SegmentTabs({
           role="tab"
           aria-selected={wert === s.wert}
           onClick={() => setzen(s.wert)}
-          className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+          className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
             wert === s.wert
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
+              ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+              : "font-medium text-muted-foreground hover:text-foreground"
           }`}
         >
           {s.label}
