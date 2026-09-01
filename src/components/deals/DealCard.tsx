@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { cn, getAvatarColor, getInitials } from "@/lib/utils";
 import { Phone } from "lucide-react";
+import { leistungszeitraumKurz } from "@/lib/leistungszeitraum";
 
 interface DealCardData {
   id: string;
@@ -12,6 +13,8 @@ interface DealCardData {
   ownerName: string | null;
   phone?: string | null;
   bundesland?: string | null;
+  service_start_date?: string | null;
+  service_end_date?: string | null;
 }
 
 const priorityDot: Record<string, string> = {
@@ -35,6 +38,7 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
     v != null ? new Intl.NumberFormat("de-DE", { style: "currency", currency: c || "EUR", maximumFractionDigits: 0 }).format(v) : "";
 
   const ownerName = deal.ownerName?.trim() || null;
+  const leistungszeitraum = leistungszeitraumKurz(deal.service_start_date, deal.service_end_date);
 
   return (
     <div
@@ -82,6 +86,9 @@ export function DealCard({ deal, onDragStart }: { deal: DealCardData; onDragStar
           <Phone className="h-2.5 w-2.5 shrink-0" />
           <span className="truncate">{deal.phone}</span>
         </a>
+      )}
+      {leistungszeitraum && (
+        <p className="mt-1 text-[10px] text-muted-foreground leading-snug">{leistungszeitraum}</p>
       )}
       <div className="mt-1.5 flex items-center justify-between">
         {deal.value_amount ? (
