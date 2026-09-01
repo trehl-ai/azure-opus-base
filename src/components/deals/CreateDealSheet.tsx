@@ -17,6 +17,20 @@ import { CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+const ZEITRAUM_UNGUELTIG = "Das Ende darf nicht vor dem Beginn liegen.";
+const CHECK_VERLETZT = "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen.";
+const KEINE_BERECHTIGUNG = "Keine Berechtigung zum Anlegen von Deals. Bitte Tomi ansprechen.";
+
+/**
+ * Vergleich ueber die ISO-Zeichenkette, nicht ueber Date-Objekte: aus der DB
+ * gelesene Daten entstehen als UTC-Mitternacht, aus dem Kalender gewaehlte als
+ * lokale Mitternacht. Ein Date-Vergleich waere je nach Zeitzone um einen Tag daneben.
+ */
+function zeitraumUngueltig(von?: Date, bis?: Date) {
+  if (!von || !bis) return false;
+  return format(bis, "yyyy-MM-dd") < format(von, "yyyy-MM-dd");
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,11 +59,15 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
     }
   }, [open, user?.id]);
   const [expectedCloseDate, setExpectedCloseDate] = useState<Date>();
+  const [serviceStartDate, setServiceStartDate] = useState<Date>();
+  const [serviceEndDate, setServiceEndDate] = useState<Date>();
   const [companySearch, setCompanySearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
   const [titleError, setTitleError] = useState("");
 
   const u = (f: string, v: string) => { setForm((p) => ({ ...p, [f]: v })); if (f === "title") setTitleError(""); };
+
+  const zeitraumFehler = zeitraumUngueltig(serviceStartDate, serviceEndDate);
 
   // Pre-fill contact when sheet opens with defaultContactId
   useEffect(() => {
@@ -135,8 +153,9 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
       const pid = form.pipeline_id || selectedPipelineId;
       const sid = form.pipeline_stage_id || defaultStageId;
       if (!pid || !sid) throw new Error("Pipeline und Stage sind erforderlich");
+      if (zeitraumUngueltig(serviceStartDate, serviceEndDate)) throw new Error(ZEITRAUM_UNGUELTIG);
 
-      const { error } = await (supabase as any).from("deals").insert({
+      const { data, error } = await (supabase as any).from("deals").insert({
         title: form.title.trim(),
         company_id: form.company_id || null,
         primary_contact_id: form.primary_contact_id || null,
@@ -151,8 +170,16 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
         owner_user_id: form.owner_user_id || user?.id || null,
         description: form.description.trim() || null,
         created_by_user_id: user?.id ?? null,
-      });
-      if (error) throw error;
+        service_start_date: serviceStartDate ? format(serviceStartDate, "yyyy-MM-dd") : null,
+        service_end_date: serviceEndDate ? format(serviceEndDate, "yyyy-MM-dd") : null,
+      }).select("id");
+      // Wie beim UPDATE: ein von RLS abgelehnter INSERT liefert keine Zeile zurueck.
+      if (error) {
+        if (error.code === "23514") throw new Error(CHECK_VERLETZT);
+        if (error.code === "42501") throw new Error(KEINE_BERECHTIGUNG);
+        throw error;
+      }
+      if (!data || data.length === 0) throw new Error(KEINE_BERECHTIGUNG);
     },
     onSuccess: () => {
       toast({ title: "Deal erstellt" });
@@ -168,6 +195,8 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
   const resetAndClose = () => {
     setForm({ title: "", company_id: "", primary_contact_id: "", pipeline_id: "", pipeline_stage_id: "", value_amount: "", currency: "EUR", probability_percent: "", priority: "medium", source: "", owner_user_id: "", description: "" });
     setExpectedCloseDate(undefined);
+    setServiceStartDate(undefined);
+    setServiceEndDate(undefined);
     setCompanySearch("");
     setContactSearch("");
     setTitleError("");
@@ -278,6 +307,46 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
             </div>
           </div>
 
+          {/* Leistungszeitraum — massgeblich fuer die Jahreszuordnung des Umsatzes.
+              Beide Felder optional; "bis" wird bewusst NICHT aus "von" vorbefuellt. */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-label">Leistungszeitraum von</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !serviceStartDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {serviceStartDate ? format(serviceStartDate, "dd.MM.yyyy") : "Datum wählen"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={serviceStartDate} onSelect={setServiceStartDate} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              {serviceStartDate && (
+                <button type="button" onClick={() => setServiceStartDate(undefined)} className="text-[12px] text-muted-foreground hover:text-foreground">Leeren</button>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-label">Leistungszeitraum bis</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !serviceEndDate && "text-muted-foreground", zeitraumFehler && "border-destructive")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {serviceEndDate ? format(serviceEndDate, "dd.MM.yyyy") : "Datum wählen"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={serviceEndDate} onSelect={setServiceEndDate} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              {serviceEndDate && (
+                <button type="button" onClick={() => setServiceEndDate(undefined)} className="text-[12px] text-muted-foreground hover:text-foreground">Leeren</button>
+              )}
+              {zeitraumFehler && <p className="text-[12px] text-destructive">{ZEITRAUM_UNGUELTIG}</p>}
+            </div>
+          </div>
+
           {/* Priority + Source */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -313,7 +382,7 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
+            <Button className="flex-1" onClick={() => mutation.mutate()} disabled={mutation.isPending || zeitraumFehler}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
             <Button variant="outline" className="flex-1" onClick={resetAndClose}>Abbrechen</Button>
           </div>
         </div>

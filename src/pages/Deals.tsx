@@ -10,6 +10,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateDealSheet } from "@/components/deals/CreateDealSheet";
 import { DealCard } from "@/components/deals/DealCard";
+import { leistungszeitraumKurz } from "@/lib/leistungszeitraum";
 import { WerteRaumRessourcen } from "@/components/deals/WerteRaumRessourcen";
 import { VRRessourcen } from "@/components/deals/VRRessourcen";
 import { LostReasonDialog } from "@/components/deals/LostReasonDialog";
@@ -82,7 +83,7 @@ export default function Deals() {
       const buildQuery = () => {
         let q = (supabase as any)
           .from("deals")
-          .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)", { count: "exact" })
+          .select("title, value_amount, probability_percent, status, created_at, service_start_date, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)", { count: "exact" })
           .eq("pipeline_id", activePipelineId)
           .is("deleted_at", null);
         if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
@@ -115,6 +116,8 @@ export default function Deals() {
         { header: "Owner", accessor: (r: any) => { const o = users?.find((u) => u.id === r.owner_user_id); return o ? `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim() : ""; } },
         { header: "Status", accessor: (r: any) => r.status },
         { header: "Erstellt am", accessor: (r: any) => r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : "" },
+        // Umsatzjahr = Jahr von service_start_date (Entscheidung TT, 01.09.2026).
+        { header: "Leistung ab", accessor: (r: { service_start_date?: string | null }) => r.service_start_date ? format(new Date(r.service_start_date), "dd.MM.yyyy") : "–" },
       ], `deals_${todayString()}.xlsx`);
       toast({ title: `${exportData.length} Deals exportiert` });
     } catch (err: any) {
@@ -219,7 +222,7 @@ export default function Deals() {
         let q = (supabase as any)
           .from("deals")
           .select(
-            "id, title, value_amount, currency, priority, pipeline_stage_id, status, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile, bundesland)",
+            "id, title, value_amount, currency, priority, pipeline_stage_id, status, owner_user_id, service_start_date, service_end_date, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(phone, mobile, bundesland)",
             { count: "exact" },
           )
           .eq("pipeline_id", activePipelineId)
@@ -552,12 +555,14 @@ export default function Deals() {
           <div className="space-y-2">
             {mobileDeals.map((deal) => {
               const company = deal.company as unknown as { name: string } | null;
+              const leistungszeitraum = leistungszeitraumKurz(deal.service_start_date, deal.service_end_date);
               return (
                 <MobileCard
                   key={deal.id}
                   onClick={() => navigate(`/deals/${deal.id}`)}
                   title={deal.title}
                   subtitle={company?.name || undefined}
+                  meta={leistungszeitraum ? <span className="text-[11px] text-muted-foreground">{leistungszeitraum}</span> : undefined}
                   badge={deal.priority ? <span className={cn("h-2 w-2 rounded-full", deal.priority === "high" ? "bg-destructive" : deal.priority === "medium" ? "bg-warning" : "bg-muted-foreground")} /> : undefined}
                   rightContent={
                     <div className="flex flex-col items-end gap-1 shrink-0">
@@ -617,6 +622,8 @@ export default function Deals() {
                             ownerName: owner ? `${owner.first_name ?? ""} ${owner.last_name ?? ""}`.trim() || null : null,
                             phone: dealPhone,
                             bundesland: contact?.bundesland ?? null,
+                            service_start_date: deal.service_start_date ?? null,
+                            service_end_date: deal.service_end_date ?? null,
                           }}
                           onDragStart={handleDragStart}
                         />
