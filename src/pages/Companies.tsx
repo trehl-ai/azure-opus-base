@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCompanies } from "@/hooks/useCompanies";
+import { useCompanies, useCompaniesTotal, applyCompanyFilters, CATEGORY_NONE } from "@/hooks/useCompanies";
+import { useCompanyFilterOptions } from "@/hooks/useCompanyFilterOptions";
 import { usePermission } from "@/hooks/usePermission";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useUsers } from "@/hooks/useUsers";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CompanyStatusBadge } from "@/components/companies/CompanyStatusBadge";
+import { CompanyArchiveAction } from "@/components/companies/CompanyArchiveAction";
 import { LeadScoreBadge } from "@/components/ui/LeadScoreBadge";
 import { CreateCompanySheet } from "@/components/companies/CreateCompanySheet";
 import { MobileCard } from "@/components/shared/MobileCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
@@ -33,23 +38,39 @@ export default function Companies() {
   const { toast } = useToast();
   const { canWrite } = usePermission();
   const canWriteCompanies = canWrite("companies");
+  // Archivieren = UPDATE auf companies -> RLS companies_update = can_write_deals()
+  // (admin/management/projektmanager). canWrite("companies") schliesst zusaetzlich
+  // 'sales' ein und passt hier deshalb NICHT — das Gate spiegelt die RLS 1:1.
+  const { canWriteDeals } = useUserRole();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  const filters = {
+    search,
+    status: statusFilter,
+    ownerUserId: ownerFilter,
+    source: sourceFilter,
+    category: categoryFilter,
+    showArchived,
+  };
+
   const handleExport = async () => {
     setExporting(true);
     try {
-      let q = supabase
-        .from("companies")
-        .select("name, street, postal_code, city, country, website, industry, source, status, created_at")
-        .is("deleted_at", null);
-      if (search.trim()) q = q.ilike("name", `%${search.trim()}%`);
-      if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      if (ownerFilter !== "all") q = q.eq("owner_user_id", ownerFilter);
+      // Export folgt exakt den gesetzten Filtern — inkl. Archiv-Umschalter.
+      const q = applyCompanyFilters(
+        supabase
+          .from("companies")
+          .select("name, street, postal_code, city, country, website, industry, source, status, created_at"),
+        filters
+      );
       const { data, error } = await q.order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -74,20 +95,21 @@ export default function Companies() {
   };
 
   const { data: users } = useUsers();
-  const { data, isLoading } = useCompanies({
-    search,
-    status: statusFilter,
-    ownerUserId: ownerFilter,
-    page,
-    pageSize: PAGE_SIZE,
-  });
+  const { data: filterOptions } = useCompanyFilterOptions(showArchived);
+  const { data: totalInView } = useCompaniesTotal(showArchived);
+  const { data, isLoading } = useCompanies({ ...filters, page, pageSize: PAGE_SIZE });
 
   const companies = data?.data ?? [];
   const totalCount = data?.count ?? 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  const resetPage = () => setPage(1);
+
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const emptyText = showArchived ? "Keine archivierten Companies gefunden." : "Keine Companies gefunden.";
+  const colCount = canWriteDeals ? 8 : 7;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -110,22 +132,52 @@ export default function Companies() {
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
         <div className="relative flex-1 min-w-0 sm:min-w-[220px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Suche nach Firmenname..." className="pl-10 rounded-full min-h-[44px]" />
+          <Input value={search} onChange={(e) => { setSearch(e.target.value); resetPage(); }} placeholder="Suche nach Firmenname..." className="pl-10 rounded-full min-h-[44px]" />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPage(); }}>
           <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             {statusFilterOptions.map((o) => <SelectItem key={o.value} value={o.value} className="min-h-[44px]">{o.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={ownerFilter} onValueChange={(v) => { setOwnerFilter(v); setPage(1); }}>
+        <Select value={ownerFilter} onValueChange={(v) => { setOwnerFilter(v); resetPage(); }}>
           <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]"><SelectValue placeholder="Alle Owner" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="min-h-[44px]">Alle Owner</SelectItem>
             {users?.map((u) => <SelectItem key={u.id} value={u.id} className="min-h-[44px]">{u.first_name} {u.last_name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); resetPage(); }}>
+          <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]" aria-label="Quelle"><SelectValue placeholder="Quelle: Alle" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="min-h-[44px]">Quelle: Alle</SelectItem>
+            {filterOptions?.sources.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); resetPage(); }}>
+          <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]" aria-label="Kategorie"><SelectValue placeholder="Kategorie: Alle" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="min-h-[44px]">Kategorie: Alle</SelectItem>
+            {filterOptions?.categories.map((c) => <SelectItem key={c} value={c} className="min-h-[44px]">{c}</SelectItem>)}
+            {filterOptions?.hasNullCategory && (
+              <SelectItem value={CATEGORY_NONE} className="min-h-[44px]">ohne Kategorie</SelectItem>
+            )}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-2 min-h-[44px]">
+          <Switch
+            id="show-archived"
+            checked={showArchived}
+            onCheckedChange={(v) => { setShowArchived(v); resetPage(); }}
+          />
+          <Label htmlFor="show-archived" className="cursor-pointer whitespace-nowrap">Archivierte anzeigen</Label>
+        </div>
       </div>
+
+      {/* Zaehler */}
+      <p className="text-label text-muted-foreground">
+        {isLoading ? "Lädt…" : `${totalCount} von ${totalInView ?? totalCount} ${showArchived ? "archivierten Firmen" : "Firmen"}`}
+      </p>
 
       {/* Mobile Card List */}
       {isMobile ? (
@@ -138,7 +190,7 @@ export default function Companies() {
               </div>
             ))
           ) : companies.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">Keine Companies gefunden.</p>
+            <p className="text-center text-muted-foreground py-12">{emptyText}</p>
           ) : (
             companies.map((company) => {
               const owner = company.owner as { id: string; first_name: string; last_name: string } | null;
@@ -157,6 +209,15 @@ export default function Companies() {
                     </div>
                   }
                   meta={owner ? <p className="text-[12px] text-muted-foreground">Owner: {owner.first_name} {owner.last_name[0]}.</p> : undefined}
+                  rightContent={canWriteDeals ? (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <CompanyArchiveAction
+                        companyId={company.id}
+                        companyName={company.name}
+                        archived={showArchived}
+                      />
+                    </div>
+                  ) : undefined}
                 />
               );
             })
@@ -174,21 +235,23 @@ export default function Companies() {
                 <TableHead className="text-label font-semibold">Status</TableHead>
                 <TableHead className="text-label font-semibold">Score</TableHead>
                 <TableHead className="text-label font-semibold">Owner</TableHead>
-                <TableHead className="text-label font-semibold">Erstellt am</TableHead>
+                <TableHead className="text-label font-semibold">{showArchived ? "Archiviert am" : "Erstellt am"}</TableHead>
+                {canWriteDeals && <TableHead className="text-label font-semibold text-right">Aktion</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, c) => <TableCell key={c}><div className="h-4 w-24 animate-pulse rounded bg-[hsl(228,33%,91%)]" /></TableCell>)}
+                    {Array.from({ length: colCount }).map((_, c) => <TableCell key={c}><div className="h-4 w-24 animate-pulse rounded bg-[hsl(228,33%,91%)]" /></TableCell>)}
                   </TableRow>
                 ))
               ) : companies.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Keine Companies gefunden.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={colCount} className="h-32 text-center text-muted-foreground">{emptyText}</TableCell></TableRow>
               ) : (
                 companies.map((company) => {
                   const owner = company.owner as { id: string; first_name: string; last_name: string } | null;
+                  const dateCell = showArchived ? company.deleted_at : company.created_at;
                   return (
                     <TableRow key={company.id} className="cursor-pointer h-[52px] hover:bg-muted/50 transition-colors" onClick={() => navigate(`/companies/${company.id}`)}>
                       <TableCell className="text-body font-medium text-foreground">{company.name}</TableCell>
@@ -197,7 +260,16 @@ export default function Companies() {
                       <TableCell><CompanyStatusBadge status={company.status} /></TableCell>
                       <TableCell><LeadScoreBadge score={(company as { lead_score?: number | null }).lead_score} /></TableCell>
                       <TableCell className="text-body text-muted-foreground">{owner ? `${owner.first_name} ${owner.last_name}` : "–"}</TableCell>
-                      <TableCell className="text-body text-muted-foreground">{formatDate(company.created_at)}</TableCell>
+                      <TableCell className="text-body text-muted-foreground">{dateCell ? formatDate(dateCell) : "–"}</TableCell>
+                      {canWriteDeals && (
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <CompanyArchiveAction
+                            companyId={company.id}
+                            companyName={company.name}
+                            archived={showArchived}
+                          />
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })
