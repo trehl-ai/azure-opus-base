@@ -9,21 +9,11 @@ import { CompanyStatusBadge } from "@/components/companies/CompanyStatusBadge";
 import { LeadScoreBadge } from "@/components/ui/LeadScoreBadge";
 import { EditCompanySheet } from "@/components/companies/EditCompanySheet";
 import { LinkContactDialog } from "@/components/companies/LinkContactDialog";
+import { CompanyArchiveAction } from "@/components/companies/CompanyArchiveAction";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -32,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Pencil, Trash2, Plus, ExternalLink, Check } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, ExternalLink, Check } from "lucide-react";
 
 const cardClass = "rounded-2xl border border-border bg-card p-6";
 
@@ -68,8 +58,10 @@ export default function CompanyDetail() {
   const [notes, setNotes] = useState<string | null>(null);
   const { canWrite } = usePermission();
   const canWriteCompanies = canWrite("companies");
-  // Loeschen = companies_delete (RLS is_admin()). Bearbeiten/Anlegen bleiben unveraendert.
-  const { isAdmin } = useUserRole();
+  // Archivieren = Soft-Delete (deleted_at setzen) -> RLS companies_update =
+  // can_write_deals() (admin/management/projektmanager). Hartes Loeschen bleibt
+  // companies_delete = is_admin() und ist hier bewusst NICHT verdrahtet.
+  const { canWriteDeals } = useUserRole();
 
   // Company
   const { data: company, isLoading } = useQuery({
@@ -128,22 +120,6 @@ export default function CompanyDetail() {
       return data;
     },
     enabled: !!id,
-  });
-
-  // Soft-delete
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("companies").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Company gelöscht" });
-      queryClient.invalidateQueries({ queryKey: ["companies"] });
-      navigate("/companies", { replace: true });
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Fehler", description: err.message });
-    },
   });
 
   // Save notes
@@ -206,28 +182,14 @@ export default function CompanyDetail() {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" /> Bearbeiten
             </Button>
-            {isAdmin && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
-                  <Trash2 className="h-4 w-4" /> Löschen
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Company löschen?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    "{company.name}" wird unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Löschen
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {canWriteDeals && (
+              <CompanyArchiveAction
+                companyId={company.id}
+                companyName={company.name}
+                archived={!!company.deleted_at}
+                variant="button"
+                onDone={() => navigate("/companies", { replace: true })}
+              />
             )}
           </div>
         )}
