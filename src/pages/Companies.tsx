@@ -105,6 +105,17 @@ export default function Companies() {
 
   const resetPage = () => setPage(1);
 
+  // Der Umschalter laedt die Filterwerte neu (aktiv vs. archiviert). Ein bereits
+  // gewaehlter Wert kann in der anderen Menge fehlen — dann haette Radix einen
+  // LEEREN Auswahlknopf gezeigt, waehrend der Filter still weiterfiltert. Der
+  // gewaehlte Wert bleibt deshalb immer in der Liste.
+  const collator = new Intl.Collator("de-DE", { sensitivity: "base" });
+  const withSelected = (values: string[] | undefined, selected: string) =>
+    [...new Set([...(values ?? []), ...(selected !== "all" && selected !== CATEGORY_NONE ? [selected] : [])])]
+      .sort(collator.compare);
+  const sourceOptions = withSelected(filterOptions?.sources, sourceFilter);
+  const categoryOptions = withSelected(filterOptions?.categories, categoryFilter);
+
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -151,15 +162,15 @@ export default function Companies() {
           <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]" aria-label="Quelle"><SelectValue placeholder="Quelle: Alle" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="min-h-[44px]">Quelle: Alle</SelectItem>
-            {filterOptions?.sources.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{s}</SelectItem>)}
+            {sourceOptions.map((s) => <SelectItem key={s} value={s} className="min-h-[44px]">{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); resetPage(); }}>
           <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]" aria-label="Kategorie"><SelectValue placeholder="Kategorie: Alle" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="min-h-[44px]">Kategorie: Alle</SelectItem>
-            {filterOptions?.categories.map((c) => <SelectItem key={c} value={c} className="min-h-[44px]">{c}</SelectItem>)}
-            {filterOptions?.hasNullCategory && (
+            {categoryOptions.map((c) => <SelectItem key={c} value={c} className="min-h-[44px]">{c}</SelectItem>)}
+            {(filterOptions?.hasNullCategory || categoryFilter === CATEGORY_NONE) && (
               <SelectItem value={CATEGORY_NONE} className="min-h-[44px]">ohne Kategorie</SelectItem>
             )}
           </SelectContent>
