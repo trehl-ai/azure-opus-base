@@ -535,6 +535,23 @@ export default function DealDetail() {
               <Field label="Deal-Wert" value={<span className="text-lg font-semibold">{fmt(deal.value_amount, deal.currency)}</span>} />
               <Field label="Währung" value={deal.currency ?? "EUR"} />
               <Field label="Abschlussdatum" value={deal.expected_close_date ? format(new Date(deal.expected_close_date), "dd.MM.yyyy") : "–"} />
+              {/* Leistungszeitraum: gar nicht rendern, wenn beide leer sind — zwei
+                  Striche waeren mehr Rauschen als Information. Sind von und bis
+                  gleich (eintaegige Leistung), nur ein Datum statt einer Spanne. */}
+              {(deal.service_start_date || deal.service_end_date) && (
+                <Field
+                  label="Leistungszeitraum"
+                  value={
+                    deal.service_start_date && deal.service_end_date
+                      ? deal.service_start_date === deal.service_end_date
+                        ? format(new Date(deal.service_start_date), "dd.MM.yyyy")
+                        : `${format(new Date(deal.service_start_date), "dd.MM.yyyy")} – ${format(new Date(deal.service_end_date), "dd.MM.yyyy")}`
+                      : deal.service_start_date
+                        ? `ab ${format(new Date(deal.service_start_date), "dd.MM.yyyy")}`
+                        : `bis ${format(new Date(deal.service_end_date), "dd.MM.yyyy")}`
+                  }
+                />
+              )}
               <Field label="Wahrscheinlichkeit" value={`${deal.probability_percent ?? 0}%`} />
               <Field label="Priorität" value={<span className={cn("rounded-full px-2.5 py-0.5 text-[12px] font-medium", priorityColors[deal.priority ?? "medium"])}>{deal.priority ?? "medium"}</span>} />
               <Field label="Quelle" value={deal.source ?? "–"} />

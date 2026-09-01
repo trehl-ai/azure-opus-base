@@ -82,7 +82,7 @@ export default function Deals() {
       const buildQuery = () => {
         let q = (supabase as any)
           .from("deals")
-          .select("title, value_amount, probability_percent, status, created_at, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)", { count: "exact" })
+          .select("title, value_amount, probability_percent, status, created_at, service_start_date, pipeline_stage_id, owner_user_id, company:companies(name), primary_contact:contacts!deals_primary_contact_id_fkey(first_name, last_name)", { count: "exact" })
           .eq("pipeline_id", activePipelineId)
           .is("deleted_at", null);
         if (effectiveOwner && effectiveOwner !== "all") q = q.eq("owner_user_id", effectiveOwner);
@@ -115,6 +115,8 @@ export default function Deals() {
         { header: "Owner", accessor: (r: any) => { const o = users?.find((u) => u.id === r.owner_user_id); return o ? `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim() : ""; } },
         { header: "Status", accessor: (r: any) => r.status },
         { header: "Erstellt am", accessor: (r: any) => r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : "" },
+        // Umsatzjahr = Jahr von service_start_date (Entscheidung TT, 01.09.2026).
+        { header: "Leistung ab", accessor: (r: { service_start_date?: string | null }) => r.service_start_date ? format(new Date(r.service_start_date), "dd.MM.yyyy") : "–" },
       ], `deals_${todayString()}.xlsx`);
       toast({ title: `${exportData.length} Deals exportiert` });
     } catch (err: any) {

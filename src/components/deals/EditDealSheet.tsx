@@ -18,12 +18,28 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
+const ZEITRAUM_UNGUELTIG = "Das Ende darf nicht vor dem Beginn liegen.";
+const CHECK_VERLETZT = "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen.";
+const KEINE_BERECHTIGUNG = "Keine Berechtigung zum Bearbeiten dieses Deals. Bitte Tomi ansprechen.";
+
+/**
+ * Vergleich ueber die ISO-Zeichenkette, nicht ueber Date-Objekte: aus der DB
+ * gelesene Daten entstehen als UTC-Mitternacht, aus dem Kalender gewaehlte als
+ * lokale Mitternacht. Ein Date-Vergleich waere je nach Zeitzone um einen Tag daneben.
+ */
+function zeitraumUngueltig(von?: Date, bis?: Date) {
+  if (!von || !bis) return false;
+  return format(bis, "yyyy-MM-dd") < format(von, "yyyy-MM-dd");
+}
+
 interface DealData {
   id: string;
   title: string;
   value_amount: number | null;
   currency: string | null;
   expected_close_date: string | null;
+  service_start_date: string | null;
+  service_end_date: string | null;
   probability_percent: number | null;
   priority: string | null;
   source: string | null;
@@ -52,6 +68,8 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
     pipeline_id: "", pipeline_stage_id: "",
   });
   const [expectedCloseDate, setExpectedCloseDate] = useState<Date>();
+  const [serviceStartDate, setServiceStartDate] = useState<Date>();
+  const [serviceEndDate, setServiceEndDate] = useState<Date>();
 
   useEffect(() => {
     if (open && deal) {
@@ -68,6 +86,8 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
         pipeline_stage_id: deal.pipeline_stage_id,
       });
       setExpectedCloseDate(deal.expected_close_date ? new Date(deal.expected_close_date) : undefined);
+      setServiceStartDate(deal.service_start_date ? new Date(deal.service_start_date) : undefined);
+      setServiceEndDate(deal.service_end_date ? new Date(deal.service_end_date) : undefined);
       captureTimestamp();
     }
   }, [open, deal, captureTimestamp]);
@@ -98,9 +118,12 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
 
   const u = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
 
+  const zeitraumFehler = zeitraumUngueltig(serviceStartDate, serviceEndDate);
+
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).from("deals").update({
+      if (zeitraumUngueltig(serviceStartDate, serviceEndDate)) throw new Error(ZEITRAUM_UNGUELTIG);
+      const { data, error } = await (supabase as any).from("deals").update({
         title: form.title.trim(),
         value_amount: form.value_amount ? parseFloat(form.value_amount) : 0,
         currency: form.currency,
@@ -112,8 +135,17 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
         description: form.description.trim() || null,
         pipeline_id: form.pipeline_id,
         pipeline_stage_id: form.pipeline_stage_id,
-      }).eq("id", deal.id);
-      if (error) throw error;
+        service_start_date: serviceStartDate ? format(serviceStartDate, "yyyy-MM-dd") : null,
+        service_end_date: serviceEndDate ? format(serviceEndDate, "yyyy-MM-dd") : null,
+      }).eq("id", deal.id).select("id");
+      // Ein UPDATE, das RLS nicht erfuellt, ist kein Fehler: PostgREST meldet 204
+      // und null Zeilen. Ohne .select() saehe eine Ablehnung wie Erfolg aus.
+      if (error) {
+        if (error.code === "23514") throw new Error(CHECK_VERLETZT);
+        if (error.code === "42501") throw new Error(KEINE_BERECHTIGUNG);
+        throw error;
+      }
+      if (!data || data.length === 0) throw new Error(KEINE_BERECHTIGUNG);
     },
     onSuccess: () => {
       toast({ title: "Deal aktualisiert" });
@@ -184,6 +216,45 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
               <Input type="number" min="0" max="100" value={form.probability_percent} onChange={(e) => u("probability_percent", e.target.value)} />
             </div>
           </div>
+          {/* Leistungszeitraum — massgeblich fuer die Jahreszuordnung des Umsatzes.
+              Beide Felder optional; "bis" wird bewusst NICHT aus "von" vorbefuellt. */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Leistungszeitraum von</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !serviceStartDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {serviceStartDate ? format(serviceStartDate, "dd.MM.yyyy") : "Datum wählen"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={serviceStartDate} onSelect={setServiceStartDate} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              {serviceStartDate && (
+                <button type="button" onClick={() => setServiceStartDate(undefined)} className="text-[12px] text-muted-foreground hover:text-foreground">Leeren</button>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Leistungszeitraum bis</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !serviceEndDate && "text-muted-foreground", zeitraumFehler && "border-destructive")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {serviceEndDate ? format(serviceEndDate, "dd.MM.yyyy") : "Datum wählen"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={serviceEndDate} onSelect={setServiceEndDate} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              {serviceEndDate && (
+                <button type="button" onClick={() => setServiceEndDate(undefined)} className="text-[12px] text-muted-foreground hover:text-foreground">Leeren</button>
+              )}
+              {zeitraumFehler && <p className="text-[12px] text-destructive">{ZEITRAUM_UNGUELTIG}</p>}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Priorität</Label>
@@ -213,7 +284,7 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
             <Textarea value={form.description} onChange={(e) => u("description", e.target.value)} rows={3} />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1" onClick={async () => { const c = await checkConflict(); if (!c) mutation.mutate(); }} disabled={mutation.isPending || !form.pipeline_stage_id}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
+            <Button className="flex-1" onClick={async () => { const c = await checkConflict(); if (!c) mutation.mutate(); }} disabled={mutation.isPending || !form.pipeline_stage_id || zeitraumFehler}>{mutation.isPending ? "Speichern…" : "Speichern"}</Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           </div>
         </div>
