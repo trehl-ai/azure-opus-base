@@ -135,6 +135,23 @@ export default function DealDetail() {
     enabled: !!id,
   });
 
+  // Gehoert der Hauptkontakt ueberhaupt zur Firma des Deals? Die Detailansicht
+  // laedt ihn ueber den FK, nicht ueber company_contacts — eine Fehlzuordnung
+  // saehe sonst aus wie eine gueltige. Abfrage nur, wenn beide Felder gesetzt sind.
+  const { data: kontaktGehoertZurFirma } = useQuery({
+    queryKey: ["deal-kontakt-firma", deal?.company_id, deal?.primary_contact_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("company_contacts")
+        .select("contact_id")
+        .eq("company_id", deal!.company_id)
+        .eq("contact_id", deal!.primary_contact_id)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!deal?.company_id && !!deal?.primary_contact_id,
+  });
+
   // Stages
   const { data: stages } = useQuery({
     queryKey: ["pipeline-stages", deal?.pipeline_id],
@@ -527,6 +544,9 @@ export default function DealDetail() {
                       <Phone className="w-3 h-3" />
                       {contact.phone}
                     </a>
+                  )}
+                  {kontaktGehoertZurFirma === false && (
+                    <p className="mt-0.5 text-[12px] text-muted-foreground">Dieser Ansprechpartner ist bei der Firma nicht hinterlegt.</p>
                   )}
                 </>
               ) : "–"} />

@@ -114,7 +114,8 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
   const { data: companies } = useQuery({
     queryKey: ["companies-deal-search", companySearch],
     queryFn: async () => {
-      let q = supabase.from("companies").select("id, name").order("name").limit(20);
+      // deleted_at-Filter: archivierte Firmen (#234) duerfen nicht waehlbar sein.
+      let q = supabase.from("companies").select("id, name").is("deleted_at", null).order("name").limit(20);
       if (companySearch.trim()) q = q.ilike("name", `%${companySearch.trim()}%`);
       const { data, error } = await q;
       if (error) throw error;
