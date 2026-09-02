@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { dezimalOderNull, ganzzahlOderNull } from "@/lib/zahlenfeld";
 
 const ZEITRAUM_UNGUELTIG = "Das Ende darf nicht vor dem Beginn liegen.";
 const CHECK_VERLETZT = "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen.";
@@ -164,10 +165,10 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
         primary_contact_id: form.primary_contact_id || null,
         pipeline_id: pid,
         pipeline_stage_id: sid,
-        value_amount: form.value_amount ? parseFloat(form.value_amount) : 0,
-        currency: form.currency,
+        value_amount: dezimalOderNull(form.value_amount),
+        currency: form.currency.trim() || null,
         expected_close_date: expectedCloseDate ? format(expectedCloseDate, "yyyy-MM-dd") : null,
-        probability_percent: form.probability_percent ? parseInt(form.probability_percent) : 0,
+        probability_percent: ganzzahlOderNull(form.probability_percent),
         priority: form.priority,
         source: form.source.trim() || null,
         owner_user_id: form.owner_user_id || user?.id || null,

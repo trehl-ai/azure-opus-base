@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { dezimalOderNull, ganzzahlOderNull } from "@/lib/zahlenfeld";
 
 const ZEITRAUM_UNGUELTIG = "Das Ende darf nicht vor dem Beginn liegen.";
 const CHECK_VERLETZT = "Das Ende des Leistungszeitraums darf nicht vor dem Beginn liegen.";
@@ -240,10 +241,10 @@ export function EditDealSheet({ deal, open, onOpenChange }: Props) {
       // dass beide Felder gar nicht im Payload standen.
       const patch: Record<string, unknown> = {
         title: form.title.trim(),
-        value_amount: form.value_amount ? parseFloat(form.value_amount) : 0,
-        currency: form.currency,
+        value_amount: dezimalOderNull(form.value_amount),
+        currency: form.currency.trim() || null,
         expected_close_date: expectedCloseDate ? format(expectedCloseDate, "yyyy-MM-dd") : null,
-        probability_percent: form.probability_percent ? parseInt(form.probability_percent) : 0,
+        probability_percent: ganzzahlOderNull(form.probability_percent),
         priority: form.priority,
         source: form.source.trim() || null,
         owner_user_id: form.owner_user_id || null,
