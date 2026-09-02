@@ -1,3 +1,10 @@
+-- 02.09.2026: get_werteraum_candidates respektiert marketing_opt_out (Adressebene).
+-- Zweite Verteidigungslinie neben outreach_status. Die erste kann der Versand
+-- ueberschreiben, diese nicht — die Tabelle steht ausserhalb jeder FIELDS-Liste.
+-- Zum Zeitpunkt der Anwendung ein No-op: alle drei gesperrten Adressen tragen
+-- bereits outreach_status='blocked_widerspruch' und sind dadurch schon ausgeschlossen.
+-- 201 Kandidaten vorher wie nachher.
+
 CREATE OR REPLACE FUNCTION public.get_werteraum_candidates(p_limit integer DEFAULT 30, p_bundesland text DEFAULT NULL::text, p_segment text DEFAULT 'grundschule'::text, p_domain_cap integer DEFAULT 10)
  RETURNS TABLE(contact_id uuid, first_name text, last_name text, anrede text, anrede_final text, email text, company_name text, outreach_hook text, outreach_email_draft text, outreach_cluster text, outreach_score integer, deal_id uuid, bundesland text, segment text)
  LANGUAGE sql
@@ -47,6 +54,10 @@ AS $function$
       AND c.email IS NOT NULL
       AND c.outreach_status = 'pending'
       AND c.bounce_at IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM marketing_opt_out mo
+        WHERE mo.email_normalized = lower(btrim(c.email))
+      )
       AND (p_segment IS NULL OR d.segment = p_segment)
       AND (p_bundesland IS NULL OR c.bundesland = p_bundesland)
       AND (
@@ -90,4 +101,32 @@ AS $function$
   WHERE domain_rn <= p_domain_cap
   ORDER BY land_rn, outreach_score DESC NULLS LAST, contact_id
   LIMIT p_limit;
+$function$;
+
+-- Zweite Linie: verhindert, dass irgendein Prozess outreach_status einer gesperrten
+-- Adresse auf einen versandfaehigen Wert zurueckdreht. Erweitert den bestehenden
+-- Bounce-Schutz um den Widerspruchsfall (bounce_at ist bei Widerspruch NULL).
+CREATE OR REPLACE FUNCTION public.wr_bounce_status_schutz()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.bounce_typ = 'hard_bounce'
+     AND NEW.bounce_at IS NOT NULL
+     AND NEW.outreach_status = 'email_sent' THEN
+    NEW.outreach_status := 'bounced';
+  END IF;
+
+  IF NEW.email IS NOT NULL
+     AND NEW.outreach_status IS DISTINCT FROM 'blocked_widerspruch'
+     AND EXISTS (
+       SELECT 1 FROM marketing_opt_out mo
+       WHERE mo.email_normalized = lower(btrim(NEW.email))
+     ) THEN
+    NEW.outreach_status := 'blocked_widerspruch';
+  END IF;
+
+  RETURN NEW;
+END
 $function$;
