@@ -114,7 +114,8 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
   const { data: companies } = useQuery({
     queryKey: ["companies-deal-search", companySearch],
     queryFn: async () => {
-      let q = supabase.from("companies").select("id, name").order("name").limit(20);
+      // deleted_at-Filter: archivierte Firmen (#234) duerfen nicht waehlbar sein.
+      let q = supabase.from("companies").select("id, name").is("deleted_at", null).order("name").limit(20);
       if (companySearch.trim()) q = q.ilike("name", `%${companySearch.trim()}%`);
       const { data, error } = await q;
       if (error) throw error;
@@ -127,7 +128,9 @@ export function CreateDealSheet({ open, onOpenChange, defaultContactId, defaultP
   const { data: contacts } = useQuery({
     queryKey: ["contacts-deal-search", contactSearch, form.company_id],
     queryFn: async () => {
-      let q = supabase.from("contacts").select("id, first_name, last_name, email").order("first_name").limit(20);
+      // deleted_at-Filter wie bei den Firmen: ein soft-geloeschter Kontakt darf in
+      // keiner Auswahl erscheinen, weder beim Anlegen noch beim Bearbeiten.
+      let q = supabase.from("contacts").select("id, first_name, last_name, email").is("deleted_at", null).order("first_name").limit(20);
       if (contactSearch.trim()) q = q.or(`first_name.ilike.%${contactSearch.trim()}%,last_name.ilike.%${contactSearch.trim()}%`);
       if (form.company_id) {
         const { data: linked } = await supabase.from("company_contacts").select("contact_id").eq("company_id", form.company_id);
