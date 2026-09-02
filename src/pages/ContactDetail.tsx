@@ -14,6 +14,8 @@ import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ListenHinweis } from "@/components/shared/ListenHinweis";
+import { reiterZahl } from "@/lib/reiterzahl";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Pencil, Trash2, Plus, ExternalLink, Mail, Check } from "lucide-react";
@@ -49,7 +51,7 @@ export default function ContactDetail() {
     enabled: !!id,
   });
 
-  const { data: contactCompanies } = useQuery({
+  const { data: contactCompanies, isLoading: firmenLaedt, error: firmenFehler } = useQuery({
     queryKey: ["contact-companies", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -62,13 +64,16 @@ export default function ContactDetail() {
     enabled: !!id,
   });
 
-  const { data: deals } = useQuery({
+  const { data: deals, isLoading: dealsLaedt, error: dealsFehler } = useQuery({
     queryKey: ["contact-deals", id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("deals")
-        .select("*, stage:pipeline_stages(name), deal_company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
+        // stage MUSS den Constraint benennen — zwei Fremdschluessel zwischen deals
+        // und pipeline_stages, sonst HTTP 300 / PGRST201. Siehe CompanyDetail.
+        .select("*, stage:pipeline_stages!deals_pipeline_stage_id_fkey(name), deal_company:companies(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
         .eq("primary_contact_id", id!)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -160,8 +165,8 @@ export default function ContactDetail() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
-          <TabsTrigger value="companies">Unternehmen {contactCompanies?.length ? `(${contactCompanies.length})` : ""}</TabsTrigger>
-          <TabsTrigger value="deals">Deals {deals?.length ? `(${deals.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="companies">Unternehmen {reiterZahl(contactCompanies?.length, firmenFehler)}</TabsTrigger>
+          <TabsTrigger value="deals">Deals {reiterZahl(deals?.length, dealsFehler)}</TabsTrigger>
           <TabsTrigger value="emails">E-Mails</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
@@ -229,7 +234,7 @@ export default function ContactDetail() {
                   })}
                 </TableBody>
               </Table>
-            ) : <p className="py-6 text-center text-label text-muted-foreground">Noch keine Unternehmen zugeordnet.</p>}
+            ) : <ListenHinweis laedt={firmenLaedt} fehler={firmenFehler as Error | null} leerText="Noch keine Unternehmen zugeordnet." />}
           </div>
         </TabsContent>
 
@@ -264,7 +269,7 @@ export default function ContactDetail() {
                   })}
                 </TableBody>
               </Table>
-            ) : <p className="py-6 text-center text-label text-muted-foreground">Keine Deals vorhanden.</p>}
+            ) : <ListenHinweis laedt={dealsLaedt} fehler={dealsFehler as Error | null} leerText="Keine Deals vorhanden." />}
           </div>
         </TabsContent>
 

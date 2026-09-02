@@ -14,6 +14,8 @@ import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ListenHinweis } from "@/components/shared/ListenHinweis";
+import { reiterZahl } from "@/lib/reiterzahl";
 import {
   Table,
   TableBody,
@@ -79,7 +81,7 @@ export default function CompanyDetail() {
   });
 
   // Contacts
-  const { data: companyContacts } = useQuery({
+  const { data: companyContacts, isLoading: kontakteLaedt, error: kontakteFehler } = useQuery({
     queryKey: ["company-contacts", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -93,13 +95,18 @@ export default function CompanyDetail() {
   });
 
   // Deals
-  const { data: deals } = useQuery({
+  const { data: deals, isLoading: dealsLaedt, error: dealsFehler } = useQuery({
     queryKey: ["company-deals", id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("deals")
-        .select("*, stage:pipeline_stages(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
+        // stage MUSS den Constraint benennen: zwischen deals und pipeline_stages
+        // existieren ZWEI Fremdschluessel (deals_pipeline_stage_id_fkey und der
+        // zusammengesetzte deals_stage_matches_pipeline). PostgREST antwortet sonst
+        // mit HTTP 300 / PGRST201 und die Liste bleibt leer.
+        .select("*, stage:pipeline_stages!deals_pipeline_stage_id_fkey(name), owner:users!deals_owner_user_id_fkey(first_name, last_name)")
         .eq("company_id", id!)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -108,13 +115,14 @@ export default function CompanyDetail() {
   });
 
   // Projects
-  const { data: projects } = useQuery({
+  const { data: projects, isLoading: projekteLaedt, error: projekteFehler } = useQuery({
     queryKey: ["company-projects", id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
         .select("*, owner:users!projects_owner_user_id_fkey(first_name, last_name)")
         .eq("company_id", id!)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -199,9 +207,9 @@ export default function CompanyDetail() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
-          <TabsTrigger value="contacts">Kontakte {companyContacts?.length ? `(${companyContacts.length})` : ""}</TabsTrigger>
-          <TabsTrigger value="deals">Deals {deals?.length ? `(${deals.length})` : ""}</TabsTrigger>
-          <TabsTrigger value="projects">Projekte {projects?.length ? `(${projects.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="contacts">Kontakte {reiterZahl(companyContacts?.length, kontakteFehler)}</TabsTrigger>
+          <TabsTrigger value="deals">Deals {reiterZahl(deals?.length, dealsFehler)}</TabsTrigger>
+          <TabsTrigger value="projects">Projekte {reiterZahl(projects?.length, projekteFehler)}</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
@@ -264,7 +272,7 @@ export default function CompanyDetail() {
                 </TableBody>
               </Table>
             ) : (
-              <p className="py-6 text-center text-label text-muted-foreground">Noch keine Kontakte zugeordnet.</p>
+              <ListenHinweis laedt={kontakteLaedt} fehler={kontakteFehler as Error | null} leerText="Noch keine Kontakte zugeordnet." />
             )}
           </div>
         </TabsContent>
@@ -309,7 +317,7 @@ export default function CompanyDetail() {
                 </TableBody>
               </Table>
             ) : (
-              <p className="py-6 text-center text-label text-muted-foreground">Keine Deals vorhanden.</p>
+              <ListenHinweis laedt={dealsLaedt} fehler={dealsFehler as Error | null} leerText="Keine Deals vorhanden." />
             )}
           </div>
         </TabsContent>
@@ -351,7 +359,7 @@ export default function CompanyDetail() {
                 </TableBody>
               </Table>
             ) : (
-              <p className="py-6 text-center text-label text-muted-foreground">Keine Projekte vorhanden.</p>
+              <ListenHinweis laedt={projekteLaedt} fehler={projekteFehler as Error | null} leerText="Keine Projekte vorhanden." />
             )}
           </div>
         </TabsContent>
