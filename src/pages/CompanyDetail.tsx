@@ -221,6 +221,12 @@ export default function CompanyDetail() {
               <Field label="Firmenname" value={company.name} />
               <Field label="Branche" value={company.industry} />
               <Field label="Website" value={company.website} isLink />
+              {/* Allgemeine Kontaktwege der Organisation, nicht personenbezogen.
+                  Fuer Kampagnen wird ausschliesslich contacts.email verwendet. */}
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              <Field label="E-Mail (allgemein)" value={(company as any).email ?? null} href={(v) => `mailto:${v}`} />
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              <Field label="Telefon (allgemein)" value={(company as any).phone ?? null} href={(v) => `tel:${v.replace(/[^+\d]/g, "")}`} />
               <Field label="Quelle" value={company.source} />
               <Field label="Straße" value={company.street} />
               <Field label="PLZ / Ort" value={[company.postal_code, company.city].filter(Boolean).join(" ") || null} />
@@ -398,11 +404,15 @@ export default function CompanyDetail() {
   );
 }
 
-function Field({ label, value, isLink }: { label: string; value: string | null; isLink?: boolean }) {
+function Field({ label, value, isLink, href }: { label: string; value: string | null; isLink?: boolean; href?: (value: string) => string }) {
   return (
     <div>
       <p className="text-label text-muted-foreground">{label}</p>
-      {isLink && value ? (
+      {href && value ? (
+        <a href={href(value)} className="text-body text-primary hover:underline">
+          {value}
+        </a>
+      ) : isLink && value ? (
         <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noopener noreferrer" className="text-body text-primary hover:underline inline-flex items-center gap-1">
           {value} <ExternalLink className="h-3 w-3" />
         </a>
