@@ -13,6 +13,9 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Company = Database["public"]["Tables"]["companies"]["Row"];
 
+const EMAIL_UNGUELTIG = "Die E-Mail-Adresse sieht nicht gültig aus. Bitte prüfen oder Feld leer lassen.";
+const KEINE_BERECHTIGUNG = "Keine Berechtigung zum Bearbeiten dieser Company. Bitte Tomi ansprechen.";
+
 interface EditCompanySheetProps {
   company: Company;
   open: boolean;
@@ -43,6 +46,11 @@ export function EditCompanySheet({ company, open, onOpenChange }: EditCompanyShe
     name: company.name,
     industry: company.industry ?? "",
     website: company.website ?? "",
+    // types.ts kennt email/phone noch nicht (Lovable-generiert, nicht regeneriert).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    email: ((company as any).email as string | null) ?? "",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    phone: ((company as any).phone as string | null) ?? "",
     street: company.street ?? "",
     postal_code: company.postal_code ?? "",
     city: company.city ?? "",
@@ -59,12 +67,19 @@ export function EditCompanySheet({ company, open, onOpenChange }: EditCompanyShe
   const mutation = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Firmenname ist Pflicht");
-      const { error } = await supabase
+      // (supabase as any): types.ts wird von Lovable generiert und kennt email/phone
+      // noch nicht — gleiche Konvention wie bei tasks.task_type in CreateTaskSheet.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
         .from("companies")
         .update({
           name: form.name.trim(),
           industry: form.industry.trim() || null,
           website: form.website.trim() || null,
+          // Leeres Feld -> null, nicht "": der CHECK companies_email_plausibel
+          // lehnt den Leerstring ab und liesse das ganze UPDATE scheitern.
+          email: form.email.trim() || null,
+          phone: form.phone.trim() || null,
           street: form.street.trim() || null,
           postal_code: form.postal_code.trim() || null,
           city: form.city.trim() || null,
@@ -74,8 +89,17 @@ export function EditCompanySheet({ company, open, onOpenChange }: EditCompanyShe
           owner_user_id: form.owner_user_id || null,
           notes: form.notes.trim() || null,
         })
-        .eq("id", company.id);
-      if (error) throw error;
+        .eq("id", company.id)
+        .select("id");
+
+      // Ein von RLS abgelehntes UPDATE ist PostgREST-seitig 204 ohne Zeilen und
+      // KEIN Fehler; ohne .select() saehe die Ablehnung wie ein Erfolg aus.
+      if (error) {
+        if (error.code === "23514") throw new Error(EMAIL_UNGUELTIG);
+        if (error.code === "42501") throw new Error(KEINE_BERECHTIGUNG);
+        throw error;
+      }
+      if (!data || data.length === 0) throw new Error(KEINE_BERECHTIGUNG);
     },
     onSuccess: () => {
       toast({ title: "Company aktualisiert" });
@@ -107,6 +131,18 @@ export function EditCompanySheet({ company, open, onOpenChange }: EditCompanyShe
             <div className="space-y-1.5">
               <Label className="text-label">Website</Label>
               <Input value={form.website} onChange={(e) => updateField("website", e.target.value)} />
+            </div>
+          </div>
+          {/* Allgemeine Kontaktwege der Organisation — NICHT personenbezogen.
+              Fuer Kampagnen wird ausschliesslich contacts.email verwendet. */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-label">E-Mail (allgemein)</Label>
+              <Input value={form.email} onChange={(e) => updateField("email", e.target.value)} placeholder="info@schule.de" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-label">Telefon (allgemein)</Label>
+              <Input value={form.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="+49 89 123456" />
             </div>
           </div>
           <div className="space-y-1.5">

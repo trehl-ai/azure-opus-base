@@ -22,6 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const EMAIL_UNGUELTIG = "Die E-Mail-Adresse sieht nicht gültig aus. Bitte prüfen oder Feld leer lassen.";
+const KEINE_BERECHTIGUNG = "Keine Berechtigung zum Anlegen von Companies. Bitte Tomi ansprechen.";
+
 interface CreateCompanySheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,6 +55,8 @@ export function CreateCompanySheet({ open, onOpenChange }: CreateCompanySheetPro
     name: "",
     industry: "",
     website: "",
+    email: "",
+    phone: "",
     street: "",
     postal_code: "",
     city: "",
@@ -75,10 +80,17 @@ export function CreateCompanySheet({ open, onOpenChange }: CreateCompanySheetPro
         throw new Error("Firmenname ist ein Pflichtfeld");
       }
 
-      const { error } = await supabase.from("companies").insert({
+      // (supabase as any): types.ts wird von Lovable generiert und kennt email/phone
+      // noch nicht — gleiche Konvention wie bei tasks.task_type in CreateTaskSheet.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).from("companies").insert({
         name: form.name.trim(),
         industry: form.industry.trim() || null,
         website: form.website.trim() || null,
+        // Leeres Feld -> null, nicht "": der CHECK companies_email_plausibel lehnt
+        // den Leerstring ab und liesse die ganze Neuanlage scheitern.
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
         street: form.street.trim() || null,
         postal_code: form.postal_code.trim() || null,
         city: form.city.trim() || null,
@@ -88,9 +100,16 @@ export function CreateCompanySheet({ open, onOpenChange }: CreateCompanySheetPro
         owner_user_id: form.owner_user_id || null,
         notes: form.notes.trim() || null,
         created_by_user_id: user?.id ?? null,
-      });
+      }).select("id");
 
-      if (error) throw error;
+      // Ein von RLS abgelehnter INSERT liefert keine Zeile zurueck und KEINEN Fehler;
+      // ohne .select() saehe die Ablehnung wie ein Erfolg aus.
+      if (error) {
+        if (error.code === "23514") throw new Error(EMAIL_UNGUELTIG);
+        if (error.code === "42501") throw new Error(KEINE_BERECHTIGUNG);
+        throw error;
+      }
+      if (!data || data.length === 0) throw new Error(KEINE_BERECHTIGUNG);
     },
     onSuccess: () => {
       toast({ title: "Company erstellt", description: `"${form.name}" wurde erfolgreich angelegt.` });
@@ -108,7 +127,7 @@ export function CreateCompanySheet({ open, onOpenChange }: CreateCompanySheetPro
 
   const resetAndClose = () => {
     setForm({
-      name: "", industry: "", website: "", street: "", postal_code: "",
+      name: "", industry: "", website: "", email: "", phone: "", street: "", postal_code: "",
       city: "", country: "Deutschland", status: "prospect", source: "manual",
       owner_user_id: "", notes: "",
     });
@@ -147,6 +166,19 @@ export function CreateCompanySheet({ open, onOpenChange }: CreateCompanySheetPro
             <div className="space-y-1.5">
               <Label className="text-label">Website</Label>
               <Input value={form.website} onChange={(e) => updateField("website", e.target.value)} placeholder="https://..." />
+            </div>
+          </div>
+
+          {/* Allgemeine Kontaktwege der Organisation — NICHT personenbezogen.
+              Fuer Kampagnen wird ausschliesslich contacts.email verwendet. */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-label">E-Mail (allgemein)</Label>
+              <Input value={form.email} onChange={(e) => updateField("email", e.target.value)} placeholder="info@schule.de" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-label">Telefon (allgemein)</Label>
+              <Input value={form.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="+49 89 123456" />
             </div>
           </div>
 
