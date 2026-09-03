@@ -30,6 +30,8 @@ import {
   type SegmentFilter,
   type Unterkampagne,
 } from "@/components/campaigns/kampagnenDaten";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LinienUebersicht } from "@/components/campaigns/LinienUebersicht";
 
 /**
  * Kampagnen — Ebene 1 (je Kampagne eine Karte) und Ebene 2 (Unterkampagnen).
@@ -590,16 +592,17 @@ function KampagnenKarte({ k }: { k: Kampagne }) {
   );
 }
 
-export default function Campaigns() {
+/**
+ * Die bisherige Ansicht, unveraendert: Markenkarten aus get_kampagnen_uebersicht,
+ * darunter die Unterkampagnen. Sie beantwortet "wie laeuft der Versand gerade" und
+ * ist damit eine ANDERE Frage als die Linienuebersicht darueber — keine der beiden
+ * ist aus der anderen ableitbar, deshalb stehen sie nebeneinander.
+ */
+function Versandsteuerung() {
   const { data, isLoading, error } = useKampagnen();
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
-      <header className="flex items-center gap-3">
-        <Megaphone className="h-7 w-7 text-primary" />
-        <h1 className="text-[28px] font-semibold tracking-tight">Kampagnen</h1>
-      </header>
-
+    <div className="space-y-6">
       {isLoading && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Lade Kampagnen…
@@ -626,6 +629,35 @@ export default function Campaigns() {
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+export default function Campaigns() {
+  return (
+    <div className="space-y-6 p-6 md:p-8">
+      <header className="flex items-center gap-3">
+        <Megaphone className="h-7 w-7 text-primary" />
+        <h1 className="text-[28px] font-semibold tracking-tight">Kampagnen</h1>
+      </header>
+
+      {/* Zwei Reiter statt einer langen Seite: die Linienuebersicht traegt bis zu
+          neun Kacheln, die Versandsteuerung zwei Markenkarten mit aufklappbaren
+          Unterkampagnen. Untereinander waeren das ueber drei Bildschirmhoehen, und
+          der untere Teil waere praktisch unauffindbar. Tabs sind im Repo das
+          etablierte Mittel dafuer (CompanyDetail, ContactDetail, DealDetail). */}
+      <Tabs defaultValue="linien" className="w-full">
+        <TabsList>
+          <TabsTrigger value="linien">Linien</TabsTrigger>
+          <TabsTrigger value="versand">Versandsteuerung</TabsTrigger>
+        </TabsList>
+        <TabsContent value="linien" className="mt-4">
+          <LinienUebersicht />
+        </TabsContent>
+        <TabsContent value="versand" className="mt-4">
+          <Versandsteuerung />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
