@@ -21,9 +21,17 @@ import { EntitySearchSelect } from "@/components/shared/EntitySearchSelect";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Optionale Kampagnenlinie. Gesetzt, wenn der Dialog aus einer
+   * Kampagnen-Detailseite geoeffnet wird — dann haengt die Aufgabe zusaetzlich an
+   * campaigns.id. Ohne den Wert verhaelt sich der Dialog wie bisher.
+   * ⚠ tasks.project_id ist NOT NULL, ein Projekt bleibt also auch fuer
+   * Kampagnenaufgaben Pflicht; die Auswahl unten gilt unveraendert.
+   */
+  campaignId?: string;
 }
 
-export function CreateTaskSheet({ open, onOpenChange }: Props) {
+export function CreateTaskSheet({ open, onOpenChange, campaignId }: Props) {
   const { user } = useAuth();
   const { data: users } = useUsers();
   const { toast } = useToast();
@@ -79,6 +87,7 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
         assigned_user_id: assignedUserId || null,
         task_type: taskType || null,
         deal_id: dealId,
+        campaign_id: campaignId ?? null,
         due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
         created_by_user_id: user?.id ?? null,
       });
@@ -89,6 +98,7 @@ export function CreateTaskSheet({ open, onOpenChange }: Props) {
       qc.invalidateQueries({ queryKey: ["all-tasks"] });
       qc.invalidateQueries({ queryKey: ["project-tasks"] });
       qc.invalidateQueries({ queryKey: ["project-task-counts"] });
+      if (campaignId) qc.invalidateQueries({ queryKey: ["eic", "campaign_tasks", campaignId] });
       resetForm();
       onOpenChange(false);
     },
