@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
  * ableitbar ist. Sie ist es nicht.
  */
 
-/** Eine Zeile aus get_campaign_overview(). 26 Spalten, bereits nach sortierung sortiert. */
+/** Eine Zeile aus get_campaign_overview(). 30 Spalten, bereits nach sortierung sortiert. */
 export type Linie = {
   campaign_id: string;
   name: string;
@@ -31,9 +31,21 @@ export type Linie = {
   ziel_2027: string | null;
   buchungslink: string | null;
   zielgruppe: number;
+  /** Adressen mit brauchbarer Mailadresse. Nenner des Ablauffortschritts. */
+  erreichbar: number;
   angeschrieben: number;
+  /** Gewonnen oder verloren — braucht keine weitere Mail, zaehlt als erledigt. */
+  abgeschlossen: number;
   ausstehend: number;
   nicht_erreichbar: number;
+  /** Wellen mit `zaehlt_als_welle`, Status versendet oder freigegeben. Entwuerfe zaehlen nicht. */
+  wellen_geplant: number;
+  /**
+   * Mittel der Erreichungsgrade aller geplanten Wellen, Nenner nur `erreichbar`.
+   * `null` = keine Welle geplant. NICHT im Frontend nachrechnen — die Formel steht
+   * in get_campaign_overview() und nur dort.
+   */
+  ablauf_prozent: number | null;
   antworten: number;
   klicks: number;
   bounces: number;

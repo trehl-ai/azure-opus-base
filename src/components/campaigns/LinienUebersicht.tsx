@@ -62,13 +62,17 @@ function Kachel({ linie }: { linie: Linie }) {
       <Link to={`/campaigns/k/${linie.campaign_id}`} className="block">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-body font-semibold text-foreground">{linie.name}</h3>
-          <div className="flex shrink-0 flex-col items-end gap-2">
+          {/* Abzeichen und Ring stehen NEBENEINANDER in der Kopfzeile. Untereinander
+              ergaben sie eine rund 100 px hohe Kopfzeile, in der neben einem
+              einzeiligen Namen nur Leerraum stand. */}
+          <div className="flex shrink-0 items-center gap-3">
             <Badge variant={badge.variante} className={badge.klasse}>
               {PHASE_LABEL[linie.phase] ?? linie.phase}
             </Badge>
             <Fortschrittsring
-              angeschrieben={linie.angeschrieben}
-              ausstehend={linie.ausstehend}
+              prozent={linie.ablauf_prozent}
+              wellenGeplant={linie.wellen_geplant}
+              erreichbar={linie.erreichbar}
             />
           </div>
         </div>
