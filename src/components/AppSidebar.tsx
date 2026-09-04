@@ -2,6 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasPermission } from "@/lib/permissions";
 import { useProfileImage } from "@/hooks/useProfileImage";
+import { useAktionsliste } from "@/hooks/queries/useAktionsliste";
 import {
   LayoutDashboard,
   Users,
@@ -18,14 +19,29 @@ import {
   Shield,
   Megaphone,
   Target,
+  ListChecks,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const navSections = [
+// Ohne expliziten Typ waere `zaehler` nur auf EINEM Element bekannt und der
+// Zugriff im Render ein Union-Fehler.
+type NavItem = {
+  label: string;
+  icon: LucideIcon;
+  path: string;
+  module: string;
+  /** Zeigt die Anzahl offener Vorgaenge neben der Beschriftung. */
+  zaehler?: boolean;
+};
+type NavSection = { sectionLabel?: string; items: NavItem[] };
+
+const navSections: NavSection[] = [
   {
     items: [
+      { label: "Zu erledigen", icon: ListChecks, path: "/aktionen", module: "deals", zaehler: true },
       { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard", module: "dashboard" },
     ],
   },
@@ -75,6 +91,12 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
   const location = useLocation();
   const role = user?.role ?? "read_only";
   const { data: profileImageUrl } = useProfileImage(user?.id);
+  // Dieselbe Query wie die Seite /aktionen (gleicher queryKey) — react-query
+  // bedient beide aus einem Abruf, der Zaehler kann nicht auseinanderlaufen.
+  const { data: aktionen } = useAktionsliste();
+  // Bei 0 KEIN Abzeichen: eine dauerhaft sichtbare Null erzieht zum Wegsehen
+  // und macht den Zaehler wertlos, wenn er einmal etwas zu sagen hat.
+  const offeneAktionen = aktionen && aktionen.length > 0 ? aktionen.length : null;
   const initials = user
     ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
     : "?";
@@ -155,6 +177,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
               )}
               {visibleItems.map((item) => {
                 const active = isActive(item.path);
+                const zaehler = item.zaehler ? offeneAktionen : null;
                 const linkContent = (
                   <NavLink
                     key={item.path}
@@ -163,7 +186,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
                     className={cn(
                       "flex items-center rounded-lg font-medium transition-colors",
                       collapsed
-                        ? "justify-center p-2.5"
+                        ? "relative justify-center p-2.5"
                         : "gap-3 px-4 py-2.5 text-[15px]",
                       active
                         ? "bg-white text-primary shadow-sm"
@@ -171,7 +194,22 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
                     )}
                   >
                     <item.icon className="h-[18px] w-[18px] shrink-0" />
-                    {!collapsed && <span>{item.label}</span>}
+                    {!collapsed && <span className="flex-1">{item.label}</span>}
+                    {zaehler !== null && !collapsed && (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold tabular-nums",
+                          active ? "bg-primary text-white" : "bg-white/20 text-white"
+                        )}
+                      >
+                        {zaehler}
+                      </span>
+                    )}
+                    {zaehler !== null && collapsed && (
+                      <span className="absolute -right-0.5 -top-0.5 min-w-[17px] rounded-full bg-white px-1 text-center text-[10px] font-bold leading-[17px] text-primary">
+                        {zaehler}
+                      </span>
+                    )}
                   </NavLink>
                 );
 
@@ -180,7 +218,7 @@ export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
                     <Tooltip key={item.path} delayDuration={0}>
                       <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                       <TooltipContent side="right" className="font-medium">
-                        {item.label}
+                        {zaehler !== null ? `${item.label} (${zaehler})` : item.label}
                       </TooltipContent>
                     </Tooltip>
                   );
