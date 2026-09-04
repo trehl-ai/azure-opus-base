@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ListenHinweis } from "@/components/shared/ListenHinweis";
+import { Fortschrittsring } from "./Fortschrittsring";
 import {
   PHASEN,
   datumDe,
@@ -15,6 +16,21 @@ const PHASE_LABEL: Record<string, string> = {
   live: "Live",
   vorbereitung: "In Vorbereitung",
   backlog: "Backlog",
+};
+
+/**
+ * Die Phase ist die wichtigste Information der Kachel und muss ohne Lesen erkennbar
+ * sein. Drei vorhandene Badge-Varianten, keine neue Farbe:
+ *   live          `default`   — gefuellt in der Markenfarbe (--primary)
+ *   vorbereitung  `outline`   — nur Kontur, gedaempft
+ *   backlog       `secondary` — stumme Flaeche, dazu `text-muted-foreground`, damit sie
+ *                               leiser liest als die Kontur. Beides sind vorhandene
+ *                               Tokens, keine neue Variante.
+ */
+const PHASE_BADGE: Record<string, { variante: "default" | "outline" | "secondary"; klasse?: string }> = {
+  live: { variante: "default" },
+  vorbereitung: { variante: "outline" },
+  backlog: { variante: "secondary", klasse: "font-medium text-muted-foreground" },
 };
 
 /** Eine der drei Kernzahlen. Gross und nebeneinander, damit die Kachel auf einen Blick spricht. */
@@ -34,15 +50,27 @@ function Kachel({ linie }: { linie: Linie }) {
   // Hospitality). Drei Nullen nebeneinander laesen sich wie ein Messwert — es ist
   // aber gar nichts gemessen worden.
   const ohneVerteiler = linie.zielgruppe === 0;
+  const badge = PHASE_BADGE[linie.phase] ?? { variante: "secondary" as const };
+  // Laufende Linien bekommen zusaetzlich einen kraeftigeren Rahmen. Bewusst kein
+  // farbiger Hintergrund: bei neun Kacheln nebeneinander wird das unruhig.
+  // Alle Kacheln tragen `border-2`, damit der Unterschied nur in der Farbe liegt und
+  // die Kacheln nicht um einen Pixel gegeneinander springen.
+  const rahmen = linie.phase === "live" ? "border-primary/40" : "border-border";
 
   return (
-    <div className="relative rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40">
+    <div className={`relative rounded-2xl border-2 ${rahmen} bg-card p-5 transition-colors hover:border-primary/60`}>
       <Link to={`/campaigns/k/${linie.campaign_id}`} className="block">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-body font-semibold text-foreground">{linie.name}</h3>
-          <Badge variant="secondary" className="shrink-0">
-            {PHASE_LABEL[linie.phase] ?? linie.phase}
-          </Badge>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <Badge variant={badge.variante} className={badge.klasse}>
+              {PHASE_LABEL[linie.phase] ?? linie.phase}
+            </Badge>
+            <Fortschrittsring
+              angeschrieben={linie.angeschrieben}
+              ausstehend={linie.ausstehend}
+            />
+          </div>
         </div>
 
         {linie.zielgruppe_text && (
