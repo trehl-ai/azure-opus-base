@@ -25,6 +25,7 @@ import CampaignLinieDetail from "./pages/CampaignLinieDetail";
 import Projects from "./pages/Projects.tsx";
 import ProjectDetail from "./pages/ProjectDetail.tsx";
 import Tasks from "./pages/Tasks.tsx";
+import Aktionen from "./pages/Aktionen.tsx";
 import Intake from "./pages/Intake.tsx";
 import SettingsPage from "./pages/Settings.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
@@ -122,6 +123,7 @@ const App = () => (
 
               {/* Protected routes with AppLayout */}
               <Route path="/" element={<RootRedirect />} />
+              <Route path="/aktionen" element={<P><Aktionen /></P>} />
               <Route path="/dashboard" element={<P><DashboardGate><Dashboard /></DashboardGate></P>} />
               <Route path="/contacts" element={<P><Contacts /></P>} />
               <Route path="/contacts/:id" element={<P><ContactDetail /></P>} />
