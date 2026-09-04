@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { ListenHinweis } from "@/components/shared/ListenHinweis";
 import { Fortschrittsring } from "./Fortschrittsring";
 import {
@@ -21,16 +22,24 @@ const PHASE_LABEL: Record<string, string> = {
 /**
  * Die Phase ist die wichtigste Information der Kachel und muss ohne Lesen erkennbar
  * sein. Drei vorhandene Badge-Varianten, keine neue Farbe:
- *   live          `default`   — gefuellt in der Markenfarbe (--primary)
- *   vorbereitung  `outline`   — nur Kontur, gedaempft
- *   backlog       `secondary` — stumme Flaeche, dazu `text-muted-foreground`, damit sie
- *                               leiser liest als die Kontur. Beides sind vorhandene
- *                               Tokens, keine neue Variante.
+ *   live          `default`   — gefuellt in der Markenfarbe (--primary), das staerkste
+ *   vorbereitung  `outline`   — Kontur, aber 2 px in --primary statt 1 px neutral;
+ *                               damit gehoert sie sichtbar zur selben Familie wie live
+ *   backlog       `secondary` — stumme graue Flaeche ohne Kontur
+ *
+ * Die Rangfolge traegt die FLAECHE, nicht die Textfarbe: gefuellt > Kontur > flach.
+ * Deshalb steht auf backlog kein `text-muted-foreground` mehr — auf --secondary ergab
+ * das rund 2,9:1 Kontrast und war schlecht lesbar, und "ruhig" leistet die neutrale
+ * Flaeche ohne Rand bereits.
+ *
+ * GROESSE: gemeinsame Basis `px-3 py-1 text-sm` — eine Stufe ueber der Badge-Vorgabe
+ * (`px-2.5 py-0.5 text-xs`). twMerge loest die Kollision zugunsten dieser Klassen auf.
  */
+const BADGE_BASIS = "px-3 py-1 text-sm";
 const PHASE_BADGE: Record<string, { variante: "default" | "outline" | "secondary"; klasse?: string }> = {
   live: { variante: "default" },
-  vorbereitung: { variante: "outline" },
-  backlog: { variante: "secondary", klasse: "font-medium text-muted-foreground" },
+  vorbereitung: { variante: "outline", klasse: "border-2 border-primary/40" },
+  backlog: { variante: "secondary", klasse: "font-medium" },
 };
 
 /** Eine der drei Kernzahlen. Gross und nebeneinander, damit die Kachel auf einen Blick spricht. */
@@ -60,13 +69,24 @@ function Kachel({ linie }: { linie: Linie }) {
   return (
     <div className={`relative rounded-2xl border-2 ${rahmen} bg-card p-5 transition-colors hover:border-primary/60`}>
       <Link to={`/campaigns/k/${linie.campaign_id}`} className="block">
+        {/* Der Kopfblock umfasst LINKS Name, Zielgruppe und Verantwortlichen, RECHTS
+            Abzeichen und Ring. Die Metazeilen standen bis 04.09.2026 unter der
+            Kopfzeile; damit trug allein der einzeilige Name die Hoehe des Rings, und
+            jede Vergroesserung des Rings machte die Kachel hoeher. Jetzt tragen die
+            Zeilen die Ringhoehe mit — der Ring waechst von 52 auf 70 px, und die
+            Kachel wird dabei nicht hoeher, sondern kuerzer. */}
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-body font-semibold text-foreground">{linie.name}</h3>
-          {/* Abzeichen und Ring stehen NEBENEINANDER in der Kopfzeile. Untereinander
-              ergaben sie eine rund 100 px hohe Kopfzeile, in der neben einem
-              einzeiligen Namen nur Leerraum stand. */}
+          <div className="min-w-0">
+            <h3 className="text-body font-semibold text-foreground">{linie.name}</h3>
+            {linie.zielgruppe_text && (
+              <p className="mt-1 text-[13px] text-muted-foreground">{linie.zielgruppe_text}</p>
+            )}
+            {linie.verantwortlich && (
+              <p className="mt-0.5 text-[12px] text-muted-foreground">{linie.verantwortlich}</p>
+            )}
+          </div>
           <div className="flex shrink-0 items-center gap-3">
-            <Badge variant={badge.variante} className={badge.klasse}>
+            <Badge variant={badge.variante} className={cn(BADGE_BASIS, badge.klasse)}>
               {PHASE_LABEL[linie.phase] ?? linie.phase}
             </Badge>
             <Fortschrittsring
@@ -76,13 +96,6 @@ function Kachel({ linie }: { linie: Linie }) {
             />
           </div>
         </div>
-
-        {linie.zielgruppe_text && (
-          <p className="mt-1 text-[13px] text-muted-foreground">{linie.zielgruppe_text}</p>
-        )}
-        {linie.verantwortlich && (
-          <p className="mt-0.5 text-[12px] text-muted-foreground">{linie.verantwortlich}</p>
-        )}
 
         {ohneVerteiler ? (
           <p className="mt-4 text-[13px] text-muted-foreground">Noch kein Verteiler</p>
