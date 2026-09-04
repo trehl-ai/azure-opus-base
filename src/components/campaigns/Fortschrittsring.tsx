@@ -15,9 +15,19 @@ import { PieChart, Pie, Cell } from "recharts";
  * Ring, weil es nichts zu messen gibt.
  */
 
-const GROESSE = 52;
-const AUSSEN = 26;
-const INNEN = 19;
+// 70 px. Die vorherigen 52 waren zu zurueckhaltend: der Ring stand kleiner da als
+// die drei Kernzahlen unter ihm, obwohl er die Kennzahl ist, auf die man zuerst
+// schaut. Ringstaerke mitskaliert (7 -> 9 px), damit das Verhaeltnis stimmt.
+//
+// ⚠ WARUM 70 UND NICHT 76: im gebauten Zustand gemessen, nicht im Code. Bindender
+// Fall ist "VR Fit & Aktiv — Stiftungen" — die einzige Linie MIT Ring, der der
+// `zielgruppe_text` fehlt; ihr Kopfblock hat links also nur zwei Zeilen, die die
+// Ringhoehe tragen koennen. Dort gilt gegenueber dem heutigen Stand:
+//   64 -> -6,8 px · 68 -> -2,8 px · 70 -> -0,8 px · 72 -> +1,3 px · 76 -> +5,3 px
+// 70 ist damit das groesste Mass, bei dem KEINE Kachel hoeher wird.
+const GROESSE = 70;
+const AUSSEN = 35;
+const INNEN = 26;
 
 export function Fortschrittsring({
   prozent,
@@ -84,11 +94,11 @@ export function Fortschrittsring({
       {/* Feste Hoehe am Container, damit der Ring im Flex-Kontext nicht gestaucht wird. */}
       <div className="relative mx-auto" style={{ width: GROESSE, height: GROESSE }}>
         {ring}
-        <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] font-semibold tabular-nums text-foreground">
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[16px] font-semibold tabular-nums text-foreground">
           {prozent}%
         </span>
       </div>
-      <p className="mt-0.5 whitespace-nowrap text-[10px] leading-tight text-muted-foreground">
+      <p className="mt-0.5 whitespace-nowrap text-[11px] leading-tight text-muted-foreground">
         {wellenText}
       </p>
     </div>
