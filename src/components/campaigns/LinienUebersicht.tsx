@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import {
   useLinien,
   zahlF,
   type Linie,
+  type WelleDetail,
 } from "./linienDaten";
 
 const PHASE_LABEL: Record<string, string> = {
@@ -48,6 +50,33 @@ function Kernzahl({ wert, label }: { wert: number; label: string }) {
     <div>
       <p className="text-[22px] font-semibold leading-tight text-foreground">{zahlF.format(wert)}</p>
       <p className="text-[12px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+/**
+ * Die Wellen hinter dem Ring, eine Zeile je Welle. Der Ring zeigt das MITTEL der
+ * Erreichungsgrade; das Mittel verbirgt, wenn eine Welle laengst durch ist und die
+ * naechste gerade erst anlaeuft (Bundesweit: 39 % im Ring, 69 % und 9 % dahinter).
+ * Kein Balken, keine zweite Farbe — die Zahl je Welle reicht, der Ring bleibt die
+ * Kennzahl. `prozent` kommt fertig aus der RPC, hier wird nichts nachgerechnet.
+ */
+function WellenZeilen({ wellen }: { wellen: WelleDetail[] }) {
+  return (
+    <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-1 text-[12px] leading-tight">
+      {wellen.map((w) => (
+        // Fragment statt Zeilen-Div, damit alle Wellen dieselben drei Spalten teilen
+        // und die Prozentwerte untereinander buendig stehen.
+        <Fragment key={w.welle}>
+          <p className="truncate text-muted-foreground" title={w.name}>
+            <span className="text-foreground">Welle {w.welle}</span> · {w.name}
+          </p>
+          <p className="text-right font-medium tabular-nums text-foreground">{w.prozent} %</p>
+          <p className="text-right tabular-nums text-muted-foreground">
+            {zahlF.format(w.erreicht)}/{zahlF.format(w.erreichbar)}
+          </p>
+        </Fragment>
+      ))}
     </div>
   );
 }
@@ -105,6 +134,11 @@ function Kachel({ linie }: { linie: Linie }) {
             <Kernzahl wert={linie.ausstehend} label="ausstehend" />
             <Kernzahl wert={linie.auftraege} label="Aufträge" />
           </div>
+        )}
+
+        {/* null oder leer = keine freigegebene Welle: dann steht hier nichts, nicht "0 %". */}
+        {!ohneVerteiler && linie.wellen_detail && linie.wellen_detail.length > 0 && (
+          <WellenZeilen wellen={linie.wellen_detail} />
         )}
 
         {linie.mailings_ohne_freigabe > 0 && (

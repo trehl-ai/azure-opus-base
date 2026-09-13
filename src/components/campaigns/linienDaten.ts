@@ -15,7 +15,19 @@ import { supabase } from "@/integrations/supabase/client";
  * ableitbar ist. Sie ist es nicht.
  */
 
-/** Eine Zeile aus get_campaign_overview(). 30 Spalten, bereits nach sortierung sortiert. */
+/**
+ * Eine Welle aus `wellen_detail` — der Erreichungsgrad EINER geplanten Welle.
+ * `prozent` kommt fertig aus der RPC (erreicht / erreichbar), hier wird nichts gerechnet.
+ */
+export type WelleDetail = {
+  welle: number;
+  name: string;
+  erreicht: number;
+  erreichbar: number;
+  prozent: number;
+};
+
+/** Eine Zeile aus get_campaign_overview(). 31 Spalten, bereits nach sortierung sortiert. */
 export type Linie = {
   campaign_id: string;
   name: string;
@@ -46,6 +58,14 @@ export type Linie = {
    * in get_campaign_overview() und nur dort.
    */
   ablauf_prozent: number | null;
+  /**
+   * Die Wellen hinter dem Mittel, eine Zeile je geplanter Welle, nach `welle` sortiert.
+   * Das Mittel verbirgt zwei Wahrheiten zugleich: "WerteRaum 2.0 — Bundesweit" zeigte
+   * 39 %, tatsaechlich stand die Erstansprache bei 69 % und die Nachfassstrecke bei
+   * 9 %, weil sie erst am 07.09.2026 anlief. `null` = keine freigegebene Welle —
+   * dann wird NICHTS angezeigt, nicht "0 %".
+   */
+  wellen_detail: WelleDetail[] | null;
   antworten: number;
   klicks: number;
   bounces: number;
@@ -53,6 +73,10 @@ export type Linie = {
   auftraege_wert: number | null;
   letzte_mail: string | null;
   mailings_gesamt: number;
+  /**
+   * Entwuerfe MIT `geplant_ab` (seit 13.09.2026). Ein Entwurf ohne Datum ist eine
+   * Idee, kein Rueckstand — er zaehlt hier nicht mehr.
+   */
   mailings_ohne_freigabe: number;
   mailings_versendet: number;
 };
