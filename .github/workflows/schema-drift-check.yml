@@ -6,8 +6,8 @@ name: Schema Drift Check
 # project ttgvhqygmgtnjgwunuwz.
 #
 # Required GitHub Actions secret:
-#   SUPABASE_ACCESS_TOKEN — Supabase Management API PAT with read access to
-#   the project's database query endpoint. Set via:
+#   SUPABASE_ACCESS_TOKEN — Supabase Management API PAT, scoped to this project
+#   with Migrations=Read (GET /v1/projects/{ref}/database/migrations). Set via:
 #   Repo → Settings → Secrets and variables → Actions → New secret.
 
 on:
@@ -48,19 +48,25 @@ jobs:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          response=$(curl -sS -w "\n%{http_code}" -X POST \
-            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"SELECT version FROM supabase_migrations.schema_migrations ORDER BY version"}')
+          # GET /database/migrations (v1-list-migration-history) liefert dieselbe
+          # Versionsmenge wie supabase_migrations.schema_migrations, braucht aber
+          # nur Migrations=Read statt Database=Read (01.10.2026 gegengeprueft: 318 = 318).
+          response=$(curl -sS -w "\n%{http_code}" \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/migrations" \
+            -H "Authorization: Bearer $TOKEN")
 
           http_code=$(printf '%s' "$response" | tail -n1)
           body=$(printf '%s' "$response" | sed '$d')
 
-          # Supabase Management API returns 200 or 201 for successful queries.
-          if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
-            echo "::error::Supabase Management API returned HTTP $http_code"
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Supabase Management API (GET /database/migrations) returned HTTP $http_code"
             echo "$body"
+            exit 1
+          fi
+
+          # Eine leere oder unerwartete Antwort darf nicht als "kein Drift" durchgehen.
+          if ! printf '%s' "$body" | jq -e 'type == "array" and length > 0' > /dev/null; then
+            echo "::error::Unexpected response from GET /database/migrations (expected non-empty array)."
             exit 1
           fi
 
