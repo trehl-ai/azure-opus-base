@@ -1,0 +1,15 @@
+-- Nachtrag zu 20261013112744. Dort stand REVOKE ... FROM anon bereits IM
+-- Migrationsskript, es hat aber nicht gewirkt: Durch pg_default_acl im
+-- Schema public bekommt jede neu angelegte Funktion automatisch EXECUTE
+-- fuer anon, und zwar beim CREATE. Das REVOKE lief im selben Transaktions-
+-- block und wurde vom Default-Grant ueberholt.
+--
+-- Vor dem DROP war anon ausdruecklich NICHT berechtigt (proacl:
+-- postgres=X, authenticated=X, service_role=X). Dieser Zustand wird hier
+-- wiederhergestellt.
+--
+-- MERKE: Nach JEDEM DROP und Neuanlage einer Funktion in public die
+-- EXECUTE-Rechte fuer anon separat pruefen und entziehen. Ein REVOKE in
+-- derselben Migration genuegt nicht. Dieselbe Wurzel wie beim Datenleck
+-- vom 29.09.2026 (vier Views mit Personendaten und anon-Grants).
+REVOKE ALL ON FUNCTION public.get_due_second_mailings(integer, integer) FROM anon;

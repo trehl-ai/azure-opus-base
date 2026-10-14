@@ -1,0 +1,18 @@
+-- Zweiter Nachtrag zu 20261013112744, und diesmal die richtige Mechanik.
+--
+-- Der Default-Grant aus pg_default_acl geht an PUBLIC, nicht an anon:
+-- proacl zeigte "=X/postgres" — ein leerer Rollenname vor dem
+-- Gleichheitszeichen IST PUBLIC. Jede Rolle erbt davon, auch anon.
+-- Ein REVOKE ... FROM anon greift deshalb ins Leere, weil anon das Recht
+-- gar nicht direkt haelt, sondern ueber PUBLIC.
+--
+-- Richtig ist REVOKE ... FROM PUBLIC. Die expliziten Grants fuer
+-- postgres, authenticated und service_role bleiben davon unberuehrt,
+-- weil sie eigene Eintraege in proacl haben.
+--
+-- MERKE fuer jede neue oder neu angelegte Funktion in public:
+--   REVOKE ALL ON FUNCTION ... FROM PUBLIC;
+--   GRANT EXECUTE ... TO authenticated, service_role;
+-- NICHT "FROM anon" — das sieht richtig aus und tut nichts.
+-- Dieselbe Wurzel wie beim Datenleck vom 29.09.2026.
+REVOKE ALL ON FUNCTION public.get_due_second_mailings(integer, integer) FROM PUBLIC;
