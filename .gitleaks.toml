@@ -13,3 +13,11 @@ useDefault = true
     "src/lib/msalConfig.ts",
     "src/pages/settings/OutlookAdminConsent.tsx"
   ]
+  # 24.11.2026 (PR #312): SQL-Vergleich des Parameters p_key mit einer Pipeline-UUID ist kein
+  # Schluessel (generic-api-key schlug wegen "key" an). Nur Regex, bewusst OHNE paths-Eintrag:
+  # gitleaks 8.18.4 verknuepft paths und regexes im globalen Allowlist mit ODER - ein
+  # Migrationspfad hier wuerde den ganzen Ordner supabase/migrations freistellen (gemessen).
+  regexTarget = "line"
+  regexes = [
+    "p_key\\s*=\\s*'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'"
+  ]
