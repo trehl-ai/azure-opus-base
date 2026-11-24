@@ -44,10 +44,13 @@ export function useMachineStats() {
           .from("deal_activities")
           .select("id", { count: "exact", head: true })
           .eq("activity_type", "call"),
-        // deals JOIN pipeline_stages WHERE name ILIKE '%terminiert%' (alle Pipelines)
+        // deals JOIN pipeline_stages WHERE name ILIKE '%terminiert%' (alle Pipelines).
+        // FK-Hinweis noetig: seit deals_stage_matches_pipeline gibt es zwei Beziehungen
+        // deals -> pipeline_stages; ohne Hinweis antwortet PostgREST 300 / PGRST201 und
+        // Promise.all setzt das ganze Banner auf 0.
         (supabase as any)
           .from("deals")
-          .select("id, pipeline_stages!inner(name)", { count: "exact", head: true })
+          .select("id, pipeline_stages!deals_pipeline_stage_id_fkey!inner(name)", { count: "exact", head: true })
           .is("deleted_at", null)
           .ilike("pipeline_stages.name", "%terminiert%"),
       ]);
