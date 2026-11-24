@@ -6,7 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 // See memory: eoipso_rls_session_client_rule + eslint rule no-supabaseeic-rls.
 
 export const WR_PIPELINE_ID = "61b1b7e2-0d21-4ec0-a298-6fa12d9eb36e"; // Werteraum - Schulen
-const WR_STAGE_TERMINIERT_ID = "6cfd9d0a-cdfa-4048-b711-bf63bd4640b6"; // WR-Stage "Terminiert"
+// Kampagne "VR Fit & Aktiv — Schulen": ihre campaigns.pipeline_id gehoert zum Schul-Funnel
+// (Baustufe 2h, wie get_activity_stats seit 2g-D2). Heute = WR, nach dem Umzug = VRS.
+const FUA_CAMPAIGN_ID = "11da18f2-9ea8-4950-9d2a-42416f0aef39";
 
 /* ------------------------------------------------------------------ */
 /* Gewonnener Umsatz                                                   */
@@ -75,32 +77,52 @@ export function useWerteraumFunnel() {
   return useQuery({
     queryKey: ["dashboard", "werteraum_funnel"],
     queryFn: async (): Promise<FunnelStep[]> => {
+      // Schul-Pipelines: WerteRaum + Pipeline der F&A-Kampagne (heute identisch mit WR).
+      // Stufe "Terminiert" ueber den Namen je Pipeline statt fester WR-ID.
+      const kampagne = await (supabase as any)
+        .from("campaigns")
+        .select("pipeline_id")
+        .eq("id", FUA_CAMPAIGN_ID)
+        .maybeSingle();
+      if (kampagne.error) throw kampagne.error;
+      const pipelineIds = Array.from(
+        new Set([WR_PIPELINE_ID, kampagne.data?.pipeline_id].filter(Boolean)),
+      ) as string[];
+
+      const terminStufen = await (supabase as any)
+        .from("pipeline_stages")
+        .select("id")
+        .in("pipeline_id", pipelineIds)
+        .eq("name", "Terminiert");
+      if (terminStufen.error) throw terminStufen.error;
+      const terminStufenIds = ((terminStufen.data ?? []) as { id: string }[]).map((r) => r.id);
+
       const [erfasst, angeschrieben, replyRows, termin] = await Promise.all([
-        // Schulen erfasst: alle WerteRaum-Deals
+        // Schulen erfasst: alle Deals der Schul-Pipelines
         (supabase as any)
           .from("deals")
           .select("id", { count: "exact", head: true })
-          .eq("pipeline_id", WR_PIPELINE_ID)
+          .in("pipeline_id", pipelineIds)
           .is("deleted_at", null),
         // Angeschrieben: distinct Deals mit email-Aktivität (parent-count via !inner)
         (supabase as any)
           .from("deals")
           .select("id, deal_activities!inner(id)", { count: "exact", head: true })
-          .eq("pipeline_id", WR_PIPELINE_ID)
+          .in("pipeline_id", pipelineIds)
           .is("deleted_at", null)
           .eq("deal_activities.activity_type", "email"),
         // Geantwortet: distinct contact_id mit email_reply (client-seitig dedupliziert)
         (supabase as any)
           .from("deal_activities")
           .select("contact_id, deals!inner(pipeline_id)")
-          .eq("deals.pipeline_id", WR_PIPELINE_ID)
+          .in("deals.pipeline_id", pipelineIds)
           .eq("activity_type", "email_reply"),
-        // Termin: WerteRaum-Deals in Stage "Terminiert"
+        // Termin: Deals der Schul-Pipelines in deren Stufe "Terminiert"
         (supabase as any)
           .from("deals")
           .select("id", { count: "exact", head: true })
-          .eq("pipeline_id", WR_PIPELINE_ID)
-          .eq("pipeline_stage_id", WR_STAGE_TERMINIERT_ID)
+          .in("pipeline_id", pipelineIds)
+          .in("pipeline_stage_id", terminStufenIds)
           .is("deleted_at", null),
       ]);
       for (const r of [erfasst, angeschrieben, replyRows, termin]) {
