@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import TopKundenChart from "@/components/TopKundenChart";
 import { RevenueByYearCard } from "@/components/RevenueByYearCard";
 import WerteraumBundeslandKachel from "@/components/WerteraumBundeslandKachel";
+import LetzteAbsagenKarte from "@/components/LetzteAbsagenKarte";
 import {
   Table,
   TableBody,
@@ -430,6 +431,10 @@ export default function Dashboard() {
           </Table>
         )}
       </section>
+
+      {/* Block 4a — Letzte Absagen. Folgt dem Umschalter BEWUSST NICHT: Schulen und
+          Stiftungen gemeinsam, die Spalte "Art" trennt. Sichtbarkeit filtert die RPC. */}
+      <LetzteAbsagenKarte />
 
       {/* Block 5 — WerteRaum Funnel */}
       <WerteraumFunnel steps={funnel} />
