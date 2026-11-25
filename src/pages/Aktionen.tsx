@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -141,8 +142,36 @@ function Abschnitt({ titel, zeilen }: { titel: string; zeilen: Aktion[] }) {
   );
 }
 
+/** "Meine | Alle" — nur fuer admin sichtbar. Fuer alle anderen gibt es nur "Meine";
+ *  die DB setzt das ohnehin durch, der Umschalter ist reine Bedienung. */
+function Umschalter({ alle, setzen }: { alle: boolean; setzen: (v: boolean) => void }) {
+  return (
+    <div role="tablist" aria-label="Ausschnitt" className="flex gap-1">
+      {([false, true] as const).map((wert) => (
+        <button
+          key={String(wert)}
+          type="button"
+          role="tab"
+          aria-selected={alle === wert}
+          onClick={() => setzen(wert)}
+          className={
+            alle === wert
+              ? "rounded-md bg-blue-600 px-3 py-1 text-sm text-white"
+              : "rounded-md bg-gray-100 px-3 py-1 text-sm text-gray-600 hover:bg-gray-200"
+          }
+        >
+          {wert ? "Alle" : "Meine"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Aktionen() {
-  const { data, isLoading, error } = useAktionsliste();
+  const { isAdmin } = useUserRole();
+  const [alleGewaehlt, setAlleGewaehlt] = useState(false);
+  const ausschnittAlle = isAdmin && alleGewaehlt;
+  const { data, isLoading, error } = useAktionsliste(ausschnittAlle);
 
   // ⚠ NICHT auf die Reihenfolge der RPC verlassen: sie sortiert `nie_bearbeitet`
   // zuerst und erst danach nach Liegezeit (gemessen 04.09.2026). Ohne dieses
@@ -156,9 +185,12 @@ export default function Aktionen() {
       <h1 className="text-[28px] md:text-[32px] font-bold tracking-tight text-brand">
         Zu erledigen
       </h1>
-      <p className="mt-1 text-label text-muted-foreground">
-        Offene Vorgänge, nach Liegezeit. Am längsten liegen gebliebene zuerst.
-      </p>
+      <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-label text-muted-foreground">
+          {ausschnittAlle ? "Alle offenen Vorgänge" : "Deine offenen Vorgänge"}, nach Liegezeit. Am längsten liegen gebliebene zuerst.
+        </p>
+        {isAdmin && <Umschalter alle={alleGewaehlt} setzen={setAlleGewaehlt} />}
+      </div>
 
       <div className="mt-6">
         {isLoading || error || alle.length === 0 ? (
