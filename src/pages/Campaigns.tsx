@@ -33,6 +33,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LinienUebersicht } from "@/components/campaigns/LinienUebersicht";
 import LetzteAbsagenKarte from "@/components/LetzteAbsagenKarte";
+import WerteraumFunnelKarte from "@/components/campaigns/WerteraumFunnelKarte";
+import WerteraumBundeslandKachel from "@/components/WerteraumBundeslandKachel";
 
 /**
  * Kampagnen — Ebene 1 (je Kampagne eine Karte) und Ebene 2 (Unterkampagnen).
@@ -667,8 +669,14 @@ export default function Campaigns() {
           <TabsTrigger value="versand">Versandsteuerung</TabsTrigger>
           <TabsTrigger value="aktivitaet">Aktivität</TabsTrigger>
         </TabsList>
-        <TabsContent value="linien" className="mt-4">
+        <TabsContent value="linien" className="mt-4 space-y-6">
           <LinienUebersicht />
+          {/* Bis 25.11.2026 auf dem Dashboard (Block 5 und 6). */}
+          <section className="space-y-4">
+            <h2 className="text-[18px] font-semibold tracking-tight">WerteRaum</h2>
+            <WerteraumFunnelKarte />
+            <WerteraumBundeslandKachel />
+          </section>
         </TabsContent>
         <TabsContent value="versand" className="mt-4">
           <Versandsteuerung />
