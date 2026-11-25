@@ -1,55 +1,62 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-
-type Row = { jahr: number | null; umsatz: number | string | null };
+import { umsatzNachLeistungsjahr, type WonDealRow } from "@/lib/umsatzLeistungsjahr";
 
 const eur0 = (n: number) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
+/** Seitengroesse der Abfrage. PostgREST kappt still bei 1000 Zeilen; deshalb wird
+ *  in Seiten gelesen, bis eine Seite kuerzer ist. */
+const SEITE = 1000;
+
 /**
  * Umsatz nach Jahr.
  *
- * Zeitachse = Rechnungsstellung: Rechnungsdatum der Zahlungsplan-Position,
- * ersatzweise deren geplante Faelligkeit, zuletzt won_at. NICHT created_at —
- * alle Deals wurden 2026 migriert, ihr created_at traegt keine Aussage.
+ * Seit 25.11.2026: Zeitachse = Leistungsjahr (service_start_date, Durchfuehrung),
+ * sonst Abschlussjahr (won_at). Betrag = deals.value_amount der gewonnenen Deals.
+ * Vorher: RPC get_revenue_by_year ueber deal_revenue_periods (Rechnungsstellung);
+ * die RPC bleibt bestehen und wird hier nicht mehr gelesen.
  *
- * Aggregiert wird in der RPC get_revenue_by_year: der frueher hier stehende
- * Select auf deal_revenue_periods haette bei ueber 1000 Zeilen ohne Fehler zu
- * niedrige Summen geliefert, und die View gibt nur den Pipeline-Namen heraus,
- * nicht die id, die der Umschalter braucht.
+ * Gelesen wird ueber den Session-Client direkt aus deals, also unter RLS
+ * (user_can_access_pipeline). Die Kachel "Gewonnen <Jahr>" zaehlt weiter nach
+ * won_at (get_dashboard_stats) und ist davon unberuehrt.
  */
 export function RevenueByYearCard({ pipelineId }: { pipelineId: string | null }) {
-  const { data, isLoading, error } = useQuery<Row[]>({
-    queryKey: ["revenue_by_year", pipelineId],
+  const { data, isLoading, error } = useQuery<WonDealRow[]>({
+    queryKey: ["revenue_by_leistungsjahr", pipelineId],
     queryFn: async () => {
-      // as-any-Cast: generierte types.ts kennt diese neue RPC (noch) nicht.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).rpc("get_revenue_by_year", {
-        p_pipeline_id: pipelineId,
-      });
-      if (error) throw error;
-      return (data ?? []) as Row[];
+      const alle: WonDealRow[] = [];
+      for (let von = 0; ; von += SEITE) {
+        // (supabase as any): types.ts ist Lovable-generiert und kennt service_start_date nicht.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let q = (supabase as any)
+          .from("deals")
+          .select("id, value_amount, service_start_date, won_at")
+          .eq("status", "won")
+          .is("deleted_at", null)
+          .order("id")
+          .range(von, von + SEITE - 1);
+        if (pipelineId) q = q.eq("pipeline_id", pipelineId);
+        const { data, error } = await q;
+        if (error) throw error;
+        const seite = (data ?? []) as WonDealRow[];
+        alle.push(...seite);
+        if (seite.length < SEITE) break;
+      }
+      return alle;
     },
     staleTime: 60_000,
   });
 
-  const rows = data ?? [];
-  const chart = rows
-    .filter((r) => r.jahr != null)
-    .map((r) => ({ jahr: String(r.jahr), umsatz: Math.round(Number(r.umsatz) || 0) }))
-    .sort((a, b) => a.jahr.localeCompare(b.jahr));
-  // jahr IS NULL = weder Rechnungs- noch Faelligkeitsdatum noch won_at.
-  const undatiert = rows
-    .filter((r) => r.jahr == null)
-    .reduce((sum, r) => sum + (Number(r.umsatz) || 0), 0);
+  const { chart, undatiert } = umsatzNachLeistungsjahr(data ?? []);
   const gesamt = chart.reduce((a, c) => a + c.umsatz, 0);
 
   return (
     <div className="rounded-lg border border-border p-4">
       <div className="mb-1 flex items-baseline justify-between">
         <h3 className="text-sm font-semibold text-primary">Umsatz nach Jahr</h3>
-        <span className="text-xs text-muted-foreground">Basis: Rechnungsstellung</span>
+        <span className="text-xs text-muted-foreground">Basis: Leistungsjahr (Durchführung), sonst Abschlussjahr</span>
       </div>
       <div className="mb-3 text-2xl font-semibold tabular-nums">{eur0(gesamt)}</div>
 
@@ -76,16 +83,16 @@ export function RevenueByYearCard({ pipelineId }: { pipelineId: string | null })
       )}
 
       {!isLoading && !error && chart.length === 0 && (
-        <div className="text-sm text-muted-foreground">Keine datierten Umsätze vorhanden.</div>
+        <div className="text-sm text-muted-foreground">Keine gewonnenen Deals mit Datum vorhanden.</div>
       )}
 
       {undatiert > 0 && (
         <div className="mt-3 rounded bg-destructive/10 px-2 py-1 text-xs text-destructive">
-          {eur0(undatiert)} ohne Datum — Fälligkeit im Zahlungsplan setzen, sonst fehlen sie im Jahresbild.
+          {eur0(undatiert)} ohne Datum — weder Leistungsbeginn noch „gewonnen am“ gesetzt.
         </div>
       )}
       <div className="mt-2 text-xs text-muted-foreground">
-        Zählt gewonnene Deals. Datum = Rechnungsdatum, sonst geplante Fälligkeit, sonst „gewonnen am“.
+        Zählt gewonnene Deals (Deal-Wert). Jahr = Leistungsbeginn, sonst „gewonnen am“.
       </div>
     </div>
   );

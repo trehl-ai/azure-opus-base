@@ -30,7 +30,6 @@ import { getLeadScoreTier, LEAD_TIER_STYLES } from "@/lib/leadScore";
 import { Skeleton } from "@/components/ui/skeleton";
 import TopKundenChart from "@/components/TopKundenChart";
 import { RevenueByYearCard } from "@/components/RevenueByYearCard";
-import WerteraumBundeslandKachel from "@/components/WerteraumBundeslandKachel";
 import {
   Table,
   TableBody,
@@ -46,9 +45,7 @@ import {
 } from "@/hooks/useDashboardStats";
 import {
   useMachineStats,
-  useWerteraumFunnel,
   WR_PIPELINE_ID,
-  type FunnelStep,
 } from "@/hooks/queries/useDashboardManagement";
 
 const PIPELINE_COLOR_MAP: Record<string, string> = {
@@ -88,12 +85,12 @@ type TopLead = {
   lead_score: number | null;
 };
 
-/** Ausschnitt der Startseite. WerteRaum ist der Normalfall des Tagesgeschaefts. */
+/** Ausschnitt der Startseite. Standard ist "gesamt" (25.11.2026); WerteRaum per Umschalter. */
 type DashboardScope = "werteraum" | "gesamt";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [scope, setScope] = useState<DashboardScope>("werteraum");
+  const [scope, setScope] = useState<DashboardScope>("gesamt");
   const [chartMode, setChartMode] = useState<"gesamt" | "gewichtet">("gesamt");
 
   // null = kein Pipeline-Filter. Wirkt auf Kacheln, Lead-Score-Verteilung,
@@ -106,7 +103,6 @@ export default function Dashboard() {
 
   const { stats, loading } = useDashboardStats(pipelineId, wonYear);
   const { data: machine } = useMachineStats();
-  const { data: funnel } = useWerteraumFunnel();
 
   const today = useMemo(
     () => format(new Date(), "EEEE, d. MMMM yyyy", { locale: de }),
@@ -431,11 +427,8 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Block 5 — WerteRaum Funnel */}
-      <WerteraumFunnel steps={funnel} />
-
-      {/* Block 6 — WerteRaum Schulen je Bundesland (eigener Block, nicht im Funnel) */}
-      <WerteraumBundeslandKachel />
+      {/* Block 5 und 6 (WerteRaum-Funnel, WerteRaum-Schulen je Bundesland) stehen seit
+          25.11.2026 auf der Kampagnenseite, Reiter "Linien", Abschnitt "WerteRaum". */}
     </div>
   );
 }
@@ -444,7 +437,7 @@ export default function Dashboard() {
 
 /**
  * Umschalter WerteRaum | Gesamt, oben rechts im Kopf.
- * Default ist WerteRaum — das ist der Ausschnitt, in dem gearbeitet wird.
+ * Default ist Gesamt (25.11.2026). Die Auswahl wird nicht gespeichert.
  */
 function ScopeSwitch({
   scope,
@@ -483,13 +476,6 @@ function ScopeSwitch({
     </div>
   );
 }
-
-// eo ipso Cockpit-Palette
-const COCKPIT = {
-  deep: "#0E1A2B", // Navy
-  fire: "#FF4A1C", // Fire
-  gold: "#F0C674", // Gold
-} as const;
 
 function MachineBanner({
   stats,
@@ -577,68 +563,6 @@ function MachineCounter({
       </p>
       <p className="text-[12px] text-muted-foreground">{label}</p>
     </div>
-  );
-}
-
-function WerteraumFunnel({ steps }: { steps: FunnelStep[] | undefined }) {
-  const data = steps ?? [];
-  const max = data.length ? Math.max(...data.map((s) => s.value), 1) : 1;
-  // absteigende Balkenfarben: kalt (Navy) → warm (Gold) → heiß (Fire)
-  const barColors = [COCKPIT.deep, "#3B5168", COCKPIT.gold, COCKPIT.fire];
-  return (
-    <section className="rounded-[12px] border border-border bg-card shadow-sm p-5 md:p-6">
-      <div className="mb-5">
-        <h2 className="text-[16px] font-semibold text-foreground">
-          WerteRaum: aus kalten Schulen werden Gespräche
-        </h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">
-          Kumulativer Fortschritt der Akquise — von erfasst bis Termin
-        </p>
-      </div>
-
-      {data.length === 0 ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 rounded-lg" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {data.map((step, i) => {
-            const prev = i === 0 ? null : data[i - 1].value;
-            const pct =
-              prev && prev > 0 ? Math.round((step.value / prev) * 100) : null;
-            const width = Math.max((step.value / max) * 100, 6);
-            const color = barColors[i] ?? COCKPIT.deep;
-            return (
-              <div key={step.label} className="flex items-center gap-3">
-                <div className="w-32 shrink-0 text-right text-[13px] font-medium text-foreground">
-                  {step.label}
-                </div>
-                <div className="flex-1 h-11 rounded-lg bg-muted/40 overflow-hidden">
-                  <div
-                    className="h-full rounded-lg flex items-center justify-end px-3 transition-[width] duration-500"
-                    style={{ width: `${width}%`, backgroundColor: color }}
-                  >
-                    <span
-                      className={cn(
-                        "text-[16px] font-bold tabular-nums",
-                        i >= 2 ? "text-[#0E1A2B]" : "text-white",
-                      )}
-                    >
-                      {step.value.toLocaleString("de-DE")}
-                    </span>
-                  </div>
-                </div>
-                <div className="w-16 shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                  {pct !== null ? `${pct}%` : ""}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
   );
 }
 
