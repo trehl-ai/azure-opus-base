@@ -47,13 +47,24 @@ export const LIEGE_SCHWELLE = 30;
 /** Ab hier wird die Liegezeit dezent hervorgehoben. */
 export const LIEGE_HINWEIS = 14;
 
-export function useAktionsliste() {
+/** Obergrenze der Abfrage. Bewusst nicht 100: der Zaehler in der Seitenleiste zeigt
+ *  `length` und waere sonst bei 100 gekappt (gemessen 25.11.2026: 124 Vorgaenge). */
+const AKTIONEN_LIMIT = 1000;
+
+/**
+ * `alle = false` (Standard): nur Vorgaenge, fuer die der Nutzer zustaendig ist
+ * (Projektleitung, sonst Owner). `alle = true` wirkt nur fuer admin; die DB
+ * ignoriert es fuer alle anderen Rollen (is_admin() in get_aktionsliste).
+ * Der Zaehler in der Seitenleiste ruft ohne Argument auf und zaehlt damit nur
+ * die eigenen Vorgaenge; er teilt sich den queryKey mit "Meine" auf /aktionen.
+ */
+export function useAktionsliste(alle = false) {
   return useQuery({
-    queryKey: ["eic", "aktionsliste"],
+    queryKey: ["eic", "aktionsliste", alle ? "alle" : "meine"],
     queryFn: async () => {
       // (supabase as any): types.ts ist Lovable-generiert und kennt get_aktionsliste nicht.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).rpc("get_aktionsliste", { p_limit: 100 });
+      const { data, error } = await (supabase as any).rpc("get_aktionsliste", { p_limit: AKTIONEN_LIMIT, p_alle: alle });
       if (error) throw error;
       // ⚠ Die RPC sortiert NICHT rein nach Liegezeit, sondern zuerst nach
       // `nie_bearbeitet` (gemessen 04.09.2026: ein 7-Tage-Vorgang stand vor
