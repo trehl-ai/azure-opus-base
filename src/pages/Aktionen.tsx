@@ -7,6 +7,7 @@ import { ListenHinweis } from "@/components/shared/ListenHinweis";
 import { datumDe } from "@/components/campaigns/linienDaten";
 import { WiedervorlageAktion } from "@/components/aktionen/WiedervorlageAktion";
 import { EinzelmailsFreigabeKarte } from "@/components/aktionen/EinzelmailsFreigabeKarte";
+import { UnzugeordneteAntwortenKarte } from "@/components/aktionen/UnzugeordneteAntwortenKarte";
 import {
   useAktionsliste,
   LIEGE_HINWEIS,
@@ -201,6 +202,7 @@ export default function Aktionen() {
       <div className="mt-6">
         {/* Nur admin: die RPCs pruefen is_admin() selbst; fuer andere wird gar nicht abgefragt. */}
         {isAdmin && <EinzelmailsFreigabeKarte />}
+        {isAdmin && <UnzugeordneteAntwortenKarte />}
         {isLoading || error || alle.length === 0 ? (
           <ListenHinweis
             laedt={isLoading}
