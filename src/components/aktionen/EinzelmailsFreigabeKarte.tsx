@@ -35,8 +35,14 @@ function Mailtext({ text }: { text: string }) {
   );
 }
 
-function FreigebenDialog({ m, offen, setOffen }: { m: OffeneEinzelmail; offen: boolean; setOffen: (v: boolean) => void }) {
+/** Auch vom Antwort-Assistenten genutzt ("Ansehen"): mit `onFreigeben` laeuft die Freigabe ueber
+ *  den Vorschlag (vorschlag_entscheiden), damit der Vorschlag nicht offen liegen bleibt. */
+export function FreigebenDialog({ m, offen, setOffen, onFreigeben, laeuft }: {
+  m: OffeneEinzelmail; offen: boolean; setOffen: (v: boolean) => void;
+  onFreigeben?: () => void; laeuft?: boolean;
+}) {
   const freigeben = useEinzelmailFreigeben();
+  const beschaeftigt = laeuft ?? freigeben.isPending;
   return (
     <Dialog open={offen} onOpenChange={setOffen}>
       <DialogContent className="sm:max-w-2xl">
@@ -52,10 +58,12 @@ function FreigebenDialog({ m, offen, setOffen }: { m: OffeneEinzelmail; offen: b
           <div className="flex gap-3">
             <Button
               className="flex-1"
-              disabled={freigeben.isPending}
-              onClick={() => freigeben.mutate(m.einzelmail_id, { onSuccess: () => setOffen(false) })}
+              disabled={beschaeftigt}
+              onClick={() =>
+                onFreigeben ? onFreigeben() : freigeben.mutate(m.einzelmail_id, { onSuccess: () => setOffen(false) })
+              }
             >
-              {freigeben.isPending ? "Freigeben…" : "Freigeben"}
+              {beschaeftigt ? "Freigeben…" : "Freigeben"}
             </Button>
             <Button variant="outline" className="flex-1" onClick={() => setOffen(false)}>Abbrechen</Button>
           </div>

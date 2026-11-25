@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ListenHinweis } from "@/components/shared/ListenHinweis";
@@ -8,6 +8,8 @@ import { datumDe } from "@/components/campaigns/linienDaten";
 import { WiedervorlageAktion } from "@/components/aktionen/WiedervorlageAktion";
 import { EinzelmailsFreigabeKarte } from "@/components/aktionen/EinzelmailsFreigabeKarte";
 import { UnzugeordneteAntwortenKarte } from "@/components/aktionen/UnzugeordneteAntwortenKarte";
+import { VorschlagFeld } from "@/components/aktionen/VorschlagFeld";
+import { useVorschlaegeOffen, type Vorschlag } from "@/hooks/queries/useVorschlaege";
 import {
   useAktionsliste,
   LIEGE_HINWEIS,
@@ -64,7 +66,7 @@ function Antwort({ text, datum }: { text: string; datum: string | null }) {
   );
 }
 
-function Zeile({ a }: { a: Aktion }) {
+function Zeile({ a, vorschlag }: { a: Aktion; vorschlag?: Vorschlag }) {
   const navigate = useNavigate();
   const seit = datumDe(a.wartet_seit);
 
@@ -129,11 +131,12 @@ function Zeile({ a }: { a: Aktion }) {
       </div>
 
       {a.antwort_text && <Antwort text={a.antwort_text} datum={datumDe(a.letzte_antwort)} />}
+      {vorschlag && <VorschlagFeld v={vorschlag} />}
     </div>
   );
 }
 
-function Abschnitt({ titel, zeilen }: { titel: string; zeilen: Aktion[] }) {
+function Abschnitt({ titel, zeilen, vorschlaege }: { titel: string; zeilen: Aktion[]; vorschlaege: Map<string, Vorschlag> }) {
   if (zeilen.length === 0) return null;
   return (
     <section className="mb-8">
@@ -142,7 +145,7 @@ function Abschnitt({ titel, zeilen }: { titel: string; zeilen: Aktion[] }) {
       </h2>
       <div className="divide-y divide-border">
         {zeilen.map((a) => (
-          <Zeile key={a.deal_id} a={a} />
+          <Zeile key={a.deal_id} a={a} vorschlag={vorschlaege.get(a.deal_id)} />
         ))}
       </div>
     </section>
@@ -186,6 +189,12 @@ export default function Aktionen() {
   const alle = [...(data ?? [])].sort((a, b) => b.liegetage - a.liegetage);
   const alt = alle.filter((a) => a.liegetage > LIEGE_SCHWELLE);
   const neuer = alle.filter((a) => a.liegetage <= LIEGE_SCHWELLE);
+  // Antwort-Assistent: offene Vorschlaege je Deal. Vorschlaege zu Deals, die gerade nicht in der
+  // Liste stehen, erscheinen unten gesondert — ein Vorschlag darf nicht unsichtbar liegen bleiben.
+  const { data: vorschlagListe } = useVorschlaegeOffen();
+  const vorschlaege = new Map((vorschlagListe ?? []).map((v) => [v.deal_id, v] as const));
+  const inListe = new Set(alle.map((a) => a.deal_id));
+  const ohneZeile = (vorschlagListe ?? []).filter((v) => !inListe.has(v.deal_id));
 
   return (
     <div className="p-4 md:p-8">
@@ -211,9 +220,26 @@ export default function Aktionen() {
           />
         ) : (
           <>
-            <Abschnitt titel="Über 30 Tage" zeilen={alt} />
-            <Abschnitt titel="Neuer" zeilen={neuer} />
+            <Abschnitt titel="Über 30 Tage" zeilen={alt} vorschlaege={vorschlaege} />
+            <Abschnitt titel="Neuer" zeilen={neuer} vorschlaege={vorschlaege} />
           </>
+        )}
+        {ohneZeile.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-1 text-[16px] font-semibold text-foreground">
+              Weitere Vorschläge <span className="text-muted-foreground">({ohneZeile.length})</span>
+            </h2>
+            <div className="divide-y divide-border">
+              {ohneZeile.map((v) => (
+                <div key={v.vorschlag_id} className="py-3.5">
+                  <Link to={`/deals/${v.deal_id}`} className="text-body font-medium text-foreground hover:underline">
+                    {v.deal_title || "(ohne Titel)"}
+                  </Link>
+                  <VorschlagFeld v={v} />
+                </div>
+              ))}
+            </div>
+          </section>
         )}
       </div>
     </div>
