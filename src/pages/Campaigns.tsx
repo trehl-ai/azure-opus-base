@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import {
   Megaphone,
@@ -32,6 +32,7 @@ import {
 } from "@/components/campaigns/kampagnenDaten";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LinienUebersicht } from "@/components/campaigns/LinienUebersicht";
+import LetzteAbsagenKarte from "@/components/LetzteAbsagenKarte";
 
 /**
  * Kampagnen — Ebene 1 (je Kampagne eine Karte) und Ebene 2 (Unterkampagnen).
@@ -633,7 +634,21 @@ function Versandsteuerung() {
   );
 }
 
+/** Reiter stehen in der URL (?tab=…), damit man sie verlinken kann. Ohne oder mit
+ *  unbekanntem Wert gilt "linien". */
+const REITER = ["linien", "versand", "aktivitaet"] as const;
+type Reiter = (typeof REITER)[number];
+
 export default function Campaigns() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const roh = searchParams.get("tab");
+  const reiter: Reiter = (REITER as readonly string[]).includes(roh ?? "") ? (roh as Reiter) : "linien";
+  const reiterSetzen = (wert: string) => {
+    if (wert === "linien") searchParams.delete("tab");
+    else searchParams.set("tab", wert);
+    setSearchParams(searchParams, { replace: true });
+  };
+
   return (
     <div className="space-y-6 p-6 md:p-8">
       <header className="flex items-center gap-3">
@@ -646,16 +661,22 @@ export default function Campaigns() {
           Unterkampagnen. Untereinander waeren das ueber drei Bildschirmhoehen, und
           der untere Teil waere praktisch unauffindbar. Tabs sind im Repo das
           etablierte Mittel dafuer (CompanyDetail, ContactDetail, DealDetail). */}
-      <Tabs defaultValue="linien" className="w-full">
+      <Tabs value={reiter} onValueChange={reiterSetzen} className="w-full">
         <TabsList>
           <TabsTrigger value="linien">Linien</TabsTrigger>
           <TabsTrigger value="versand">Versandsteuerung</TabsTrigger>
+          <TabsTrigger value="aktivitaet">Aktivität</TabsTrigger>
         </TabsList>
         <TabsContent value="linien" className="mt-4">
           <LinienUebersicht />
         </TabsContent>
         <TabsContent value="versand" className="mt-4">
           <Versandsteuerung />
+        </TabsContent>
+        {/* Letzte Absagen ueber alle Kampagnen (Schulen und Stiftungen). Sichtbarkeit
+            filtert die RPC ueber user_can_access_pipeline(). */}
+        <TabsContent value="aktivitaet" className="mt-4">
+          <LetzteAbsagenKarte />
         </TabsContent>
       </Tabs>
     </div>
