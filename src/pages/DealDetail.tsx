@@ -13,6 +13,7 @@ import { EditActivitySheet } from "@/components/activities/EditActivitySheet";
 import { RoadshowChecklist } from "@/components/deals/RoadshowChecklist";
 import { DealFinancePanel } from "@/components/deals/DealFinancePanel";
 import { DealInstallmentsPanel } from "@/components/deals/DealInstallmentsPanel";
+import { WiedervorlageFeld } from "@/components/deals/WiedervorlageFeld";
 import { EntityTagsManager } from "@/components/shared/EntityTagsManager";
 import { EmailHistory } from "@/components/shared/EmailHistory";
 import { Button } from "@/components/ui/button";
@@ -555,6 +556,7 @@ export default function DealDetail() {
               <Field label="Deal-Wert" value={<span className="text-lg font-semibold">{fmt(deal.value_amount, deal.currency)}</span>} />
               <Field label="Währung" value={deal.currency ?? "EUR"} />
               <Field label="Abschlussdatum" value={deal.expected_close_date ? format(new Date(deal.expected_close_date), "dd.MM.yyyy") : "–"} />
+              <WiedervorlageFeld dealId={id!} wert={deal.wiedervorlage_am ?? null} />
               {/* Leistungszeitraum: gar nicht rendern, wenn beide leer sind — zwei
                   Striche waeren mehr Rauschen als Information. Sind von und bis
                   gleich (eintaegige Leistung), nur ein Datum statt einer Spanne. */}

@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ListenHinweis } from "@/components/shared/ListenHinweis";
 import { datumDe } from "@/components/campaigns/linienDaten";
+import { WiedervorlageAktion } from "@/components/aktionen/WiedervorlageAktion";
 import {
   useAktionsliste,
   LIEGE_HINWEIS,
@@ -67,10 +68,11 @@ function Zeile({ a }: { a: Aktion }) {
 
   return (
     <div className="py-3.5">
+      <div className="flex items-start gap-2">
       <button
         type="button"
         onClick={() => navigate(`/deals/${a.deal_id}`)}
-        className="flex w-full flex-col gap-2 rounded-md text-left sm:flex-row sm:items-start sm:gap-4"
+        className="flex min-w-0 flex-1 flex-col gap-2 rounded-md text-left sm:flex-row sm:items-start sm:gap-4"
       >
         {/* LINKS — Vorgang und Firma */}
         <div className="min-w-0 flex-1">
@@ -120,6 +122,9 @@ function Zeile({ a }: { a: Aktion }) {
           </p>
         </div>
       </button>
+      {/* Eigenes Element NEBEN dem Zeilen-Button: ein Button im Button waere ungueltiges HTML. */}
+      <WiedervorlageAktion dealId={a.deal_id} titel={a.deal_title || "(ohne Titel)"} />
+      </div>
 
       {a.antwort_text && <Antwort text={a.antwort_text} datum={datumDe(a.letzte_antwort)} />}
     </div>
