@@ -4,3 +4,4 @@ export { useMoveDeal, useWonDeal } from "./useDealMutations";
 export { useMoveProject, useDeleteProject } from "./useProjectMutations";
 export { useWiedervorlageSetzen } from "./useWiedervorlage";
 export { useEinzelmailFreigeben, useEinzelmailZurueckstellen } from "./useEinzelmailAktionen";
+export { useVorschlagEntscheiden } from "./useVorschlagEntscheiden";
