@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ListenHinweis } from "@/components/shared/ListenHinweis";
 import { datumDe } from "@/components/campaigns/linienDaten";
 import { WiedervorlageAktion } from "@/components/aktionen/WiedervorlageAktion";
+import { EinzelmailsFreigabeKarte } from "@/components/aktionen/EinzelmailsFreigabeKarte";
 import {
   useAktionsliste,
   LIEGE_HINWEIS,
@@ -198,6 +199,8 @@ export default function Aktionen() {
       </div>
 
       <div className="mt-6">
+        {/* Nur admin: die RPCs pruefen is_admin() selbst; fuer andere wird gar nicht abgefragt. */}
+        {isAdmin && <EinzelmailsFreigabeKarte />}
         {isLoading || error || alle.length === 0 ? (
           <ListenHinweis
             laedt={isLoading}
