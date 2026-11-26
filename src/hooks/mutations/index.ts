@@ -5,3 +5,4 @@ export { useMoveProject, useDeleteProject } from "./useProjectMutations";
 export { useWiedervorlageSetzen } from "./useWiedervorlage";
 export { useEinzelmailFreigeben, useEinzelmailZurueckstellen } from "./useEinzelmailAktionen";
 export { useVorschlagEntscheiden } from "./useVorschlagEntscheiden";
+export { useEinzelmailBearbeiten, useEinzelmailAnlegen, useDealVerlorenSetzen, useNotizAnlegen } from "./useArbeitsplatz";
