@@ -9,6 +9,8 @@ import { WiedervorlageAktion } from "@/components/aktionen/WiedervorlageAktion";
 import { EinzelmailsFreigabeKarte } from "@/components/aktionen/EinzelmailsFreigabeKarte";
 import { UnzugeordneteAntwortenKarte } from "@/components/aktionen/UnzugeordneteAntwortenKarte";
 import { VorschlagFeld } from "@/components/aktionen/VorschlagFeld";
+import { ZeilenMenue } from "@/components/aktionen/ZeilenMenue";
+import { useEinzelmailsOffen, type OffeneEinzelmail } from "@/hooks/queries/useEinzelmailsOffen";
 import { useVorschlaegeOffen, type Vorschlag } from "@/hooks/queries/useVorschlaege";
 import {
   useAktionsliste,
@@ -66,7 +68,15 @@ function Antwort({ text, datum }: { text: string; datum: string | null }) {
   );
 }
 
-function Zeile({ a, vorschlag }: { a: Aktion; vorschlag?: Vorschlag }) {
+const EINZELMAIL_ZUSTAND: Record<OffeneEinzelmail["status"], { text: string; klasse: string }> = {
+  freigegeben: { text: "Einzelmail freigegeben – geht frühestens am nächsten Werktag 08:30", klasse: "bg-emerald-50 text-emerald-800" },
+  entwurf: { text: "Einzelmail-Entwurf wartet auf Freigabe", klasse: "bg-muted text-foreground" },
+  fehler: { text: "Einzelmail mit Fehler – siehe „Einzelmails zur Freigabe“", klasse: "bg-red-50 text-red-800" },
+};
+
+function Zeile({ a, vorschlag, einzelmail, isAdmin }: {
+  a: Aktion; vorschlag?: Vorschlag; einzelmail?: OffeneEinzelmail; isAdmin: boolean;
+}) {
   const navigate = useNavigate();
   const seit = datumDe(a.wartet_seit);
 
@@ -127,8 +137,17 @@ function Zeile({ a, vorschlag }: { a: Aktion; vorschlag?: Vorschlag }) {
         </div>
       </button>
       {/* Eigenes Element NEBEN dem Zeilen-Button: ein Button im Button waere ungueltiges HTML. */}
-      <WiedervorlageAktion dealId={a.deal_id} titel={a.deal_title || "(ohne Titel)"} />
+      <div className="flex shrink-0 items-start gap-1.5">
+        <WiedervorlageAktion dealId={a.deal_id} titel={a.deal_title || "(ohne Titel)"} />
+        <ZeilenMenue dealId={a.deal_id} titel={a.deal_title || "(ohne Titel)"} isAdmin={isAdmin} offeneEinzelmail={!!einzelmail} />
       </div>
+      </div>
+
+      {einzelmail && (
+        <p className={`mt-1.5 inline-block rounded px-2 py-0.5 text-[12px] ${EINZELMAIL_ZUSTAND[einzelmail.status]?.klasse ?? ""}`}>
+          {EINZELMAIL_ZUSTAND[einzelmail.status]?.text ?? `Einzelmail: ${einzelmail.status}`}
+        </p>
+      )}
 
       {a.antwort_text && <Antwort text={a.antwort_text} datum={datumDe(a.letzte_antwort)} />}
       {vorschlag && <VorschlagFeld v={vorschlag} />}
@@ -136,7 +155,10 @@ function Zeile({ a, vorschlag }: { a: Aktion; vorschlag?: Vorschlag }) {
   );
 }
 
-function Abschnitt({ titel, zeilen, vorschlaege }: { titel: string; zeilen: Aktion[]; vorschlaege: Map<string, Vorschlag> }) {
+function Abschnitt({ titel, zeilen, vorschlaege, einzelmails, isAdmin }: {
+  titel: string; zeilen: Aktion[]; vorschlaege: Map<string, Vorschlag>;
+  einzelmails: Map<string, OffeneEinzelmail>; isAdmin: boolean;
+}) {
   if (zeilen.length === 0) return null;
   return (
     <section className="mb-8">
@@ -145,7 +167,8 @@ function Abschnitt({ titel, zeilen, vorschlaege }: { titel: string; zeilen: Akti
       </h2>
       <div className="divide-y divide-border">
         {zeilen.map((a) => (
-          <Zeile key={a.deal_id} a={a} vorschlag={vorschlaege.get(a.deal_id)} />
+          <Zeile key={a.deal_id} a={a} vorschlag={vorschlaege.get(a.deal_id)}
+            einzelmail={einzelmails.get(a.deal_id)} isAdmin={isAdmin} />
         ))}
       </div>
     </section>
@@ -195,6 +218,9 @@ export default function Aktionen() {
   const vorschlaege = new Map((vorschlagListe ?? []).map((v) => [v.deal_id, v] as const));
   const inListe = new Set(alle.map((a) => a.deal_id));
   const ohneZeile = (vorschlagListe ?? []).filter((v) => !inListe.has(v.deal_id));
+  // Offene Einzelmails je Deal (nur admin; teilt sich die Abfrage mit der Freigabe-Karte).
+  const { data: einzelmailListe } = useEinzelmailsOffen(isAdmin);
+  const einzelmails = new Map((einzelmailListe ?? []).map((m) => [m.deal_id, m] as const));
 
   return (
     <div className="p-4 md:p-8">
@@ -220,8 +246,8 @@ export default function Aktionen() {
           />
         ) : (
           <>
-            <Abschnitt titel="Über 30 Tage" zeilen={alt} vorschlaege={vorschlaege} />
-            <Abschnitt titel="Neuer" zeilen={neuer} vorschlaege={vorschlaege} />
+            <Abschnitt titel="Über 30 Tage" zeilen={alt} vorschlaege={vorschlaege} einzelmails={einzelmails} isAdmin={isAdmin} />
+            <Abschnitt titel="Neuer" zeilen={neuer} vorschlaege={vorschlaege} einzelmails={einzelmails} isAdmin={isAdmin} />
           </>
         )}
         {ohneZeile.length > 0 && (

@@ -25,6 +25,11 @@ export type OffeneEinzelmail = {
   reihenfolge: number | null;
   freigegeben_am: string | null;
   created_at: string;
+  contact_id: string;
+  kontakt_name: string | null;
+  /** Projektleitung, sonst Owner des Deals (wie get_aktionsliste). */
+  zustaendig_id: string | null;
+  zustaendig_name: string | null;
 };
 
 export const EINZELMAILS_OFFEN_KEY = ["eic", "einzelmails_offen"] as const;

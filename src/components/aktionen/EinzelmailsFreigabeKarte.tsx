@@ -10,6 +10,7 @@ import { ListenHinweis } from "@/components/shared/ListenHinweis";
 import { useEinzelmailsOffen, type OffeneEinzelmail } from "@/hooks/queries/useEinzelmailsOffen";
 import { useEinzelmailFreigeben, useEinzelmailZurueckstellen } from "@/hooks/mutations";
 import { cn } from "@/lib/utils";
+import { EinzelmailDialog, EinzelmailWarnungen } from "@/components/aktionen/EinzelmailDialog";
 
 /**
  * "Einzelmails zur Freigabe" auf /aktionen — nur fuer admin (die RPCs pruefen is_admin()
@@ -50,6 +51,7 @@ export function FreigebenDialog({ m, offen, setOffen, onFreigeben, laeuft }: {
         <div className="space-y-3 text-[13px]">
           <p><span className="text-muted-foreground">An:</span> {m.empfaenger}</p>
           <p><span className="text-muted-foreground">Von:</span> {m.absender_domain}</p>
+          <EinzelmailWarnungen email={m.empfaenger} zustaendigId={m.zustaendig_id} zustaendigName={m.zustaendig_name} />
           <p><span className="text-muted-foreground">Betreff:</span> <span className="font-medium">{m.betreff}</span></p>
           <Mailtext text={m.text} />
           <p className="text-[12px] text-muted-foreground">
@@ -112,6 +114,7 @@ function Zeile({ m }: { m: OffeneEinzelmail }) {
   const [details, setDetails] = useState(false);
   const [freigabeOffen, setFreigabeOffen] = useState(false);
   const [zurueckOffen, setZurueckOffen] = useState(false);
+  const [bearbeitenOffen, setBearbeitenOffen] = useState(false);
   const status = STATUS[m.status] ?? { label: m.status, klasse: "" };
 
   return (
@@ -125,7 +128,12 @@ function Zeile({ m }: { m: OffeneEinzelmail }) {
             {[m.stufe, m.kampagne].filter(Boolean).join(" · ") || "–"}
           </p>
           <p className="mt-1 truncate text-[13px] text-foreground">{m.betreff}</p>
-          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">an {m.empfaenger}</p>
+          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+            an {[m.kontakt_name, m.empfaenger].filter(Boolean).join(" · ")}
+          </p>
+          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+            Projektleitung: {m.zustaendig_name ?? "–"}
+          </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:justify-end">
           <Badge variant="outline" className="font-normal">{DOMAIN_KURZ[m.absender_domain] ?? m.absender_domain}</Badge>
@@ -133,8 +141,13 @@ function Zeile({ m }: { m: OffeneEinzelmail }) {
           {m.status === "entwurf" && (
             <Button size="sm" onClick={() => setFreigabeOffen(true)}>Freigeben</Button>
           )}
+          <Button size="sm" variant="outline" onClick={() => setBearbeitenOffen(true)}>Bearbeiten</Button>
           <Button size="sm" variant="outline" onClick={() => setZurueckOffen(true)}>Zurückstellen</Button>
         </div>
+      </div>
+
+      <div className="mt-1.5">
+        <EinzelmailWarnungen email={m.empfaenger} zustaendigId={m.zustaendig_id} zustaendigName={m.zustaendig_name} />
       </div>
 
       {m.status === "fehler" && m.fehler && (
@@ -160,6 +173,7 @@ function Zeile({ m }: { m: OffeneEinzelmail }) {
 
       <FreigebenDialog m={m} offen={freigabeOffen} setOffen={setFreigabeOffen} />
       <ZurueckstellenDialog m={m} offen={zurueckOffen} setOffen={setZurueckOffen} />
+      <EinzelmailDialog modus="bearbeiten" m={m} offen={bearbeitenOffen} setOffen={setBearbeitenOffen} />
     </div>
   );
 }
